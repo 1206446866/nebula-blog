@@ -28,6 +28,7 @@
         <module>nebula-start</module>
         <module>nebula-category</module>
         <module>nebula-tag</module>
+        <module>nebula-role</module>
     </modules>
 
     <url/>
