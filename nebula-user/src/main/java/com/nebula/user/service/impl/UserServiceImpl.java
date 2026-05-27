@@ -5,7 +5,9 @@ import com.mybatisflex.core.query.QueryWrapper;
 import com.mybatisflex.spring.service.impl.ServiceImpl;
 import com.nebula.user.entity.User;
 import com.nebula.user.mapper.UserMapper;
+import com.nebula.user.mapper.UserRoleMapper;
 import com.nebula.user.service.UserService;
+import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 
 import java.util.List;
@@ -13,11 +15,13 @@ import java.util.List;
 import static com.nebula.user.entity.table.UserTableDef.USER;
 
 @Service
+@RequiredArgsConstructor
 public class UserServiceImpl extends ServiceImpl<UserMapper, User> implements UserService {
 
+    private final UserRoleMapper userRoleMapper;
 
     @Override
-    public List<User> getUsers(String role, String username, int page, int size) {
+    public Page<User> pageUsers(String role, String username, int page, int size) {
         QueryWrapper query = new QueryWrapper()
                 .where(USER.ROLE.eq(role).when(role != null && !role.isEmpty()));
 
@@ -25,10 +29,9 @@ public class UserServiceImpl extends ServiceImpl<UserMapper, User> implements Us
             query.like(User::getUsername, username);
         }
 
-        query.orderBy(USER.ID.asc())
-                .limit(page * size, size);
-
-        return list(query);
+        query.orderBy(USER.ID.asc());
+        query.orderBy(USER.CREATE_TIME.desc());
+        return page(Page.of(page,size),query);
     }
 
     @Override
@@ -61,21 +64,26 @@ public class UserServiceImpl extends ServiceImpl<UserMapper, User> implements Us
     public boolean updateUser(User user) {
         return updateById(user);
     }
+    //TODO
+    @Override
+    public boolean updateUserStatus(Long userId, Integer status) {
+//        return getMapper().updateByCondition(new User().setId(userId).setStatus(status)) > 0;
+        return false;
+    }
+//TODO
+    @Override
+    public boolean changePassword(Long userId, String newPassword) {
+        return false;
+    }
+    //TODO
+    @Override
+    public boolean resetPassword(Long userId) {
+        return false;
+    }
+
 
     @Override
-    public Page<User> pageUsers(int page, int size, String role, String username) {
-        QueryWrapper query = new QueryWrapper();
-        if (role != null && !role.isEmpty()) {
-            query.eq(User::getRole, role);
-        }
-        if (username != null && !username.isEmpty()) {
-            query.like(User::getUsername, username);
-        }
-
-        // 排序示例：按创建时间倒序
-        query.orderBy(USER.CREATE_TIME.desc());
-
-        // Flex 自带的分页方法
-        return page(Page.of(page,size),query);
+    public List<User> getAllUsers() {
+        return List.of();
     }
 }

@@ -2,8 +2,8 @@ package com.nebula.article.controller;
 
 import com.nebula.article.entity.Article;
 import com.nebula.article.service.ArticleService;
-import org.springframework.web.bind.annotation.*;
 import com.nebula.common.result.Result;
+import org.springframework.web.bind.annotation.*;
 
 import static com.nebula.article.entity.table.ArticleTableDef.ARTICLE;
 

@@ -29,8 +29,8 @@ public class RoleController {
      */
     @PostMapping("/user/{userId}/assign")
     public String assignRolesToUser(@PathVariable Long userId, @RequestBody List<Long> roleIds) {
-        boolean success = roleService.assignRolesToUser(userId, roleIds);
-        return success ? Result.success("分配角色成功").getMsg() : Result.error("分配角色失败").getMsg();
+        boolean success = roleService.assignRoles(userId, roleIds);
+        return success ? Result.success("分配角色成功").getMessage() : Result.error("分配角色失败").getMessage();
     }
 
     /**
@@ -38,8 +38,8 @@ public class RoleController {
      */
     @DeleteMapping("/user/{userId}/remove/{roleId}")
     public String removeRoleFromUser(@PathVariable Long userId, @PathVariable Long roleId) {
-        boolean success = roleService.removeUserRole(userId, roleId);
-        return success ? Result.success("移除角色成功").getMsg() : Result.error("移除角色失败").getMsg();
+        boolean success = roleService.removeRole(userId, roleId);
+        return success ? Result.success("移除角色成功").getMessage() : Result.error("移除角色失败").getMessage();
     }
 
 

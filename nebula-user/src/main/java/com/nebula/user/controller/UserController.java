@@ -1,6 +1,7 @@
 package com.nebula.user.controller;
 
 import com.mybatisflex.core.paginate.Page;
+import com.nebula.common.result.Result;
 import com.nebula.user.entity.User;
 import com.nebula.user.service.UserService;
 import lombok.RequiredArgsConstructor;
@@ -15,37 +16,40 @@ public class UserController {
 
     private final UserService userService;
 
-    @GetMapping
-    public List<User> list(@RequestParam(required = false) String role) {
-        return userService.getUsersByRole(role);
+    @GetMapping("/auth")
+    public Result auth() {
+        return Result.success("test");
+    }
+
+    /**
+     * 查询用户列表（可分页/可模糊查询用户名）
+     */
+    @GetMapping("/list")
+    public Result<List<User>> list(@RequestParam(required = false) String role) {
+        return Result.success(userService.getUsersByRole(role));
     }
 
     @GetMapping("/page")
-    public Page<User> page(
-            @RequestParam int page,
-            @RequestParam int size,
-            @RequestParam(required = false) String role,
-            @RequestParam(required = false) String username) {
-        return userService.pageUsers(page, size, role, username);
+    public Result<Page<User>> page(@RequestParam int page, @RequestParam int size, @RequestParam(required = false) String role, @RequestParam(required = false) String username) {
+        return Result.success(userService.pageUsers(role, username,page, size));
     }
 
-    @PostMapping
-    public boolean add(@RequestBody User user) {
-        return userService.save(user);
+    /**
+     * 修改密码（用户自己操作）
+     */
+    @PostMapping("/change-password/{userId}")
+    public String changePassword(@PathVariable Long userId, @RequestParam String newPassword) {
+        boolean success = userService.changePassword(userId, newPassword);
+        return success ? Result.success("修改成功").getMessage() : Result.error("修改失败").getMessage();
     }
 
-    @PutMapping
-    public boolean update(@RequestBody User user) {
-        return userService.updateById(user);
+    /**
+     * 管理员重置用户密码
+     */
+    @PostMapping("/reset-password/{userId}")
+    public String resetPassword(@PathVariable Long userId) {
+        boolean success = userService.resetPassword(userId);
+        return success ? Result.success("重置成功").getMessage() : Result.error("重置失败").getMessage();
     }
 
-    @DeleteMapping("/{id}")
-    public boolean delete(@PathVariable Long id) {
-        return userService.removeById(id);
-    }
-
-    @GetMapping("/{id}")
-    public User get(@PathVariable Long id) {
-        return userService.getById(id);
-    }
 }

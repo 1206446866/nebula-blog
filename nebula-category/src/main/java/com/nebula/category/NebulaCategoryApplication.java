@@ -5,7 +5,7 @@ import org.springframework.boot.SpringApplication;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
 
 @SpringBootApplication
-@MapperScan("com/nebula/categor y/mapper")
+@MapperScan("com/nebula/category/mapper")
 public class NebulaCategoryApplication {
 
     public static void main(String[] args) {

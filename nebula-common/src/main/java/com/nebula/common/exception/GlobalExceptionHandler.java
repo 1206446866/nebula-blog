@@ -12,13 +12,6 @@ import org.springframework.web.bind.annotation.RestControllerAdvice;
 @RestControllerAdvice
 public class GlobalExceptionHandler {
 
-    /**
-     * 业务异常
-     */
-    @ExceptionHandler(BusinessException.class)
-    public Result<?> handleBusinessException(BusinessException e) {
-        return Result.error(e.getMessage());
-    }
 
     /**
      * 参数校验异常
@@ -43,6 +36,6 @@ public class GlobalExceptionHandler {
     @ExceptionHandler(Exception.class)
     public Result<?> handleException(Exception e) {
         e.printStackTrace();
-        return Result.error("服务器异常");
+        return Result.error("未知的服务器异常");
     }
 }

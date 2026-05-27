@@ -9,7 +9,6 @@ import org.springframework.stereotype.Service;
 
 import java.util.List;
 
-import static com.nebula.tag.entity.table.TagTableDef.TAG;
 //TODO implements
 @Service
 public class TagServiceImpl extends ServiceImpl<TagMapper, Tag> implements TagService {

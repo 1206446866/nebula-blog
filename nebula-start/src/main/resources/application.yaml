@@ -25,3 +25,8 @@ mybatis-flex:
   global-config:
     print-banner: false
 
+#  secret：用作 HS256 签名密钥，必须保证长度足够（>=32字节），否则会报错。
+#  expire：token 过期时间，单位毫秒，这里 604800000ms = 7天。
+jwt:
+  secret: nebula-blog-auth-secret-key-nebula-blog-auth-secret-key
+  expire: 604800000

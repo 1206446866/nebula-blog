@@ -1,59 +1,48 @@
 package com.nebula.start.config;
 
-import com.nebula.start.security.JwtAccessDeniedHandler;
-import com.nebula.start.security.JwtAuthenticationEntryPoint;
-import com.nebula.start.service.impl.CustomUserDetailsService;
+import com.nebula.auth.filter.JwtAuthenticationFilter;
 import lombok.RequiredArgsConstructor;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
-import org.springframework.security.authentication.AuthenticationManager;
-import org.springframework.security.authentication.ProviderManager;
-import org.springframework.security.authentication.dao.DaoAuthenticationProvider;
+import org.springframework.security.config.annotation.method.configuration.EnableMethodSecurity;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.annotation.web.configurers.AbstractHttpConfigurer;
+import org.springframework.security.config.http.SessionCreationPolicy;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.security.web.SecurityFilterChain;
+import org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter;
 
 @Configuration
+@EnableMethodSecurity
 @RequiredArgsConstructor
 public class SecurityConfig {
 
-
-    private final CustomUserDetailsService userDetailsService;
-
-    private final JwtAuthenticationEntryPoint jwtAuthenticationEntryPoint;
-
-    private final JwtAccessDeniedHandler jwtAccessDeniedHandler;
+    private final JwtAuthenticationFilter jwtAuthenticationFilter;
 
     @Bean
     public SecurityFilterChain securityFilterChain(HttpSecurity http) throws Exception {
-
         http
-                // 关闭 csrf
-                .csrf(AbstractHttpConfigurer::disable) // 关闭 CSRF
-                .authorizeHttpRequests(auth -> auth.anyRequest().permitAll()) // 所有接口放行
-                .exceptionHandling(exception -> exception
-                        // 未登录
-                        .authenticationEntryPoint(
-                                jwtAuthenticationEntryPoint
-                        )
 
-                        // 无权限
-                        .accessDeniedHandler(
-                                jwtAccessDeniedHandler
-                        )
-                );
+                // 关闭CSRF
+                .csrf(AbstractHttpConfigurer::disable)
+
+                // 不使用Session
+                .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
+
+                // 接口权限配置
+                .authorizeHttpRequests(auth -> auth
+
+                        // 登录接口放行
+                        .requestMatchers("/auth/login").permitAll()
+
+                        // 其他请求需要认证
+                        .anyRequest().authenticated())
+
+                // 添加JWT过滤器
+                .addFilterBefore(jwtAuthenticationFilter, UsernamePasswordAuthenticationFilter.class);
+
         return http.build();
-    }
-
-    // AuthenticationManager 推荐写法（DaoAuthenticationProvider 注入）
-    @Bean
-    public AuthenticationManager authenticationManager() {
-        DaoAuthenticationProvider provider = new DaoAuthenticationProvider();
-        provider.setUserDetailsService(userDetailsService);
-        provider.setPasswordEncoder(passwordEncoder());
-        return new ProviderManager(provider);
     }
 
     @Bean

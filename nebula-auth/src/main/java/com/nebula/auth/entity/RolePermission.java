@@ -1,6 +1,8 @@
-package com.nebula.tag.entity;
+package com.nebula.auth.entity;
 
 import com.mybatisflex.annotation.Column;
+import com.mybatisflex.annotation.Id;
+import com.mybatisflex.annotation.KeyType;
 import com.mybatisflex.annotation.Table;
 import com.mybatisflex.core.activerecord.Model;
 import lombok.Data;
@@ -9,21 +11,16 @@ import lombok.experimental.Accessors;
 
 import java.time.LocalDateTime;
 
-
-@Table("tag")
-@Accessors(chain = true) // 关键，开启链式
 @Data(staticConstructor = "create")
+@Table("role_permission")
+@Accessors(chain = true)
 @EqualsAndHashCode(callSuper = true)
-public class Tag extends Model<Tag> {
+public class RolePermission extends Model<RolePermission> {
 
+    @Id(keyType = KeyType.Auto)
     private Long id;
-
-    private String name;
-
+    private Long roleId;
+    private Long permissionId;
+    @Column(onInsertValue = "now()")
     private LocalDateTime createTime;
-
-    private LocalDateTime updateTime;
-
-    @Column(isLogicDelete = true)
-    private Integer status; // 1: 正常, 0: 删除
 }

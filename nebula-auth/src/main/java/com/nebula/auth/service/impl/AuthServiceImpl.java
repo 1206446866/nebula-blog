@@ -1,15 +1,28 @@
 package com.nebula.auth.service.impl;
 
-import com.mybatisflex.core.query.QueryWrapper;
 import com.nebula.auth.dto.LoginDTO;
+import com.nebula.auth.entity.Permission;
+import com.nebula.auth.entity.RolePermission;
+import com.nebula.common.exception.AuthenticationException;
+import com.nebula.auth.mapper.PermissionMapper;
+import com.nebula.auth.mapper.RolePermissionMapper;
 import com.nebula.auth.service.AuthService;
 import com.nebula.auth.util.JwtUtil;
+import com.nebula.auth.util.SecurityUtils;
+import com.nebula.auth.vo.LoginVO;
 import com.nebula.user.entity.User;
-import com.nebula.user.service.UserService;
+import com.nebula.user.entity.UserRole;
+import com.nebula.user.mapper.UserMapper;
+import com.nebula.user.mapper.UserRoleMapper;
 import lombok.RequiredArgsConstructor;
-import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 
+import java.util.List;
+import java.util.stream.Collectors;
+
+import static com.nebula.auth.entity.table.PermissionTableDef.PERMISSION;
+import static com.nebula.auth.entity.table.RolePermissionTableDef.ROLE_PERMISSION;
+import static com.nebula.user.entity.table.UserRoleTableDef.USER_ROLE;
 import static com.nebula.user.entity.table.UserTableDef.USER;
 
 /**
@@ -19,51 +32,82 @@ import static com.nebula.user.entity.table.UserTableDef.USER;
 @RequiredArgsConstructor
 public class AuthServiceImpl implements AuthService {
 
+    private final SecurityUtils securityUtils;
+    private final UserMapper userMapper;
+
     /**
-     * 用户 Service
+     * 用户角色关联 UserRole
      */
-    private final UserService userService;
+    private final UserRoleMapper userRoleMapper;
+
+    /**
+     * 角色权限关联 RolePermissionMapper
+     */
+    private final RolePermissionMapper rolePermissionMapper;
+
+    /**
+     * 权限 PermissionMapper
+     */
+    private final PermissionMapper permissionMapper;
 
     /**
      * JWT 工具类
      */
     private final JwtUtil jwtUtil;
 
-    /**
-     * 密码加密器
-     */
-    private final PasswordEncoder passwordEncoder;
 
     /**
      * 用户登录
      */
     @Override
-    public String login(LoginDTO loginDTO) {
+    public LoginVO login(LoginDTO loginDTO) {
+        User user = userMapper.selectOneByCondition(
+                USER.USERNAME.eq(loginDTO.getUsername())
+        );
 
-        // 查询用户
-        User user = userService.getOne(QueryWrapper.create().where(USER.USERNAME.eq(loginDTO.getUsername())));
-
-        // 用户不存在
         if (user == null) {
-
-            throw new RuntimeException("用户不存在");
+            throw new AuthenticationException("用户不存在");
         }
 
-        // 用户被禁用
-        if (user.getStatus() != null && user.getStatus() == 0) {
-
-            throw new RuntimeException("用户已被禁用");
+        if (!securityUtils.matchesPassword(loginDTO.getPassword(), user.getPassword())) {
+            throw new AuthenticationException("密码错误");
         }
 
-        // 校验密码
-        boolean matches = passwordEncoder.matches(loginDTO.getPassword(), user.getPassword());
+        String token = jwtUtil.createToken(user.getId());
 
-        if (!matches) {
-
-            throw new RuntimeException("密码错误");
-        }
-
-        // 生成 JWT
-        return jwtUtil.generateToken(user.getId(), user.getUsername(), user.getRole());
+        return new LoginVO(token, user);
     }
+
+    @Override
+    public List<String> getUserPermissionsByUserId(Long userId) {
+        // 1. 查询用户角色
+        List<Long> roleIds = userRoleMapper.selectListByCondition(USER_ROLE.USER_ID.eq(userId))
+                .stream()
+                .map(UserRole::getRoleId)
+                .collect(Collectors.toList());
+
+        if (roleIds.isEmpty()) return List.of();
+
+        // 2. 查询角色权限
+        List<Long> permissionIds = rolePermissionMapper.selectListByCondition(ROLE_PERMISSION.ROLE_ID.in(roleIds))
+                .stream()
+                .map(RolePermission::getPermissionId)
+                .collect(Collectors.toList());
+
+        if (permissionIds.isEmpty()) return List.of();
+
+        // 3. 查询权限标识
+        return permissionMapper.selectListByCondition(PERMISSION.ID.in(permissionIds))
+                .stream()
+                .map(Permission::getName)
+                .collect(Collectors.toList());
+    }
+
+    @Override
+    public boolean hasPermission(Long userId, String permission) {
+        List<String> permissions = getUserPermissionsByUserId(userId);
+        return permissions.contains(permission);
+    }
+
+
 }

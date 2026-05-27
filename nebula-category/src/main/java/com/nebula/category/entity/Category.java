@@ -8,7 +8,7 @@ import lombok.experimental.Accessors;
 
 import java.time.LocalDateTime;
 
-@Table("article")
+@Table("category")
 @Accessors(chain = true) // 关键，开启链式
 @Data(staticConstructor = "create")
 @EqualsAndHashCode(callSuper = true)

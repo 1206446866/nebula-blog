@@ -6,13 +6,14 @@ import com.mybatisflex.spring.service.impl.ServiceImpl;
 import com.nebula.role.entity.Role;
 import com.nebula.role.mapper.RoleMapper;
 import com.nebula.role.service.RoleService;
+import com.nebula.user.entity.User;
 import com.nebula.user.entity.UserRole;
+import com.nebula.user.mapper.UserMapper;
 import com.nebula.user.mapper.UserRoleMapper;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 
 import java.util.List;
-import java.util.stream.Collectors;
 
 import static com.nebula.role.entity.table.RoleTableDef.ROLE;
 import static com.nebula.user.entity.table.UserRoleTableDef.USER_ROLE;
@@ -21,6 +22,7 @@ import static com.nebula.user.entity.table.UserRoleTableDef.USER_ROLE;
 @RequiredArgsConstructor
 public class RoleServiceImpl extends ServiceImpl<RoleMapper, Role> implements RoleService {
 
+    private final UserMapper userMapper;
     private final UserRoleMapper userRoleMapper;
 
     @Override
@@ -35,27 +37,50 @@ public class RoleServiceImpl extends ServiceImpl<RoleMapper, Role> implements Ro
         return pageObj;
     }
 
+
     @Override
     public List<Role> getRolesByUserId(Long userId) {
-        List<UserRole> userRoles = userRoleMapper.selectListByCondition(USER_ROLE.USER_ID.eq(userId));
-        if (userRoles.isEmpty()) {
+        List<Long> roleIds = userRoleMapper.selectListByCondition(USER_ROLE.USER_ID.eq(userId))
+                .stream().map(UserRole::getRoleId).toList();
+        if (roleIds.isEmpty()) return List.of();
+        return getMapper().selectListByIds(roleIds);
+    }
+
+    @Override
+    public List<User> getUsersByRoleId(Long roleId) {
+        List<Long> userIds = userRoleMapper
+                .selectListByCondition(USER_ROLE.ROLE_ID.eq(roleId))
+                .stream()
+                .map(UserRole::getUserId)
+                .toList();
+
+        if (userIds.isEmpty()) {
             return List.of();
         }
-        List<Long> roleIds = userRoles.stream().map(UserRole::getRoleId).collect(Collectors.toList());
-        return  list(ROLE.ID.in(roleIds));
+
+        return userMapper.selectListByIds(userIds);
     }
 
     @Override
-    public boolean assignRolesToUser(Long userId, List<Long> roleIds) {
-        List<UserRole> toInsert = roleIds.stream().map(roleId -> new UserRole().setUserId(userId).setRoleId(roleId)).toList();
-        int inserted = userRoleMapper.insertBatchSelective(toInsert);
-        return inserted > 0;
+    public boolean assignRoles(Long userId, List<Long> roleIds) {
+        // 先删除已有角色
+        userRoleMapper.deleteByCondition(USER_ROLE.USER_ID.eq(userId));
+        // 再批量插入新角色
+        List<UserRole> list = roleIds.stream()
+                .map(roleId -> new UserRole().setUserId(userId).setRoleId(roleId))
+                .toList();
+        return userRoleMapper.insertBatch(list) > 0;
     }
 
     @Override
-    public boolean removeUserRole(Long userId, Long roleId) {
-        QueryWrapper queryWrapper = QueryWrapper.create().where(USER_ROLE.USER_ID.eq(userId)).and(USER_ROLE.ROLE_ID.eq(roleId));
-        return userRoleMapper.deleteByQuery(queryWrapper) > 0;
+    public boolean removeRole(Long userId, Long roleId) {
+        return userRoleMapper.deleteByCondition(USER_ROLE.USER_ID.eq(userId)
+                .and(USER_ROLE.ROLE_ID.eq(roleId))) > 0;
     }
 
+
+    @Override
+    public List<Role> getAllRoles() {
+        return list();
+    }
 }

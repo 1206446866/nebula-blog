@@ -21,13 +21,13 @@ import java.util.Date;
 public class JwtUtil {
 
     /**
-     * 密钥
+     * JWT 密钥
      */
     @Value("${jwt.secret}")
     private String secret;
 
     /**
-     * 过期时间（毫秒）
+     * Token过期时间（毫秒）
      */
     @Value("${jwt.expire}")
     private Long expire;
@@ -43,19 +43,40 @@ public class JwtUtil {
     @PostConstruct
     public void init() {
 
-        this.key = Keys.hmacShaKeyFor(secret.getBytes(StandardCharsets.UTF_8));
+        this.key = Keys.hmacShaKeyFor(
+                secret.getBytes(StandardCharsets.UTF_8)
+        );
     }
 
     /**
      * 生成 Token
+     *
+     * @param userId 用户ID
+     * @return JWT Token
      */
-    public String generateToken(Long userId, String username, String role) {
+    public String createToken(Long userId) {
 
         Date now = new Date();
 
-        Date expireDate = new Date(now.getTime() + expire);
+        Date expireDate = new Date(
+                now.getTime() + expire
+        );
 
-        return Jwts.builder().setSubject(username).claim("userId", userId).claim("role", role).setIssuedAt(now).setExpiration(expireDate).signWith(key, SignatureAlgorithm.HS256).compact();
+        return Jwts.builder()
+
+                // 用户唯一标识
+                .setSubject(String.valueOf(userId))
+
+                // 签发时间
+                .setIssuedAt(now)
+
+                // 过期时间
+                .setExpiration(expireDate)
+
+                // 签名
+                .signWith(key, SignatureAlgorithm.HS256)
+
+                .compact();
     }
 
     /**
@@ -63,7 +84,11 @@ public class JwtUtil {
      */
     public Claims parseToken(String token) {
 
-        return Jwts.parserBuilder().setSigningKey(key).build().parseClaimsJws(token).getBody();
+        return Jwts.parserBuilder()
+                .setSigningKey(key)
+                .build()
+                .parseClaimsJws(token)
+                .getBody();
     }
 
     /**
@@ -84,30 +109,12 @@ public class JwtUtil {
     }
 
     /**
-     * 获取用户名
-     */
-    public String getUsername(String token) {
-
-        return parseToken(token).getSubject();
-    }
-
-    /**
      * 获取用户ID
      */
     public Long getUserId(String token) {
 
-        Object userId = parseToken(token).get("userId");
-
-        return Long.parseLong(userId.toString());
-    }
-
-    /**
-     * 获取角色
-     */
-    public String getRole(String token) {
-
-        Object role = parseToken(token).get("role");
-
-        return role.toString();
+        return Long.parseLong(
+                parseToken(token).getSubject()
+        );
     }
 }
