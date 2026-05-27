@@ -1,8 +1,17 @@
 package com.nebula.common.exception;
 
-public class AuthenticationException extends BaseException {
+import com.nebula.common.exception.code.ErrorCode;
+import lombok.Getter;
 
-    public AuthenticationException(String message) {
-        super(message);
+@Getter
+public class AuthenticationException extends BaseException {
+    /**
+     * 错误码
+     */
+    private final Integer code;
+
+    public AuthenticationException(ErrorCode errorCode) {
+        super(errorCode);
+        this.code = errorCode.getCode();
     }
 }

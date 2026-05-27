@@ -10,6 +10,7 @@ import com.nebula.auth.service.AuthService;
 import com.nebula.auth.util.JwtUtil;
 import com.nebula.auth.util.SecurityUtils;
 import com.nebula.auth.vo.LoginVO;
+import com.nebula.common.exception.code.AuthErrorCode;
 import com.nebula.user.entity.User;
 import com.nebula.user.entity.UserRole;
 import com.nebula.user.mapper.UserMapper;
@@ -66,11 +67,11 @@ public class AuthServiceImpl implements AuthService {
         );
 
         if (user == null) {
-            throw new AuthenticationException("用户不存在");
+            throw new AuthenticationException(AuthErrorCode.USER_NOT_FOUND);
         }
 
         if (!securityUtils.matchesPassword(loginDTO.getPassword(), user.getPassword())) {
-            throw new AuthenticationException("密码错误");
+            throw new AuthenticationException(AuthErrorCode.PASSWORD_ERROR);
         }
 
         String token = jwtUtil.createToken(user.getId());

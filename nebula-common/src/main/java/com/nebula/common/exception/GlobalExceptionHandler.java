@@ -12,6 +12,10 @@ import org.springframework.web.bind.annotation.RestControllerAdvice;
 @RestControllerAdvice
 public class GlobalExceptionHandler {
 
+    @ExceptionHandler(BaseException.class)
+    public Result<Void> handleBaseException(BaseException e) {
+        return Result.error(e.getCode(), e.getMessage());
+    }
 
     /**
      * 参数校验异常
