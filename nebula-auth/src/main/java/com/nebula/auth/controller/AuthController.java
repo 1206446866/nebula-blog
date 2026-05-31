@@ -4,8 +4,10 @@ import com.nebula.auth.annotation.RequiresPermission;
 import com.nebula.auth.dto.LoginDTO;
 import com.nebula.auth.service.AuthService;
 import com.nebula.auth.util.JwtUtil;
+import com.nebula.auth.util.SecurityUtils;
 import com.nebula.auth.vo.LoginVO;
 import com.nebula.common.result.Result;
+import com.nebula.user.entity.User;
 import com.nebula.user.mapper.UserMapper;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
@@ -26,7 +28,7 @@ public class AuthController {
     private final UserMapper userMapper;
     private final PasswordEncoder passwordEncoder;
     private final JwtUtil jwtUtil;
-
+    private final SecurityUtils securityUtils;
 
     /**
      * 用户登录
@@ -37,7 +39,10 @@ public class AuthController {
         return Result.success(login);
     }
 
-
+    @GetMapping("/info")
+    public Result<User> info(){
+        return Result.success(securityUtils.getUser());
+    }
     /**
      * 获取用户权限列表
      */

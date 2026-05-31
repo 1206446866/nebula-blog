@@ -1,8 +1,7 @@
 package com.nebula.start.controller;
 
-import com.mybatisflex.core.query.QueryWrapper;
-import com.nebula.user.mapper.UserMapper;
-import org.springframework.beans.factory.annotation.Autowired;
+import com.nebula.common.result.Result;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
@@ -11,12 +10,14 @@ import org.springframework.web.bind.annotation.RestController;
 @RequestMapping("/test")
 public class TestController {
 
-    @Autowired
-    UserMapper userMapper;
+    @GetMapping("/hello")
+    public Result<String> hello() {
+        return Result.success("hello");
+    }
 
-    @GetMapping
-    public String test() {
-        System.out.println(userMapper.selectOneByQuery(QueryWrapper.create().eq("username", "admin")));
-        return "ok";
+    @PreAuthorize("hasAuthority('user:create')")
+    @GetMapping("/user/create")
+    public Result<String> list() {
+        return Result.success("user create");
     }
 }

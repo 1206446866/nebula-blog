@@ -1,6 +1,8 @@
 package com.nebula.article.entity;
 
 import com.mybatisflex.annotation.Column;
+import com.mybatisflex.annotation.Id;
+import com.mybatisflex.annotation.KeyType;
 import com.mybatisflex.annotation.Table;
 import com.mybatisflex.core.activerecord.Model;
 import jakarta.validation.constraints.NotBlank;
@@ -17,6 +19,7 @@ import java.time.LocalDateTime;
 @EqualsAndHashCode(callSuper = true)
 public class Article extends Model<Article> {
 
+    @Id(keyType = KeyType.Auto)
     private Long id;
 
     @NotBlank(message = "标题不能为空")

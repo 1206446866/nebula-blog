@@ -74,7 +74,7 @@ public class AuthServiceImpl implements AuthService {
             throw new AuthenticationException(AuthErrorCode.PASSWORD_ERROR);
         }
 
-        String token = jwtUtil.createToken(user.getId());
+        String token = jwtUtil.createToken(user);
 
         return new LoginVO(token, user);
     }

@@ -23,18 +23,21 @@ public interface UserService extends IService<User> {
     long countUsers(String role, String username);
 
     // 根据角色查询用户
-    List<User> getUsersByRole(String role);
-
-    boolean addUser(User user);
-    boolean updateUser(User user);
+    Page<User> getUsersByRole(String role,long current,long size);
 
     /**
      * 修改用户状态（启用/禁用）
+     *
      * @param userId 用户ID
      * @param status 新状态，1=启用, 0=禁用
      * @return 操作是否成功
      */
-    boolean updateUserStatus(Long userId, Integer status);
+    Boolean switchStatusById(Long userId, Integer status);
+
+    boolean addUser(User user);
+    boolean updateUser(User user);
+
+
     /**
      * 修改用户密码（用户自己操作）
      * @param userId 用户ID
@@ -50,11 +53,10 @@ public interface UserService extends IService<User> {
      */
     boolean resetPassword(Long userId);
 
-
-
     /**
-     * 查询所有用户
+     * 删除用户
+     * @param id 用户ID
+     * @return 操作是否成功
      */
-    List<User> getAllUsers();
-
+    Boolean deleteUserById(Long id);
 }

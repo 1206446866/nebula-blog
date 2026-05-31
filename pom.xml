@@ -51,7 +51,7 @@
         <maven.compiler.source>17</maven.compiler.source>
         <maven.compiler.target>17</maven.compiler.target> <!-- MyBatis Flex -->
         <mybatis-flex.version>1.10.9</mybatis-flex.version> <!-- JWT -->
-        <jjwt.version>0.12.5</jjwt.version> <!-- SpringDoc -->
+        <jjwt.version>0.11.5</jjwt.version> <!-- SpringDoc -->
         <springdoc.version>2.5.0</springdoc.version> <!-- Lombok -->
         <lombok.version>1.18.34</lombok.version>
     </properties>

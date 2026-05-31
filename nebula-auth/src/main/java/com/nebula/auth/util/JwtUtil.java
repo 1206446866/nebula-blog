@@ -1,5 +1,6 @@
 package com.nebula.auth.util;
 
+import com.nebula.user.entity.User;
 import io.jsonwebtoken.Claims;
 import io.jsonwebtoken.Jwts;
 import io.jsonwebtoken.SignatureAlgorithm;
@@ -51,10 +52,10 @@ public class JwtUtil {
     /**
      * 生成 Token
      *
-     * @param userId 用户ID
+     * @param user 用户
      * @return JWT Token
      */
-    public String createToken(Long userId) {
+    public String createToken(User user) {
 
         Date now = new Date();
 
@@ -64,8 +65,10 @@ public class JwtUtil {
 
         return Jwts.builder()
 
+                .claim("role",user.getRole())
+                .claim("username",user.getUsername())
                 // 用户唯一标识
-                .setSubject(String.valueOf(userId))
+                .setSubject(String.valueOf(user.getId()))
 
                 // 签发时间
                 .setIssuedAt(now)

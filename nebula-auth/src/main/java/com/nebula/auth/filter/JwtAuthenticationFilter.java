@@ -34,24 +34,19 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
 
     @Override
     protected void doFilterInternal(HttpServletRequest request, @Nonnull HttpServletResponse response, @Nonnull FilterChain filterChain) throws ServletException, IOException {
-        System.out.println("JWT FILTER EXECUTED");
         String authHeader = request.getHeader("Authorization");
-        System.out.println("authHeader: " + authHeader);
         // 没有Token
         if (authHeader == null || !authHeader.startsWith("Bearer ")) {
-
             filterChain.doFilter(request, response);
-
             return;
         }
         // 提取Token
         String token = authHeader.substring(7);
-
+//        TODO print token
+        System.out.println("token: Bearer " + token);
         // 校验Token
         if (!jwtUtil.validateToken(token)) {
-
             filterChain.doFilter(request, response);
-
             return;
         }
 
@@ -70,8 +65,6 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
         List<String> permissions = permissionService.getPermissionsByUserId(userId);
         // 构建登录用户
         LoginUser loginUser = new LoginUser(user,permissions);
-        System.out.println("----------------------------------");
-        System.out.println(loginUser.getAuthorities());
         // 创建认证对象
         UsernamePasswordAuthenticationToken authentication = new UsernamePasswordAuthenticationToken(loginUser, null, loginUser.getAuthorities());
 

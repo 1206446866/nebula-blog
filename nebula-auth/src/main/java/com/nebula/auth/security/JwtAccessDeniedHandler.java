@@ -1,17 +1,14 @@
-package com.nebula.start.security;
+package com.nebula.auth.security;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.nebula.common.result.Result;
-import jakarta.servlet.ServletException;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
-import org.springframework.http.MediaType;
 import org.springframework.security.access.AccessDeniedException;
 import org.springframework.security.web.access.AccessDeniedHandler;
 import org.springframework.stereotype.Component;
 
 import java.io.IOException;
-import java.nio.charset.StandardCharsets;
 
 /**
  * 无权限处理
@@ -20,15 +17,15 @@ import java.nio.charset.StandardCharsets;
 public class JwtAccessDeniedHandler implements AccessDeniedHandler {
 
     @Override
-    public void handle(HttpServletRequest request, HttpServletResponse response, AccessDeniedException accessDeniedException) throws IOException, ServletException {
+    public void handle(HttpServletRequest request, HttpServletResponse response, AccessDeniedException e) throws IOException {
 
-        response.setCharacterEncoding(StandardCharsets.UTF_8.name());
+        response.setCharacterEncoding("UTF-8");
 
-        response.setContentType(MediaType.APPLICATION_JSON_VALUE);
+        response.setContentType("application/json;charset=UTF-8");
 
-        response.setStatus(403);
+        response.setStatus(HttpServletResponse.SC_FORBIDDEN);
 
-        Result<?> result = Result.error("无权限");
+        Result<Void> result = Result.error(403, "权限不足");
 
         String json = new ObjectMapper().writeValueAsString(result);
 

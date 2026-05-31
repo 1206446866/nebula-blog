@@ -10,8 +10,6 @@ import com.nebula.user.service.UserService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 
-import java.util.List;
-
 import static com.nebula.user.entity.table.UserTableDef.USER;
 
 @Service
@@ -30,7 +28,6 @@ public class UserServiceImpl extends ServiceImpl<UserMapper, User> implements Us
         }
 
         query.orderBy(USER.ID.asc());
-        query.orderBy(USER.CREATE_TIME.desc());
         return page(Page.of(page,size),query);
     }
 
@@ -47,12 +44,19 @@ public class UserServiceImpl extends ServiceImpl<UserMapper, User> implements Us
     }
 
     @Override
-    public List<User> getUsersByRole(String role) {
+    public Page<User> getUsersByRole(String role,long current,long size) {
         QueryWrapper query = new QueryWrapper();
+        query.select(USER.ID,USER.USERNAME,USER.ROLE,USER.STATUS,USER.CREATE_TIME);
         if (role != null && !role.isEmpty()) {
             query.eq(User::getRole, role);
         }
-        return list(query);
+        query.orderBy(USER.ID.asc());
+        return page(Page.of(current,size),query);
+    }
+
+    @Override
+    public Boolean switchStatusById(Long userId, Integer status) {
+        return updateById(User.create().setId(userId).setStatus(status));
     }
 
     @Override
@@ -64,12 +68,7 @@ public class UserServiceImpl extends ServiceImpl<UserMapper, User> implements Us
     public boolean updateUser(User user) {
         return updateById(user);
     }
-    //TODO
-    @Override
-    public boolean updateUserStatus(Long userId, Integer status) {
-//        return getMapper().updateByCondition(new User().setId(userId).setStatus(status)) > 0;
-        return false;
-    }
+
 //TODO
     @Override
     public boolean changePassword(Long userId, String newPassword) {
@@ -81,9 +80,8 @@ public class UserServiceImpl extends ServiceImpl<UserMapper, User> implements Us
         return false;
     }
 
-
     @Override
-    public List<User> getAllUsers() {
-        return List.of();
+    public Boolean deleteUserById(Long id) {
+        return removeById(id);
     }
 }

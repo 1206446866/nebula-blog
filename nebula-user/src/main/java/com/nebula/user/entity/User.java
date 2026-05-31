@@ -1,6 +1,8 @@
 package com.nebula.user.entity;
 
 import com.mybatisflex.annotation.Column;
+import com.mybatisflex.annotation.Id;
+import com.mybatisflex.annotation.KeyType;
 import com.mybatisflex.annotation.Table;
 import com.mybatisflex.core.activerecord.Model;
 import lombok.Data;
@@ -9,12 +11,13 @@ import lombok.experimental.Accessors;
 
 import java.time.LocalDateTime;
 
-@Data
+@Data(staticConstructor = "create")
 @Table("user")
 @Accessors(chain = true)
 @EqualsAndHashCode(callSuper = true)
 public class User extends Model<User> {
 
+    @Id(keyType = KeyType.Auto)
     private Long id;
 
     private String username;
@@ -38,6 +41,9 @@ public class User extends Model<User> {
     /**
      * 状态
      */
-    @Column(isLogicDelete = true)
+    @Column(comment = "状态 0正常 1禁用")
     private Integer status;
+
+    @Column(isLogicDelete = true, comment = "逻辑删除 0未删除 1已删除")
+    private Integer deleted;
 }

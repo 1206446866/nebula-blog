@@ -7,8 +7,6 @@ import com.nebula.user.service.UserService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.web.bind.annotation.*;
 
-import java.util.List;
-
 @RestController
 @RequestMapping("/users")
 @RequiredArgsConstructor
@@ -16,22 +14,30 @@ public class UserController {
 
     private final UserService userService;
 
-    @GetMapping("/auth")
-    public Result auth() {
-        return Result.success("test");
-    }
-
     /**
      * 查询用户列表（可分页/可模糊查询用户名）
      */
     @GetMapping("/list")
-    public Result<List<User>> list(@RequestParam(required = false) String role) {
-        return Result.success(userService.getUsersByRole(role));
+    public Result<Page<User>> list(@RequestParam(required = false) String role, @RequestParam(defaultValue = "1") Long current, @RequestParam(defaultValue = "10") Long size) {
+        return Result.success(userService.getUsersByRole(role, current, size));
     }
 
     @GetMapping("/page")
-    public Result<Page<User>> page(@RequestParam int page, @RequestParam int size, @RequestParam(required = false) String role, @RequestParam(required = false) String username) {
-        return Result.success(userService.pageUsers(role, username,page, size));
+    public Result<Page<User>> page(@RequestParam(required = false) String role, @RequestParam(required = false) String username,@RequestParam int page, @RequestParam int size) {
+        return Result.success(userService.pageUsers(role, username, page, size));
+    }
+
+    @PutMapping("/switchStatusById/{id}")
+    public Result<Boolean> switchStatusById(@PathVariable Long id, @RequestParam Integer status) {
+        return Result.success(userService.switchStatusById(id, status));
+    }
+
+    /**
+     * 删除用户
+     */
+    @DeleteMapping("/deleteUserById/{id}")
+    public Result<Boolean> deleteUserById(@PathVariable Long id) {
+        return Result.success(userService.deleteUserById(id));
     }
 
     /**

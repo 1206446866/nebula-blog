@@ -1,6 +1,8 @@
 package com.nebula.start.config;
 
 import com.nebula.auth.filter.JwtAuthenticationFilter;
+import com.nebula.auth.security.JwtAuthenticationEntryPoint;
+import com.nebula.auth.security.JwtAccessDeniedHandler;
 import lombok.RequiredArgsConstructor;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
@@ -13,11 +15,14 @@ import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.security.web.SecurityFilterChain;
 import org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter;
 
+
 @Configuration
 @EnableMethodSecurity
 @RequiredArgsConstructor
 public class SecurityConfig {
 
+    private final JwtAccessDeniedHandler jwtAccessDeniedHandler;
+    private final JwtAuthenticationEntryPoint jwtAuthenticationEntryPoint;
     private final JwtAuthenticationFilter jwtAuthenticationFilter;
 
     @Bean
@@ -37,8 +42,10 @@ public class SecurityConfig {
                         .requestMatchers("/auth/login").permitAll()
 
                         // 其他请求需要认证
-                        .anyRequest().authenticated())
+                        .anyRequest().authenticated()).exceptionHandling(exception -> exception
 
+                        .authenticationEntryPoint(jwtAuthenticationEntryPoint)
+                        .accessDeniedHandler(jwtAccessDeniedHandler))
                 // 添加JWT过滤器
                 .addFilterBefore(jwtAuthenticationFilter, UsernamePasswordAuthenticationFilter.class);
 
