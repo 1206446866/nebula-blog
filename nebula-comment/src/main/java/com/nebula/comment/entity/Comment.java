@@ -1,6 +1,8 @@
 package com.nebula.comment.entity;
 
 import com.mybatisflex.annotation.Column;
+import com.mybatisflex.annotation.Id;
+import com.mybatisflex.annotation.KeyType;
 import com.mybatisflex.annotation.Table;
 import com.mybatisflex.core.activerecord.Model;
 import lombok.Data;
@@ -17,6 +19,7 @@ public class Comment extends Model<Comment> {
     /**
      * 评论ID
      */
+    @Id(keyType = KeyType.Auto)
     private Long id;
 
     /**
@@ -42,11 +45,13 @@ public class Comment extends Model<Comment> {
     /**
      * 创建时间
      */
+    @Column(onInsertValue = "now()")
     private LocalDateTime createTime;
 
     /**
      * 更新时间
      */
+    @Column(onInsertValue = "now()", onUpdateValue = "now()")
     private LocalDateTime updateTime;
 
     /**

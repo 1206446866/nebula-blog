@@ -34,6 +34,7 @@ public class UserController {
 
     /**
      * 删除用户
+     * @param id 用户ID
      */
     @DeleteMapping("/deleteUserById/{id}")
     public Result<Boolean> deleteUserById(@PathVariable Long id) {

@@ -34,6 +34,6 @@ public class Article extends Model<Article> {
 
     private LocalDateTime updateTime;
 
-    @Column(isLogicDelete = true)
-    private Integer status; // 1: 正常, 0: 删除
+    @Column(isLogicDelete = true,comment = "1: 正常, 0: 删除")
+    private Integer status;
 }

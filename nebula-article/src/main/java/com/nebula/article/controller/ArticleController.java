@@ -1,36 +1,29 @@
 package com.nebula.article.controller;
 
+import com.mybatisflex.core.paginate.Page;
 import com.nebula.article.entity.Article;
 import com.nebula.article.service.ArticleService;
 import com.nebula.common.result.Result;
+import lombok.RequiredArgsConstructor;
 import org.springframework.web.bind.annotation.*;
 
 import static com.nebula.article.entity.table.ArticleTableDef.ARTICLE;
 
 @RestController
 @RequestMapping("/articles")
+@RequiredArgsConstructor
 public class ArticleController {
 
     private final ArticleService articleService;
 
-    public ArticleController(ArticleService articleService) {
-        this.articleService = articleService;
-    }
-
     @GetMapping
-    public Result<String> list(
-            @RequestParam(defaultValue = "1") int page,
-            @RequestParam(defaultValue = "10") int size,
-            @RequestParam(required = false) String title,
-            @RequestParam(required = false) String author
-    ) {
-        return Result.success("");
-//        return articleService.pageArticles(page, size, title, author);
+    public Result<Page<Article>> page(@RequestParam(required = false) String title, @RequestParam(required = false) String author, @RequestParam(defaultValue = "1") int currentPage, @RequestParam(defaultValue = "10") int size) {
+        return Result.success(articleService.pageArticles(currentPage, size, title, author, null, true));
     }
 
     @GetMapping("/{id}")
-    public Article get(@PathVariable Long id) {
-        return Article.create().where(ARTICLE.ID.eq(id)).one();
+    public Result<Article> getArticleById(@PathVariable Long id) {
+        return Result.success(articleService.getArticleById(id));
     }
 
     @PostMapping
@@ -44,9 +37,7 @@ public class ArticleController {
         if (article.getId() == null) {
             throw new IllegalArgumentException("id不能为空");
         }
-        return article
-                .where(ARTICLE.ID.eq(article.getId()))
-                .update(true);
+        return article.where(ARTICLE.ID.eq(article.getId())).update(true);
     }
 
     @DeleteMapping("/{id}")

@@ -20,8 +20,10 @@ public class ArticleServiceImpl extends ServiceImpl<ArticleMapper, Article> impl
     public Page<Article> pageArticles(int page, int size, String title, String author, String orderBy, boolean asc) {
         QueryWrapper queryWrapper = QueryWrapper.create()
                 .where(ARTICLE.TITLE.eq(title).when(Objects.nonNull(title)&&!title.isEmpty()))
-                .and(ARTICLE.AUTHOR.eq(author).when(Objects.nonNull(author)&&!author.isEmpty()))
-                .orderBy(orderBy, asc);
+                .and(ARTICLE.AUTHOR.eq(author).when(Objects.nonNull(author)&&!author.isEmpty()));
+        if(Objects.nonNull(orderBy)){
+                queryWrapper.orderBy(orderBy, asc);
+        }
         return page(Page.of(page, size), queryWrapper);
     }
 
@@ -48,7 +50,6 @@ public class ArticleServiceImpl extends ServiceImpl<ArticleMapper, Article> impl
 
     @Override
     public Article getArticleById(Long id) {
-        // TODO: 使用 QueryWrapper 查询单条记录
-        return null;
+        return Article.create().where(ARTICLE.ID.eq(id)).one();
     }
 }
