@@ -2,6 +2,7 @@ package com.nebula.article.service;
 
 import com.mybatisflex.core.paginate.Page;
 import com.mybatisflex.core.service.IService;
+import com.nebula.article.dto.ChangeArticleStatusDto;
 import com.nebula.article.entity.Article;
 
 import java.util.List;
@@ -54,4 +55,12 @@ public interface ArticleService extends IService<Article> {
      * @return 文章对象
      */
     Article getArticleById(Long id);
+
+    /**
+     * 修改文章状态
+     *
+     * @param dto 修改文章状态请求参数
+     * @return 是否修改成功
+     */
+    boolean changeArticleStatus(ChangeArticleStatusDto dto);
 }

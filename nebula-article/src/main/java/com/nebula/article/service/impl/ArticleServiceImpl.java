@@ -3,6 +3,7 @@ package com.nebula.article.service.impl;
 import com.mybatisflex.core.paginate.Page;
 import com.mybatisflex.core.query.QueryWrapper;
 import com.mybatisflex.spring.service.impl.ServiceImpl;
+import com.nebula.article.dto.ChangeArticleStatusDto;
 import com.nebula.article.entity.Article;
 import com.nebula.article.mapper.ArticleMapper;
 import com.nebula.article.service.ArticleService;
@@ -32,7 +33,6 @@ public class ArticleServiceImpl extends ServiceImpl<ArticleMapper, Article> impl
         if (Objects.isNull(ids) || ids.isEmpty()) {return true;}
         QueryWrapper queryWrapper = QueryWrapper.create()
                 .where(ARTICLE.ID.eq(ids));
-        // TODO: 使用 QueryWrapper 批量逻辑删除
         return remove(queryWrapper);
     }
 
@@ -51,5 +51,10 @@ public class ArticleServiceImpl extends ServiceImpl<ArticleMapper, Article> impl
     @Override
     public Article getArticleById(Long id) {
         return Article.create().where(ARTICLE.ID.eq(id)).one();
+    }
+
+    @Override
+    public boolean changeArticleStatus(ChangeArticleStatusDto dto) {
+        return Article.create().setId(dto.getId()).setStatus(dto.getStatus()).updateById();
     }
 }

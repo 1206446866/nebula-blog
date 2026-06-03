@@ -4,8 +4,6 @@ import com.mybatisflex.core.paginate.Page;
 import com.mybatisflex.core.service.IService;
 import com.nebula.user.entity.User;
 
-import java.util.List;
-
 
 public interface UserService extends IService<User> {
 

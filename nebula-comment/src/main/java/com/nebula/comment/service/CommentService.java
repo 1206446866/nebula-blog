@@ -4,6 +4,7 @@ import com.mybatisflex.core.paginate.Page;
 import com.mybatisflex.core.service.IService;
 import com.nebula.comment.dto.ReleaseCommentDto;
 import com.nebula.comment.entity.Comment;
+import com.nebula.comment.vo.CommentVO;
 
 import java.util.List;
 
@@ -15,7 +16,7 @@ public interface CommentService extends IService<Comment> {
     /**
      * 分页查询评论
      */
-    Page<Comment> pageCommentsByArticleId(int page, int size, Long articleId);
+    Page<CommentVO> pageComments(int page, int size, Long articleId);
 
     /**
      * 查询评论详情

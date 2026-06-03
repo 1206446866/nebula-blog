@@ -5,7 +5,6 @@ import com.mybatisflex.annotation.Id;
 import com.mybatisflex.annotation.KeyType;
 import com.mybatisflex.annotation.Table;
 import com.mybatisflex.core.activerecord.Model;
-import jakarta.validation.constraints.NotBlank;
 import lombok.Data;
 import lombok.EqualsAndHashCode;
 import lombok.experimental.Accessors;
@@ -18,22 +17,31 @@ import java.time.LocalDateTime;
 @Data(staticConstructor = "create")
 @EqualsAndHashCode(callSuper = true)
 public class Article extends Model<Article> {
-
+    /**
+     * 文章ID
+     */
     @Id(keyType = KeyType.Auto)
     private Long id;
-
-    @NotBlank(message = "标题不能为空")
+    /**
+     * 标题
+     */
     private String title;
-
-    @NotBlank(message = "内容不能为空")
+    /**
+     * 内容
+     */
     private String content;
-
+    /**
+     * 作者
+     */
     private String author;
 
     private LocalDateTime createTime;
 
     private LocalDateTime updateTime;
 
-    @Column(isLogicDelete = true,comment = "1: 正常, 0: 删除")
+    @Column(comment = "0: 草稿, 1: 已发布")
     private Integer status;
+
+    @Column(isLogicDelete = true, comment = "逻辑删除 0未删除 1已删除")
+    private Integer deleted;
 }

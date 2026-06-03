@@ -2,22 +2,24 @@ package com.nebula.comment.controller;
 
 import com.mybatisflex.core.paginate.Page;
 import com.nebula.comment.dto.ReleaseCommentDto;
-import com.nebula.comment.entity.Comment;
 import com.nebula.comment.service.CommentService;
+import com.nebula.comment.vo.CommentVO;
 import com.nebula.common.result.Result;
 import lombok.RequiredArgsConstructor;
+import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.*;
 
 @RestController
 @RequestMapping("/comments")
 @RequiredArgsConstructor
+@Validated
 public class CommentController {
 
     private final CommentService commentService;
 
     @GetMapping("/article/{articleId}")
-    public Result<Page<Comment>> pageCommentsByArticleId(@PathVariable Long articleId, @RequestParam(defaultValue = "1") Integer page, @RequestParam(defaultValue = "10") Integer size) {
-        return Result.success(commentService.pageCommentsByArticleId(page, size, articleId));
+    public Result<Page<CommentVO>> pageComments(@RequestParam(required = false) Long articleId, @RequestParam(defaultValue = "1") Integer currentPage, @RequestParam(defaultValue = "10") Integer size) {
+        return Result.success(commentService.pageComments(currentPage, size, articleId));
     }
 
     @PutMapping("/release")

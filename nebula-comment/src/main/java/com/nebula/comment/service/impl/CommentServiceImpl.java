@@ -8,12 +8,15 @@ import com.nebula.comment.dto.ReleaseCommentDto;
 import com.nebula.comment.entity.Comment;
 import com.nebula.comment.mapper.CommentMapper;
 import com.nebula.comment.service.CommentService;
+import com.nebula.comment.vo.CommentVO;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 
 import java.util.List;
+import java.util.Objects;
 
 import static com.nebula.comment.entity.table.CommentTableDef.COMMENT;
+import static com.nebula.user.entity.table.UserTableDef.USER;
 
 @Service
 @RequiredArgsConstructor
@@ -22,11 +25,20 @@ public class CommentServiceImpl extends ServiceImpl<CommentMapper, Comment> impl
     private final SecurityUtils securityUtils;
 
     @Override
-    public Page<Comment> pageCommentsByArticleId(int page, int size, Long articleId) {
+    public Page<CommentVO> pageComments(int page, int size, Long articleId) {
         QueryWrapper queryWrapper = QueryWrapper.create()
-                .where(COMMENT.ARTICLE_ID.eq(articleId))
+                .select(COMMENT.ID,
+                        USER.USERNAME,
+                        COMMENT.ARTICLE_ID,
+                        COMMENT.CONTENT,
+                        COMMENT.CREATE_TIME
+                )
+                .from(COMMENT)
+                .leftJoin(USER)
+                .on(COMMENT.USER_ID.eq(USER.ID))
+                .where(COMMENT.ARTICLE_ID.eq(articleId, Objects::nonNull))
                 .orderBy(COMMENT.CREATE_TIME.desc());
-        return page(Page.of(page,size),queryWrapper);
+        return getMapper().paginateAs(page, size, queryWrapper,CommentVO.class);
     }
 
     @Override
