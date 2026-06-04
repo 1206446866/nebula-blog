@@ -1,11 +1,9 @@
-package com.nebula.auth.util;
+package com.nebula.common.util;
 
-import com.nebula.auth.security.LoginUser;
-import com.nebula.user.entity.User;
+import com.nebula.common.security.LoginUser;
 import lombok.RequiredArgsConstructor;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.context.SecurityContextHolder;
-import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Component;
 
 /**
@@ -15,15 +13,6 @@ import org.springframework.stereotype.Component;
 @RequiredArgsConstructor
 public class SecurityUtils {
 
-    private final PasswordEncoder passwordEncoder;
-
-    public boolean matchesPassword(String rawPassword, String encodedPassword) {
-        return passwordEncoder.matches(rawPassword, encodedPassword);
-    }
-
-    public String encodePassword(String password) {
-        return passwordEncoder.encode(password);
-    }
 
     /**
      * 获取当前登录用户
@@ -46,18 +35,9 @@ public class SecurityUtils {
     }
 
     /**
-     * 获取当前用户
-     */
-    public User getUser() {
-        LoginUser loginUser = getLoginUser();
-        return loginUser == null ? null : loginUser.getUser();
-    }
-
-    /**
      * 获取当前用户ID
      */
     public Long getUserId() {
-        User user = getUser();
-        return user == null ? null : user.getId();
+        return getLoginUser().getUserId();
     }
 }

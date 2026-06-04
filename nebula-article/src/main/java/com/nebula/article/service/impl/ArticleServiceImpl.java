@@ -1,12 +1,18 @@
 package com.nebula.article.service.impl;
 
+import cn.hutool.core.bean.BeanUtil;
 import com.mybatisflex.core.paginate.Page;
 import com.mybatisflex.core.query.QueryWrapper;
+import com.mybatisflex.core.update.UpdateChain;
+import com.mybatisflex.core.util.StringUtil;
 import com.mybatisflex.spring.service.impl.ServiceImpl;
 import com.nebula.article.dto.ChangeArticleStatusDto;
 import com.nebula.article.entity.Article;
 import com.nebula.article.mapper.ArticleMapper;
 import com.nebula.article.service.ArticleService;
+import com.nebula.article.vo.ArticleVO;
+import com.nebula.common.constant.ArticleStatus;
+import org.apache.ibatis.javassist.NotFoundException;
 import org.springframework.stereotype.Service;
 
 import java.util.List;
@@ -49,12 +55,28 @@ public class ArticleServiceImpl extends ServiceImpl<ArticleMapper, Article> impl
     }
 
     @Override
-    public Article getArticleById(Long id) {
-        return Article.create().where(ARTICLE.ID.eq(id)).one();
+    public ArticleVO getArticleById(Long id) throws NotFoundException {
+        Article article = Article.create().where(ARTICLE.ID.eq(id)).one();
+        if (Objects.isNull(article)) { throw new NotFoundException("文章不存在或未发布");}
+        UpdateChain.of(Article.class)
+                .setRaw(ARTICLE.VIEW_COUNT,ARTICLE.VIEW_COUNT.add(1))
+                .where(ARTICLE.ID.eq(id))
+                .update();
+        return BeanUtil.copyProperties(article, ArticleVO.class);
     }
 
     @Override
     public boolean changeArticleStatus(ChangeArticleStatusDto dto) {
         return Article.create().setId(dto.getId()).setStatus(dto.getStatus()).updateById();
+    }
+
+    @Override
+    public Page<Article> pagePublishedArticles(String title, Integer currentPage, Integer size) {
+        QueryWrapper query = QueryWrapper.create()
+                .where(ARTICLE.STATUS.eq(
+                        ArticleStatus.PUBLISHED.getCode()
+                ))
+                .and(ARTICLE.TITLE.eq(title, StringUtil::hasText));
+        return page(Page.of(currentPage, size), query);
     }
 }

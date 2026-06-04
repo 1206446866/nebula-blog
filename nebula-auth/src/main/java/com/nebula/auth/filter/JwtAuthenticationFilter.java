@@ -1,6 +1,6 @@
 package com.nebula.auth.filter;
 
-import com.nebula.auth.security.LoginUser;
+import com.nebula.auth.security.AuthLoginUser;
 import com.nebula.auth.service.PermissionService;
 import com.nebula.auth.util.JwtUtil;
 import com.nebula.user.entity.User;
@@ -64,9 +64,9 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
         // 查询用户权限
         List<String> permissions = permissionService.getPermissionsByUserId(userId);
         // 构建登录用户
-        LoginUser loginUser = new LoginUser(user,permissions);
+        AuthLoginUser authLoginUser = new AuthLoginUser(user,permissions);
         // 创建认证对象
-        UsernamePasswordAuthenticationToken authentication = new UsernamePasswordAuthenticationToken(loginUser, null, loginUser.getAuthorities());
+        UsernamePasswordAuthenticationToken authentication = new UsernamePasswordAuthenticationToken(authLoginUser, null, authLoginUser.getAuthorities());
 
         authentication.setDetails(new WebAuthenticationDetailsSource().buildDetails(request));
 

@@ -54,6 +54,7 @@
         <jjwt.version>0.11.5</jjwt.version> <!-- SpringDoc -->
         <springdoc.version>2.5.0</springdoc.version> <!-- Lombok -->
         <lombok.version>1.18.34</lombok.version>
+        <hutool.version>5.8.38</hutool.version>
     </properties>
     <dependencyManagement>
         <dependencies> <!-- MyBatis Flex -->
@@ -86,6 +87,12 @@
                 <groupId>org.projectlombok</groupId>
                 <artifactId>lombok</artifactId>
                 <version>${lombok.version}</version>
+            </dependency>
+
+            <dependency>
+                <groupId>cn.hutool</groupId>
+                <artifactId>hutool-all</artifactId>
+                <version>${hutool.version}</version>
             </dependency>
         </dependencies>
     </dependencyManagement>

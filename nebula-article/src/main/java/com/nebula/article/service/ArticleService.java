@@ -4,6 +4,8 @@ import com.mybatisflex.core.paginate.Page;
 import com.mybatisflex.core.service.IService;
 import com.nebula.article.dto.ChangeArticleStatusDto;
 import com.nebula.article.entity.Article;
+import com.nebula.article.vo.ArticleVO;
+import org.apache.ibatis.javassist.NotFoundException;
 
 import java.util.List;
 
@@ -54,7 +56,7 @@ public interface ArticleService extends IService<Article> {
      * @param id 文章 id
      * @return 文章对象
      */
-    Article getArticleById(Long id);
+    ArticleVO getArticleById(Long id) throws NotFoundException;
 
     /**
      * 修改文章状态
@@ -63,4 +65,14 @@ public interface ArticleService extends IService<Article> {
      * @return 是否修改成功
      */
     boolean changeArticleStatus(ChangeArticleStatusDto dto);
+
+    /**
+     * 分页查询已发布文章
+     *
+     * @param currentPage 当前页
+     * @param size        每页条数
+     * @param title       标题
+     * @return 已发布文章分页数据
+     */
+    Page<Article> pagePublishedArticles(String title,Integer currentPage, Integer size);
 }

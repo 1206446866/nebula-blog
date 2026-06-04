@@ -14,7 +14,7 @@ import java.time.LocalDateTime;
 
 @Table("article")
 @Accessors(chain = true) // 关键，开启链式
-@Data(staticConstructor = "create")
+@Data
 @EqualsAndHashCode(callSuper = true)
 public class Article extends Model<Article> {
     /**
@@ -31,6 +31,10 @@ public class Article extends Model<Article> {
      */
     private String content;
     /**
+     * 作者ID
+     */
+    private Long userId;
+    /**
      * 作者
      */
     private String author;
@@ -44,4 +48,10 @@ public class Article extends Model<Article> {
 
     @Column(isLogicDelete = true, comment = "逻辑删除 0未删除 1已删除")
     private Integer deleted;
+
+    private Long viewCount;
+
+    public static Article create() {
+        return new Article();
+    }
 }

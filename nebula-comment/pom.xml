@@ -82,7 +82,7 @@
         </dependency>
         <dependency>
             <groupId>com.nebula</groupId>
-            <artifactId>nebula-auth</artifactId>
+            <artifactId>nebula-user</artifactId>
             <version>1.0.0</version>
             <scope>compile</scope>
         </dependency>

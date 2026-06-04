@@ -7,7 +7,7 @@ import java.time.LocalDateTime;
 
 @Data(staticConstructor = "create")
 @Accessors(chain = true)
-public class CommentVO {
+public class CommentVo {
 
     private Long id;
     private String username;

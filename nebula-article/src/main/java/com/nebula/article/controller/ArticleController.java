@@ -6,12 +6,15 @@ import com.nebula.article.dto.CreateArticleDto;
 import com.nebula.article.dto.UpdateArticleDto;
 import com.nebula.article.entity.Article;
 import com.nebula.article.service.ArticleService;
-import com.nebula.auth.util.SecurityUtils;
+import com.nebula.article.vo.ArticleVO;
+import com.nebula.common.util.SecurityUtils;
+import com.nebula.common.constant.ArticleStatus;
 import com.nebula.common.result.Result;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.Max;
 import jakarta.validation.constraints.Min;
 import lombok.RequiredArgsConstructor;
+import org.apache.ibatis.javassist.NotFoundException;
 import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.*;
 
@@ -46,9 +49,10 @@ public class ArticleController {
      * @return 文章详情
      */
     @GetMapping("/{id}")
-    public Result<Article> getArticleById(@PathVariable @Min(value = 1, message = "文章ID非法") Long id) {
+    public Result<ArticleVO> getArticleById(@PathVariable @Min(value = 1, message = "文章ID非法") Long id) throws NotFoundException {
         return Result.success(articleService.getArticleById(id));
     }
+
 
     /**
      * 新增文章
@@ -58,7 +62,7 @@ public class ArticleController {
      */
     @PostMapping("/create")
     public Result<Boolean> createArticle(@RequestBody @Valid CreateArticleDto dto) {
-        return Result.success(Article.create().setAuthor(securityUtils.getLoginUser().getUsername()).setTitle(dto.getTitle()).setContent(dto.getContent()).save());
+        return Result.success(new Article().setUserId(securityUtils.getUserId()).setAuthor(securityUtils.getLoginUser().getUsername()).setTitle(dto.getTitle()).setContent(dto.getContent()).setStatus(ArticleStatus.DRAFT.getCode()).save());
     }
 
     /**
@@ -69,7 +73,7 @@ public class ArticleController {
      */
     @PutMapping("/edit")
     public Result<Boolean> update(@RequestBody @Valid UpdateArticleDto dto) {
-        return Result.success(Article.create().setTitle(dto.getTitle()).setContent(dto.getContent()).setId(dto.getId()).updateById());
+        return Result.success(new Article().setTitle(dto.getTitle()).setContent(dto.getContent()).setId(dto.getId()).updateById());
     }
 
     /**
@@ -79,7 +83,7 @@ public class ArticleController {
      */
     @DeleteMapping("/{id}")
     public Result<Boolean> delete(@PathVariable @Min(value = 1, message = "文章ID非法") Long id) {
-        return Result.success(Article.create().setId(id).removeById());
+        return Result.success(new Article().setId(id).removeById());
     }
 
     /**
@@ -91,5 +95,18 @@ public class ArticleController {
     @PutMapping("/status")
     public Result<Boolean> changeStatus(@RequestBody @Valid ChangeArticleStatusDto dto) {
         return Result.success(articleService.changeArticleStatus(dto));
+    }
+
+    /**
+     * 分页查询已发布文章
+     *
+     * @param title       标题
+     * @param currentPage 当前页
+     * @param size        每页条数
+     * @return 已发布文章分页数据
+     */
+    @GetMapping("/published")
+    public Result<Page<Article>> pagePublished(@RequestParam(required = false) String title, @RequestParam(defaultValue = "1") @Min(1) Integer currentPage, @RequestParam(defaultValue = "10") @Min(1) @Max(100) Integer size) {
+        return Result.success(articleService.pagePublishedArticles(title,currentPage, size ));
     }
 }

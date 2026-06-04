@@ -1,6 +1,7 @@
 package com.nebula.auth.security;
 
 import com.fasterxml.jackson.annotation.JsonIgnore;
+import com.nebula.common.security.LoginUser;
 import com.nebula.user.entity.User;
 import lombok.AllArgsConstructor;
 import lombok.Data;
@@ -19,7 +20,7 @@ import java.util.stream.Collectors;
 @Data
 @NoArgsConstructor
 @AllArgsConstructor
-public class LoginUser implements UserDetails {
+public class AuthLoginUser implements LoginUser {
 
     /**
      * 当前登录用户
@@ -35,7 +36,7 @@ public class LoginUser implements UserDetails {
     @JsonIgnore
     private List<GrantedAuthority> authorities;
 
-    public LoginUser(User user, List<String> permissions) {
+    public AuthLoginUser(User user, List<String> permissions) {
         this.user = user;
         this.permissions = permissions;
     }
@@ -61,21 +62,26 @@ public class LoginUser implements UserDetails {
 
     @Override
     public boolean isAccountNonExpired() {
-        return UserDetails.super.isAccountNonExpired();
+        return LoginUser.super.isAccountNonExpired();
     }
 
     @Override
     public boolean isAccountNonLocked() {
-        return UserDetails.super.isAccountNonLocked();
+        return LoginUser.super.isAccountNonLocked();
     }
 
     @Override
     public boolean isCredentialsNonExpired() {
-        return UserDetails.super.isCredentialsNonExpired();
+        return LoginUser.super.isCredentialsNonExpired();
     }
 
     @Override
     public boolean isEnabled() {
         return user.getStatus() == 1;
+    }
+
+    @Override
+    public Long getUserId() {
+        return user.getId();
     }
 }

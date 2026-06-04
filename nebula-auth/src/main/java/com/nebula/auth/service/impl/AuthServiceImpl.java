@@ -7,7 +7,7 @@ import com.nebula.auth.mapper.PermissionMapper;
 import com.nebula.auth.mapper.RolePermissionMapper;
 import com.nebula.auth.service.AuthService;
 import com.nebula.auth.util.JwtUtil;
-import com.nebula.auth.util.SecurityUtils;
+import com.nebula.common.util.SecurityUtils;
 import com.nebula.auth.vo.LoginVO;
 import com.nebula.common.exception.AuthenticationException;
 import com.nebula.common.exception.code.AuthErrorCode;
@@ -16,6 +16,7 @@ import com.nebula.user.entity.UserRole;
 import com.nebula.user.mapper.UserMapper;
 import com.nebula.user.mapper.UserRoleMapper;
 import lombok.RequiredArgsConstructor;
+import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 
 import java.util.List;
@@ -56,6 +57,17 @@ public class AuthServiceImpl implements AuthService {
      */
     private final JwtUtil jwtUtil;
 
+    private final PasswordEncoder passwordEncoder;
+
+    @Override
+    public String encode(String password) {
+        return passwordEncoder.encode(password);
+    }
+
+    @Override
+    public boolean matchesPassword(String rawPassword, String encodedPassword) {
+        return passwordEncoder.matches(rawPassword, encodedPassword);
+    }
 
     /**
      * 用户登录
@@ -70,7 +82,7 @@ public class AuthServiceImpl implements AuthService {
             throw new AuthenticationException(AuthErrorCode.USER_NOT_FOUND);
         }
 
-        if (!securityUtils.matchesPassword(loginDTO.getPassword(), user.getPassword())) {
+        if (!matchesPassword(loginDTO.getPassword(), user.getPassword())) {
             throw new AuthenticationException(AuthErrorCode.PASSWORD_ERROR);
         }
 

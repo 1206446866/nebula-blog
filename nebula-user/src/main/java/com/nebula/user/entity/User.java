@@ -27,6 +27,11 @@ public class User extends Model<User> {
     private String role = "USER";
 
     /**
+     * 头像
+     */
+    private String avatar;
+
+    /**
      * 创建时间
      */
     @Column(onInsertValue = "now()")

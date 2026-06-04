@@ -3,6 +3,9 @@ package com.nebula.user.service;
 import com.mybatisflex.core.paginate.Page;
 import com.mybatisflex.core.service.IService;
 import com.nebula.user.entity.User;
+import com.nebula.user.vo.UserProfileVO;
+import jakarta.validation.constraints.Min;
+import org.springframework.web.multipart.MultipartFile;
 
 
 public interface UserService extends IService<User> {
@@ -57,4 +60,26 @@ public interface UserService extends IService<User> {
      * @return 操作是否成功
      */
     Boolean deleteUserById(Long id);
+
+
+    /**
+     * 获取用户主页信息
+     *
+     * <p>
+     * 包含用户基础信息、文章统计、评论统计、
+     * 总浏览量以及最近发布的文章列表。
+     * </p>
+     *
+     * @param id 用户ID
+     * @return 用户主页信息
+     */
+    UserProfileVO getProfile(@Min(value = 1, message = "用户ID非法") Long id);
+
+    /**
+     * 上传用户头像
+     *
+     * @param file 文件
+     * @return 头像URL
+     */
+    String uploadAvatar(MultipartFile file);
 }
