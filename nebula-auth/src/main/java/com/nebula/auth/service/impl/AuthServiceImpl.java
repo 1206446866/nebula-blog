@@ -1,5 +1,6 @@
 package com.nebula.auth.service.impl;
 
+import cn.hutool.core.bean.BeanUtil;
 import com.nebula.auth.dto.LoginDTO;
 import com.nebula.auth.entity.Permission;
 import com.nebula.auth.entity.RolePermission;
@@ -7,7 +8,6 @@ import com.nebula.auth.mapper.PermissionMapper;
 import com.nebula.auth.mapper.RolePermissionMapper;
 import com.nebula.auth.service.AuthService;
 import com.nebula.auth.util.JwtUtil;
-import com.nebula.common.util.SecurityUtils;
 import com.nebula.auth.vo.LoginVO;
 import com.nebula.common.exception.AuthenticationException;
 import com.nebula.common.exception.code.AuthErrorCode;
@@ -34,7 +34,6 @@ import static com.nebula.user.entity.table.UserTableDef.USER;
 @RequiredArgsConstructor
 public class AuthServiceImpl implements AuthService {
 
-    private final SecurityUtils securityUtils;
     private final UserMapper userMapper;
 
     /**
@@ -87,8 +86,7 @@ public class AuthServiceImpl implements AuthService {
         }
 
         String token = jwtUtil.createToken(user);
-
-        return new LoginVO(token, user);
+        return new LoginVO(token, BeanUtil.copyProperties(user,com.nebula.user.vo.UserVO.class));
     }
 
     @Override
@@ -121,6 +119,5 @@ public class AuthServiceImpl implements AuthService {
         List<String> permissions = getUserPermissionsByUserId(userId);
         return permissions.contains(permission);
     }
-
 
 }

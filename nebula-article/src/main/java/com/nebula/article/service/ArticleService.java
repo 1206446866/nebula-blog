@@ -16,13 +16,14 @@ public interface ArticleService extends IService<Article> {
      *
      * @param page    当前页
      * @param size    每页大小
+     * @param userId
      * @param title   标题模糊搜索，可空
      * @param author  作者精确搜索，可空
      * @param orderBy 排序字段 createTime/updateTime，可空
      * @param asc     升序/降序
      * @return 分页数据
      */
-    Page<Article> pageArticles(int page, int size, String title, String author, String orderBy, boolean asc);
+    Page<Article> pageArticles(int page, int size, Long userId, String title, String author, String orderBy, boolean asc);
 
     /**
      * 批量逻辑删除文章

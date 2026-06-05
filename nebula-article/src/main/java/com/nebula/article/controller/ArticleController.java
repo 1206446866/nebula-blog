@@ -7,9 +7,9 @@ import com.nebula.article.dto.UpdateArticleDto;
 import com.nebula.article.entity.Article;
 import com.nebula.article.service.ArticleService;
 import com.nebula.article.vo.ArticleVO;
-import com.nebula.common.util.SecurityUtils;
 import com.nebula.common.constant.ArticleStatus;
 import com.nebula.common.result.Result;
+import com.nebula.common.util.SecurityUtils;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.Max;
 import jakarta.validation.constraints.Min;
@@ -18,6 +18,8 @@ import org.apache.ibatis.javassist.NotFoundException;
 import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.*;
 
+import java.util.Objects;
+
 @RestController
 @RequestMapping("/articles")
 @RequiredArgsConstructor
@@ -25,8 +27,6 @@ import org.springframework.web.bind.annotation.*;
 public class ArticleController {
 
     private final ArticleService articleService;
-
-    private final SecurityUtils securityUtils;
 
     /**
      * 分页查询文章列表
@@ -38,8 +38,8 @@ public class ArticleController {
      * @return 文章分页数据
      */
     @GetMapping
-    public Result<Page<Article>> page(@RequestParam(required = false) String title, @RequestParam(required = false) String author, @RequestParam(defaultValue = "1") @Min(1) int currentPage, @Min(1) @Max(100) @RequestParam(defaultValue = "10") int size) {
-        return Result.success(articleService.pageArticles(currentPage, size, title, author, null, true));
+    public Result<Page<Article>> page(@RequestParam(required = false) Long userId,@RequestParam(required = false) String title, @RequestParam(required = false) String author, @RequestParam(defaultValue = "1") @Min(1) int currentPage, @Min(1) @Max(100) @RequestParam(defaultValue = "10") int size) {
+        return Result.success(articleService.pageArticles(currentPage, size,userId, title, author, null, true));
     }
 
     /**
@@ -62,7 +62,7 @@ public class ArticleController {
      */
     @PostMapping("/create")
     public Result<Boolean> createArticle(@RequestBody @Valid CreateArticleDto dto) {
-        return Result.success(new Article().setUserId(securityUtils.getUserId()).setAuthor(securityUtils.getLoginUser().getUsername()).setTitle(dto.getTitle()).setContent(dto.getContent()).setStatus(ArticleStatus.DRAFT.getCode()).save());
+        return Result.success(new Article().setUserId(SecurityUtils.getUserId()).setAuthor(Objects.requireNonNull(SecurityUtils.getLoginUser()).getUsername()).setTitle(dto.getTitle()).setContent(dto.getContent()).setStatus(ArticleStatus.DRAFT.getCode()).save());
     }
 
     /**

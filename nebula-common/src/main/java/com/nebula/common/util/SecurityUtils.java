@@ -6,6 +6,8 @@ import org.springframework.security.core.Authentication;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Component;
 
+import java.util.Objects;
+
 /**
  * Security 工具类
  */
@@ -17,7 +19,7 @@ public class SecurityUtils {
     /**
      * 获取当前登录用户
      */
-    public LoginUser getLoginUser() {
+    public static LoginUser getLoginUser() {
 
         Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
 
@@ -37,7 +39,7 @@ public class SecurityUtils {
     /**
      * 获取当前用户ID
      */
-    public Long getUserId() {
-        return getLoginUser().getUserId();
+    public static Long getUserId() {
+        return Objects.requireNonNull(getLoginUser()).getUserId();
     }
 }

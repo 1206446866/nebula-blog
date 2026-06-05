@@ -24,10 +24,11 @@ import static com.nebula.article.entity.table.ArticleTableDef.ARTICLE;
 public class ArticleServiceImpl extends ServiceImpl<ArticleMapper, Article> implements ArticleService {
 
     @Override
-    public Page<Article> pageArticles(int page, int size, String title, String author, String orderBy, boolean asc) {
+    public Page<Article> pageArticles(int page, int size, Long userId, String title, String author, String orderBy, boolean asc) {
         QueryWrapper queryWrapper = QueryWrapper.create()
-                .where(ARTICLE.TITLE.eq(title).when(Objects.nonNull(title)&&!title.isEmpty()))
-                .and(ARTICLE.AUTHOR.eq(author).when(Objects.nonNull(author)&&!author.isEmpty()));
+                .where(ARTICLE.TITLE.like(title).when(StringUtil.hasText(title)))
+                .and(ARTICLE.AUTHOR.eq(author,StringUtil::hasText))
+                .and(ARTICLE.USER_ID.eq(userId, Objects::nonNull));
         if(Objects.nonNull(orderBy)){
                 queryWrapper.orderBy(orderBy, asc);
         }

@@ -1,6 +1,5 @@
 package com.nebula.auth.vo;
 
-import com.nebula.user.entity.User;
 import lombok.AllArgsConstructor;
 import lombok.Data;
 import lombok.experimental.Accessors;
@@ -21,5 +20,5 @@ public class LoginVO {
     /**
      * 当前登录用户
      */
-    private User user;
+    private com.nebula.user.vo.UserVO user;
 }

@@ -8,7 +8,6 @@ import lombok.Data;
 import lombok.NoArgsConstructor;
 import org.springframework.security.core.GrantedAuthority;
 import org.springframework.security.core.authority.SimpleGrantedAuthority;
-import org.springframework.security.core.userdetails.UserDetails;
 
 import java.util.Collection;
 import java.util.List;
@@ -58,21 +57,6 @@ public class AuthLoginUser implements LoginUser {
     @Override
     public String getUsername() {
         return user.getUsername();
-    }
-
-    @Override
-    public boolean isAccountNonExpired() {
-        return LoginUser.super.isAccountNonExpired();
-    }
-
-    @Override
-    public boolean isAccountNonLocked() {
-        return LoginUser.super.isAccountNonLocked();
-    }
-
-    @Override
-    public boolean isCredentialsNonExpired() {
-        return LoginUser.super.isCredentialsNonExpired();
     }
 
     @Override

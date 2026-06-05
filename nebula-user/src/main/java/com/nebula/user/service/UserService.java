@@ -4,6 +4,7 @@ import com.mybatisflex.core.paginate.Page;
 import com.mybatisflex.core.service.IService;
 import com.nebula.user.entity.User;
 import com.nebula.user.vo.UserProfileVO;
+import com.nebula.user.vo.UserVO;
 import jakarta.validation.constraints.Min;
 import org.springframework.web.multipart.MultipartFile;
 
@@ -78,8 +79,16 @@ public interface UserService extends IService<User> {
     /**
      * 上传用户头像
      *
-     * @param file 文件
+     * @param userId 用户ID
+     * @param file   文件
      * @return 头像URL
      */
-    String uploadAvatar(MultipartFile file);
+    String uploadAvatar(Long userId, MultipartFile file);
+
+    /**
+     *
+     * @param userId 用户ID
+     * @return
+     */
+    UserVO getUserInfo(Long userId);
 }

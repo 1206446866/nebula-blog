@@ -2,9 +2,11 @@ package com.nebula.user.controller;
 
 import com.mybatisflex.core.paginate.Page;
 import com.nebula.common.result.Result;
+import com.nebula.common.util.SecurityUtils;
 import com.nebula.user.entity.User;
 import com.nebula.user.service.UserService;
 import com.nebula.user.vo.UserProfileVO;
+import com.nebula.user.vo.UserVO;
 import jakarta.validation.constraints.Min;
 import lombok.RequiredArgsConstructor;
 import org.springframework.validation.annotation.Validated;
@@ -18,6 +20,13 @@ import org.springframework.web.multipart.MultipartFile;
 public class UserController {
 
     private final UserService userService;
+
+
+    @GetMapping("/info")
+    public Result<UserVO> getUserInfo() {
+        Long userId = SecurityUtils.getUserId();
+        return Result.success(userService.getUserInfo(userId));
+    }
 
     /**
      * 查询用户列表（可分页/可模糊查询用户名）
@@ -84,6 +93,7 @@ public class UserController {
      */
     @PostMapping("/upload/avatar")
     public Result<String> uploadAvatar(@RequestParam("file") MultipartFile file) {
-        return Result.success(userService.uploadAvatar(file));
+        Long userId = SecurityUtils.getUserId();
+        return Result.success(userService.uploadAvatar(userId, file));
     }
 }

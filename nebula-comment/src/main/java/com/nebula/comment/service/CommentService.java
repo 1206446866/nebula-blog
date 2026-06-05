@@ -18,20 +18,12 @@ public interface CommentService extends IService<Comment> {
      */
     Page<CommentVo> pageComments(int page, int size, Long articleId);
 
-    /**
-     * 查询评论详情
-     */
-    Comment getCommentById(Long id);
 
     /**
      * 批量删除评论
      */
     boolean deleteCommentsBatch(List<Long> ids);
 
-    /**
-     * 更新评论状态
-     */
-    boolean updateStatusBatch(List<Long> ids, Integer status);
 
     /**
      * 发布评论
@@ -43,7 +35,7 @@ public interface CommentService extends IService<Comment> {
 
     /**
      * 删除评论
-     *
+     * <p>
      * 删除指定评论。
      * 管理员可以删除任意评论，
      * 普通用户仅允许删除自己发布的评论。

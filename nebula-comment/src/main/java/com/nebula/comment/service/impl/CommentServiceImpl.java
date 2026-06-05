@@ -22,8 +22,6 @@ import static com.nebula.user.entity.table.UserTableDef.USER;
 @RequiredArgsConstructor
 public class CommentServiceImpl extends ServiceImpl<CommentMapper, Comment> implements CommentService {
 
-    private final SecurityUtils securityUtils;
-
     @Override
     public Page<CommentVo> pageComments(int page, int size, Long articleId) {
         QueryWrapper queryWrapper = QueryWrapper.create()
@@ -43,7 +41,7 @@ public class CommentServiceImpl extends ServiceImpl<CommentMapper, Comment> impl
 
     @Override
     public Boolean releaseComment(ReleaseCommentDto comment) {
-        return save(Comment.creat().setUserId(securityUtils.getUserId()).setArticleId(comment.getArticleId()).setContent(comment.getContent()));
+        return save(Comment.creat().setUserId(SecurityUtils.getUserId()).setArticleId(comment.getArticleId()).setContent(comment.getContent()));
     }
 
     @Override
@@ -51,18 +49,10 @@ public class CommentServiceImpl extends ServiceImpl<CommentMapper, Comment> impl
         return removeById(id);
     }
 
-    @Override
-    public Comment getCommentById(Long id) {
-        return null;
-    }
 
     @Override
     public boolean deleteCommentsBatch(List<Long> ids) {
         return false;
     }
 
-    @Override
-    public boolean updateStatusBatch(List<Long> ids, Integer status) {
-        return false;
-    }
 }

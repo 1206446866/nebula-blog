@@ -11,7 +11,7 @@ import lombok.experimental.Accessors;
 
 import java.time.LocalDateTime;
 
-@Data(staticConstructor = "create")
+@Data
 @Table("user")
 @Accessors(chain = true)
 @EqualsAndHashCode(callSuper = true)
@@ -51,4 +51,8 @@ public class User extends Model<User> {
 
     @Column(isLogicDelete = true, comment = "逻辑删除 0未删除 1已删除")
     private Integer deleted;
+
+    public static User create() {
+        return new User();
+    }
 }

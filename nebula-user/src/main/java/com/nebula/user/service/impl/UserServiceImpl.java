@@ -4,11 +4,11 @@ import com.mybatisflex.core.paginate.Page;
 import com.mybatisflex.core.query.QueryWrapper;
 import com.mybatisflex.core.util.StringUtil;
 import com.mybatisflex.spring.service.impl.ServiceImpl;
-import com.nebula.common.util.SecurityUtils;
 import com.nebula.user.entity.User;
 import com.nebula.user.mapper.UserMapper;
 import com.nebula.user.service.UserService;
 import com.nebula.user.vo.UserProfileVO;
+import com.nebula.user.vo.UserVO;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.util.StringUtils;
@@ -22,8 +22,6 @@ import static com.nebula.user.entity.table.UserTableDef.USER;
 @Service
 @RequiredArgsConstructor
 public class UserServiceImpl extends ServiceImpl<UserMapper, User> implements UserService {
-
-    private final SecurityUtils securityUtils;
 
     @Override
     public Page<User> pageUsers(String role, String username, int page, int size) {
@@ -88,37 +86,36 @@ public class UserServiceImpl extends ServiceImpl<UserMapper, User> implements Us
         return userProfileVO;
     }
 
-//TODO
     @Override
-    public String uploadAvatar(MultipartFile file) {
-
-        if (file.isEmpty()) {
-            throw new RuntimeException("文件不能为空");
-        }
-
-        // 文件名
-        String original = file.getOriginalFilename();
-        String suffix = original.substring(original.lastIndexOf("."));
-
-        String fileName = UUID.randomUUID() + suffix;
-
+    public String uploadAvatar(Long userId, MultipartFile file) {
+        String fileName = UUID.randomUUID() + ".png";
         String dir = "upload/avatar/";
-
-        File target = new File(dir + fileName);
-
-        target.getParentFile().mkdirs();
-
-        try {
-            file.transferTo(target);
-        } catch (Exception e) {
+        File folder = new File(dir);
+        if (!folder.exists() && !folder.mkdirs()) {
             throw new RuntimeException("上传失败");
         }
-//        Long userId = securityUtils.getLoginUser().getUserId();
-//        User user = getById(userId);
-//        user.setAvatar(url);
 
-//        updateById(user);
-        // 返回访问路径（你可以换成Nginx域名）
-        return "/static/avatar/" + fileName;
+        try {
+            file.transferTo(new File(folder, fileName));
+        } catch (Exception e) {
+            throw new RuntimeException("上传失败",e);
+        }
+        // 更新数据库
+        String avatarUrl = "/avatar/" + fileName;
+        updateById(User.create().setId(userId).setAvatar(avatarUrl));
+
+        // 返回 URL
+        return avatarUrl;
+    }
+
+    @Override
+    public UserVO getUserInfo(Long userId) {
+        User user = getById(userId);
+
+        return UserVO.create()
+                .setId(user.getId())
+                .setUsername(user.getUsername())
+                .setAvatar(user.getAvatar())
+                .setRole(user.getRole());
     }
 }
