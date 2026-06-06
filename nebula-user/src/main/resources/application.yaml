@@ -25,6 +25,3 @@ mybatis-flex:
   global-config:
     print-banner: false
 
-jwt:
-  secret: nebula-blog-secret-key
-  expire: 604800000

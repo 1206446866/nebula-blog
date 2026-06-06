@@ -35,6 +35,11 @@ public class ArticleVO {
     private String author;
 
     /**
+     * 作者头像
+     */
+    private String authorAvatar;
+
+    /**
      * 评论数量
      */
     private Long commentCount;
@@ -48,6 +53,8 @@ public class ArticleVO {
      * 浏览量
      */
     private Long viewCount;
+
+
 
     public static ArticleVO create() {
         return new ArticleVO();

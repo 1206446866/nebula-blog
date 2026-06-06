@@ -30,3 +30,6 @@ mybatis-flex:
 jwt:
   secret: nebula-blog-auth-secret-key-nebula-blog-auth-secret-key
   expire: 604800000
+
+file:
+  upload-dir: upload/avatar/

@@ -39,13 +39,12 @@ public class SecurityConfig {
                 .authorizeHttpRequests(auth -> auth
 
                         // 登录接口放行
-                        .requestMatchers("/auth/login").permitAll()
-
+                        // 静态资源放行
+                        .requestMatchers("/auth/login","/avatar/**").permitAll()
                         // 其他请求需要认证
                         .anyRequest().authenticated()).exceptionHandling(exception -> exception
 
-                        .authenticationEntryPoint(jwtAuthenticationEntryPoint)
-                        .accessDeniedHandler(jwtAccessDeniedHandler))
+                        .authenticationEntryPoint(jwtAuthenticationEntryPoint).accessDeniedHandler(jwtAccessDeniedHandler))
                 // 添加JWT过滤器
                 .addFilterBefore(jwtAuthenticationFilter, UsernamePasswordAuthenticationFilter.class);
 
