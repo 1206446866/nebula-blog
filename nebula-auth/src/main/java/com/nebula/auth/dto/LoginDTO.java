@@ -11,10 +11,10 @@ import lombok.experimental.Accessors;
 public class LoginDTO {
 
     /**
-     * 用户名
+     * 账号
      */
-    @NotBlank(message = "用户名不能为空")
-    private String username;
+    @NotBlank(message = "NID不能为空")
+    private String nid;
 
     /**
      * 密码

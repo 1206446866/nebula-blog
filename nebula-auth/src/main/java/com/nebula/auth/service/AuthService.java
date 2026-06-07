@@ -1,14 +1,13 @@
 package com.nebula.auth.service;
 
 import com.nebula.auth.dto.LoginDTO;
+import com.nebula.auth.dto.RegisterRequestDTO;
 import com.nebula.auth.vo.LoginVO;
 
 import java.util.List;
 
 public interface AuthService {
 
-
-    String encode(String password);
 
     boolean matchesPassword(String rawPassword, String encodedPassword);
     /**
@@ -19,6 +18,13 @@ public interface AuthService {
      */
     LoginVO login(LoginDTO loginDTO);
 
+    /**
+     * 注册用户
+     *
+     * @param dto 注册信息
+     * @return 操作是否成功
+     */
+    Boolean register(RegisterRequestDTO dto);
 
     /**
      * 查询用户拥有的权限标识

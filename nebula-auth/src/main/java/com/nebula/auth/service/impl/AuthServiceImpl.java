@@ -2,6 +2,7 @@ package com.nebula.auth.service.impl;
 
 import cn.hutool.core.bean.BeanUtil;
 import com.nebula.auth.dto.LoginDTO;
+import com.nebula.auth.dto.RegisterRequestDTO;
 import com.nebula.auth.entity.Permission;
 import com.nebula.auth.entity.RolePermission;
 import com.nebula.auth.mapper.PermissionMapper;
@@ -16,6 +17,7 @@ import com.nebula.user.entity.UserRole;
 import com.nebula.user.mapper.UserMapper;
 import com.nebula.user.mapper.UserRoleMapper;
 import lombok.RequiredArgsConstructor;
+import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 
@@ -34,6 +36,9 @@ import static com.nebula.user.entity.table.UserTableDef.USER;
 @RequiredArgsConstructor
 public class AuthServiceImpl implements AuthService {
 
+    /**
+     * 用户 User
+     */
     private final UserMapper userMapper;
 
     /**
@@ -59,11 +64,6 @@ public class AuthServiceImpl implements AuthService {
     private final PasswordEncoder passwordEncoder;
 
     @Override
-    public String encode(String password) {
-        return passwordEncoder.encode(password);
-    }
-
-    @Override
     public boolean matchesPassword(String rawPassword, String encodedPassword) {
         return passwordEncoder.matches(rawPassword, encodedPassword);
     }
@@ -74,7 +74,7 @@ public class AuthServiceImpl implements AuthService {
     @Override
     public LoginVO login(LoginDTO loginDTO) {
         User user = userMapper.selectOneByCondition(
-                USER.USERNAME.eq(loginDTO.getUsername())
+                USER.NID.eq(loginDTO.getNid())
         );
 
         if (user == null) {
@@ -86,7 +86,17 @@ public class AuthServiceImpl implements AuthService {
         }
 
         String token = jwtUtil.createToken(user);
-        return new LoginVO(token, BeanUtil.copyProperties(user,com.nebula.user.vo.UserVO.class));
+        return new LoginVO(token, BeanUtil.copyProperties(user, com.nebula.user.vo.UserVO.class));
+    }
+
+    @Override
+    public Boolean register(RegisterRequestDTO dto) {
+        // 加密密码
+        User user = User.create()
+                .setPassword(new BCryptPasswordEncoder().encode(dto.getPassword()))
+        // 设置默认角色
+        .setRole("USER");
+        return userMapper.insertSelective(user) > 0;
     }
 
     @Override

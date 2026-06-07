@@ -36,24 +36,23 @@ public interface UserService extends IService<User> {
      */
     Boolean switchStatusById(Long userId, Integer status);
 
-    boolean addUser(User user);
-    boolean updateUser(User user);
-
 
     /**
      * 修改用户密码（用户自己操作）
-     * @param userId 用户ID
+     *
+     * @param userId      用户ID
      * @param newPassword 新密码
      * @return 操作是否成功
      */
-    boolean changePassword(Long userId, String newPassword);
+    Boolean changePassword(Long userId, String newPassword);
 
     /**
      * 管理员重置用户密码
+     *
      * @param userId 用户ID
      * @return 操作是否成功
      */
-    boolean resetPassword(Long userId);
+    Boolean resetPassword(Long userId);
 
     /**
      * 删除用户

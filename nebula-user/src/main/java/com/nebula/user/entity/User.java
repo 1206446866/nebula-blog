@@ -20,9 +20,15 @@ public class User extends Model<User> {
     @Id(keyType = KeyType.Auto)
     private Long id;
 
+    /**
+     * 登录账号（NID，唯一）
+     */
+    private String nid;
+
     private String username;
 
     private String password;
+
 
     private String role = "USER";
 

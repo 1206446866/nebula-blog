@@ -15,8 +15,6 @@ import org.springframework.stereotype.Service;
 import org.springframework.util.StringUtils;
 import org.springframework.web.multipart.MultipartFile;
 
-import javax.imageio.ImageIO;
-import java.awt.image.BufferedImage;
 import java.io.File;
 import java.nio.file.Files;
 import java.nio.file.StandardCopyOption;
@@ -57,25 +55,15 @@ public class UserServiceImpl extends ServiceImpl<UserMapper, User> implements Us
         return updateById(User.create().setId(userId).setStatus(status));
     }
 
-    @Override
-    public boolean addUser(User user) {
-        return save(user);
-    }
-
-    @Override
-    public boolean updateUser(User user) {
-        return updateById(user);
-    }
-
     //TODO
     @Override
-    public boolean changePassword(Long userId, String newPassword) {
+    public Boolean changePassword(Long userId, String newPassword) {
         return false;
     }
 
     //TODO
     @Override
-    public boolean resetPassword(Long userId) {
+    public Boolean resetPassword(Long userId) {
         return false;
     }
 

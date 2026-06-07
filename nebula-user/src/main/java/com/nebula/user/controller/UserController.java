@@ -41,6 +41,12 @@ public class UserController {
         return Result.success(userService.pageUsers(role, username, page, size));
     }
 
+    /**
+     * 切换状态
+     * @param id
+     * @param status
+     * @return
+     */
     @PutMapping("/switchStatusById/{id}")
     public Result<Boolean> switchStatusById(@PathVariable Long id, @RequestParam Integer status) {
         return Result.success(userService.switchStatusById(id, status));
@@ -48,7 +54,6 @@ public class UserController {
 
     /**
      * 删除用户
-     *
      * @param id 用户ID
      */
     @DeleteMapping("/deleteUserById/{id}")
