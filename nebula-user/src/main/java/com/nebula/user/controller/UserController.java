@@ -9,6 +9,7 @@ import com.nebula.user.vo.UserProfileVO;
 import com.nebula.user.vo.UserVO;
 import jakarta.validation.constraints.Min;
 import lombok.RequiredArgsConstructor;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
@@ -43,10 +44,11 @@ public class UserController {
 
     /**
      * 切换状态
-     * @param id
-     * @param status
-     * @return
+     * @param id 用户ID
+     * @param status 状态标识
+     * @return 操作状态
      */
+    @PreAuthorize("hasAuthority('user:update')")
     @PutMapping("/switchStatusById/{id}")
     public Result<Boolean> switchStatusById(@PathVariable Long id, @RequestParam Integer status) {
         return Result.success(userService.switchStatusById(id, status));
@@ -56,28 +58,12 @@ public class UserController {
      * 删除用户
      * @param id 用户ID
      */
+    @PreAuthorize("hasAuthority('user:update')")
     @DeleteMapping("/deleteUserById/{id}")
     public Result<Boolean> deleteUserById(@PathVariable Long id) {
         return Result.success(userService.deleteUserById(id));
     }
 
-    /**
-     * 修改密码（用户自己操作）
-     */
-    @PostMapping("/change-password/{userId}")
-    public String changePassword(@PathVariable Long userId, @RequestParam String newPassword) {
-        boolean success = userService.changePassword(userId, newPassword);
-        return success ? Result.success("修改成功").getMessage() : Result.error("修改失败").getMessage();
-    }
-
-    /**
-     * 管理员重置用户密码
-     */
-    @PostMapping("/reset-password/{userId}")
-    public String resetPassword(@PathVariable Long userId) {
-        boolean success = userService.resetPassword(userId);
-        return success ? Result.success("重置成功").getMessage() : Result.error("重置失败").getMessage();
-    }
 
     /**
      * 获取用户主页信息

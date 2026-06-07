@@ -115,7 +115,6 @@ public class JwtUtil {
      * 获取用户ID
      */
     public Long getUserId(String token) {
-
         return Long.parseLong(
                 parseToken(token).getSubject()
         );

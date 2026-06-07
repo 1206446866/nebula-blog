@@ -15,7 +15,6 @@ import com.nebula.common.constant.ArticleStatus;
 import org.apache.ibatis.javassist.NotFoundException;
 import org.springframework.stereotype.Service;
 
-import java.util.List;
 import java.util.Objects;
 
 import static com.nebula.article.entity.table.ArticleTableDef.ARTICLE;
@@ -35,25 +34,14 @@ public class ArticleServiceImpl extends ServiceImpl<ArticleMapper, Article> impl
         return page(Page.of(page, size), queryWrapper);
     }
 
-    @Override
-    public boolean deleteArticlesBatch(List<Long> ids) {
-        if (Objects.isNull(ids) || ids.isEmpty()) {return true;}
-        QueryWrapper queryWrapper = QueryWrapper.create()
-                .where(ARTICLE.ID.eq(ids));
-        return remove(queryWrapper);
-    }
+//    @Override
+//    public boolean deleteArticlesBatch(List<Long> ids) {
+//        if (Objects.isNull(ids) || ids.isEmpty()) {return true;}
+//        QueryWrapper queryWrapper = QueryWrapper.create()
+//                .where(ARTICLE.ID.eq(ids));
+//        return remove(queryWrapper);
+//    }
 
-    @Override
-    public boolean updateStatusBatch(List<Long> ids, Integer status) {
-        // TODO: 使用 QueryWrapper 批量更新状态
-        return false;
-    }
-
-    @Override
-    public boolean updateArticlePartial(Long id, Article article) {
-        // TODO: 使用 QueryWrapper 更新指定字段
-        return false;
-    }
 
     @Override
     public ArticleVO getArticleById(Long id) throws NotFoundException {

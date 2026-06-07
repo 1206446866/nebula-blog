@@ -12,7 +12,6 @@ import com.nebula.user.vo.UserVO;
 import lombok.RequiredArgsConstructor;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
-import org.springframework.util.StringUtils;
 import org.springframework.web.multipart.MultipartFile;
 
 import java.io.File;
@@ -38,12 +37,6 @@ public class UserServiceImpl extends ServiceImpl<UserMapper, User> implements Us
     }
 
     @Override
-    public long countUsers(String role, String username) {
-        QueryWrapper query = new QueryWrapper().where(USER.ROLE.eq(role, StringUtil::hasText).and(USER.USERNAME.eq(username, StringUtils::hasText)));
-        return count(query);
-    }
-
-    @Override
     public Page<User> getUsersByRole(String role, long current, long size) {
         QueryWrapper query = new QueryWrapper();
         query.select(USER.ID, USER.USERNAME, USER.ROLE, USER.STATUS, USER.CREATE_TIME).where(USER.ROLE.eq(role, StringUtil::hasText)).orderBy(USER.ID.asc());
@@ -55,17 +48,6 @@ public class UserServiceImpl extends ServiceImpl<UserMapper, User> implements Us
         return updateById(User.create().setId(userId).setStatus(status));
     }
 
-    //TODO
-    @Override
-    public Boolean changePassword(Long userId, String newPassword) {
-        return false;
-    }
-
-    //TODO
-    @Override
-    public Boolean resetPassword(Long userId) {
-        return false;
-    }
 
     @Override
     public Boolean deleteUserById(Long id) {
@@ -100,10 +82,7 @@ public class UserServiceImpl extends ServiceImpl<UserMapper, User> implements Us
         }
 
         // TODO 真实内容校验
-//        BufferedImage image = ImageIO.read(file.getInputStream());
-//        if (image == null) {
-//            throw new RuntimeException("非法图片文件");
-//        }
+
         String fileName = LocalDateTime.now().format(DateTimeFormatter.ofPattern("yyyyMMddHHmmss")) + "_" + UUID.randomUUID() + suffix;
         String dir = System.getProperty("user.dir") + File.separator + uploadDir;
         File folder = new File(dir);

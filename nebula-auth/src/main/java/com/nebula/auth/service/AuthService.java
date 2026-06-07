@@ -27,6 +27,23 @@ public interface AuthService {
     Boolean register(RegisterRequestDTO dto);
 
     /**
+     * 修改用户密码（用户自己操作）
+     *
+     * @param userId      用户ID
+     * @param newPassword 新密码
+     * @return 操作是否成功
+     */
+    Boolean changePassword(Long userId, String newPassword);
+
+    /**
+     * 管理员重置用户密码
+     *
+     * @param userId 用户ID
+     * @return 操作是否成功
+     */
+    Boolean resetPassword(Long userId);
+
+    /**
      * 查询用户拥有的权限标识
      *
      * @param userId 用户ID

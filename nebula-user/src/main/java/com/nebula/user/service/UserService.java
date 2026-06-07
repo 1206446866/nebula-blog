@@ -22,8 +22,6 @@ public interface UserService extends IService<User> {
      */
     Page<User> pageUsers(String role, String username, int page, int size);
 
-    long countUsers(String role, String username);
-
     // 根据角色查询用户
     Page<User> getUsersByRole(String role,long current,long size);
 
@@ -37,22 +35,6 @@ public interface UserService extends IService<User> {
     Boolean switchStatusById(Long userId, Integer status);
 
 
-    /**
-     * 修改用户密码（用户自己操作）
-     *
-     * @param userId      用户ID
-     * @param newPassword 新密码
-     * @return 操作是否成功
-     */
-    Boolean changePassword(Long userId, String newPassword);
-
-    /**
-     * 管理员重置用户密码
-     *
-     * @param userId 用户ID
-     * @return 操作是否成功
-     */
-    Boolean resetPassword(Long userId);
 
     /**
      * 删除用户
@@ -85,9 +67,7 @@ public interface UserService extends IService<User> {
     String uploadAvatar(Long userId, MultipartFile file);
 
     /**
-     *
      * @param userId 用户ID
-     * @return
      */
     UserVO getUserInfo(Long userId);
 }

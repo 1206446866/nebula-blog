@@ -2,9 +2,13 @@ package com.nebula.common.exception;
 
 import com.nebula.common.result.Result;
 import jakarta.validation.ConstraintViolationException;
+import org.springframework.context.support.DefaultMessageSourceResolvable;
+import org.springframework.security.authorization.AuthorizationDeniedException;
 import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
+
+import java.util.Optional;
 
 /**
  * 全局异常处理
@@ -22,7 +26,9 @@ public class GlobalExceptionHandler {
      */
     @ExceptionHandler(MethodArgumentNotValidException.class)
     public Result<?> handleValidException(MethodArgumentNotValidException e) {
-        String message = e.getBindingResult().getFieldError().getDefaultMessage();
+        String message = Optional.ofNullable(e.getBindingResult().getFieldError())
+                .map(DefaultMessageSourceResolvable::getDefaultMessage)
+                .orElse("参数校验失败");
         return Result.error(message);
     }
 
@@ -39,7 +45,11 @@ public class GlobalExceptionHandler {
      */
     @ExceptionHandler(Exception.class)
     public Result<?> handleException(Exception e) {
-        e.printStackTrace();
-        return Result.error("未知的服务器异常");
+        return Result.error("未知的服务器异常:"+e.getMessage());
+    }
+
+    @ExceptionHandler(AuthorizationDeniedException.class)
+    public Result<?> handleAuthorizationDeniedException(AuthorizationDeniedException e) {
+        return Result.error(403, "权限不足");
     }
 }

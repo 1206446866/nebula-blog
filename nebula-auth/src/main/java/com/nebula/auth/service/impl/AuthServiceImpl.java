@@ -8,20 +8,23 @@ import com.nebula.auth.entity.RolePermission;
 import com.nebula.auth.mapper.PermissionMapper;
 import com.nebula.auth.mapper.RolePermissionMapper;
 import com.nebula.auth.service.AuthService;
+import com.nebula.auth.service.PermissionService;
 import com.nebula.auth.util.JwtUtil;
 import com.nebula.auth.vo.LoginVO;
+import com.nebula.common.constant.RoleEnum;
 import com.nebula.common.exception.AuthenticationException;
 import com.nebula.common.exception.code.AuthErrorCode;
 import com.nebula.user.entity.User;
 import com.nebula.user.entity.UserRole;
 import com.nebula.user.mapper.UserMapper;
 import com.nebula.user.mapper.UserRoleMapper;
+import com.nebula.user.vo.UserVO;
 import lombok.RequiredArgsConstructor;
-import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 
 import java.util.List;
+import java.util.UUID;
 import java.util.stream.Collectors;
 
 import static com.nebula.auth.entity.table.PermissionTableDef.PERMISSION;
@@ -56,6 +59,8 @@ public class AuthServiceImpl implements AuthService {
      */
     private final PermissionMapper permissionMapper;
 
+    private final PermissionService permissionService;
+
     /**
      * JWT 工具类
      */
@@ -66,6 +71,17 @@ public class AuthServiceImpl implements AuthService {
     @Override
     public boolean matchesPassword(String rawPassword, String encodedPassword) {
         return passwordEncoder.matches(rawPassword, encodedPassword);
+    }
+
+    @Override
+    public Boolean changePassword(Long userId, String newPassword) {
+        return userMapper.insertSelective(User.create().setId(userId).setPassword(passwordEncoder.encode(newPassword))) == 1;
+    }
+
+    //TODO
+    @Override
+    public Boolean resetPassword(Long userId) {
+        return false;
     }
 
     /**
@@ -86,17 +102,28 @@ public class AuthServiceImpl implements AuthService {
         }
 
         String token = jwtUtil.createToken(user);
-        return new LoginVO(token, BeanUtil.copyProperties(user, com.nebula.user.vo.UserVO.class));
+        List<String> roles = List.of(user.getRole());
+        List<String> permissions = permissionService.getPermissionsByUserId(user.getId());
+        return LoginVO.create().setToken(token)
+                .setUser(BeanUtil.copyProperties(user, UserVO.class))
+                .setRoles(roles)
+                .setPermissions(permissions);
     }
 
     @Override
     public Boolean register(RegisterRequestDTO dto) {
-        // 加密密码
+//        用户创建
         User user = User.create()
-                .setPassword(new BCryptPasswordEncoder().encode(dto.getPassword()))
-        // 设置默认角色
-        .setRole("USER");
-        return userMapper.insertSelective(user) > 0;
+                .setNid(UUID.randomUUID().toString().replace("-", ""))
+                .setUsername("普通用户" + UUID.randomUUID())
+                .setPassword(passwordEncoder.encode(dto.getPassword()))
+                .setRole(RoleEnum.USER.getCode());
+//        角色关联
+        userMapper.insertSelective(user);
+        UserRole userRole = UserRole.create()
+                .setUserId(user.getId())
+                .setRoleId(RoleEnum.USER.getRoleId());
+        return userRoleMapper.insertSelective(userRole) > 0;
     }
 
     @Override

@@ -1,9 +1,7 @@
 package com.nebula.auth.security;
 
-import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.nebula.common.security.LoginUser;
 import com.nebula.user.entity.User;
-import lombok.AllArgsConstructor;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 import org.springframework.security.core.GrantedAuthority;
@@ -18,7 +16,6 @@ import java.util.stream.Collectors;
  */
 @Data
 @NoArgsConstructor
-@AllArgsConstructor
 public class AuthLoginUser implements LoginUser {
 
     /**
@@ -29,11 +26,6 @@ public class AuthLoginUser implements LoginUser {
      * 权限标识集合
      */
     private List<String> permissions;
-    /**
-     * Spring Security 权限集合
-     */
-    @JsonIgnore
-    private List<GrantedAuthority> authorities;
 
     public AuthLoginUser(User user, List<String> permissions) {
         this.user = user;
@@ -42,11 +34,9 @@ public class AuthLoginUser implements LoginUser {
 
     @Override
     public Collection<? extends GrantedAuthority> getAuthorities() {
-        if (authorities != null) {
-            return authorities;
-        }
-        authorities = permissions.stream().map(SimpleGrantedAuthority::new).collect(Collectors.toList());
-        return authorities;
+        return permissions.stream()
+                .map(SimpleGrantedAuthority::new)
+                .collect(Collectors.toList());
     }
 
     @Override

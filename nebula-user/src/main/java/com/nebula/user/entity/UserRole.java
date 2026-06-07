@@ -1,13 +1,10 @@
 package com.nebula.user.entity;
 
-import com.mybatisflex.annotation.Column;
 import com.mybatisflex.annotation.Table;
 import com.mybatisflex.core.activerecord.Model;
 import lombok.Data;
 import lombok.EqualsAndHashCode;
 import lombok.experimental.Accessors;
-
-import java.time.LocalDateTime;
 
 @Data
 @Table("user_role")
@@ -19,9 +16,8 @@ public class UserRole extends Model<UserRole> {
 
     private Long roleId;
 
-    /**
-     * 创建时间
-     */
-    @Column(onInsertValue = "now()")
-    private LocalDateTime createTime;
+    public static UserRole create() {
+        return new UserRole();
+    }
+
 }

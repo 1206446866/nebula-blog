@@ -18,17 +18,11 @@ public class JwtAccessDeniedHandler implements AccessDeniedHandler {
 
     @Override
     public void handle(HttpServletRequest request, HttpServletResponse response, AccessDeniedException e) throws IOException {
-
         response.setCharacterEncoding("UTF-8");
-
         response.setContentType("application/json;charset=UTF-8");
-
         response.setStatus(HttpServletResponse.SC_FORBIDDEN);
-
         Result<Void> result = Result.error(403, "权限不足");
-
         String json = new ObjectMapper().writeValueAsString(result);
-
         response.getWriter().write(json);
     }
 }

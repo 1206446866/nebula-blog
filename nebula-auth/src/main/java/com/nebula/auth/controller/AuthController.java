@@ -1,12 +1,10 @@
 package com.nebula.auth.controller;
 
-import cn.hutool.core.bean.BeanUtil;
 import com.nebula.auth.dto.LoginDTO;
 import com.nebula.auth.dto.RegisterRequestDTO;
 import com.nebula.auth.service.AuthService;
 import com.nebula.auth.vo.LoginVO;
 import com.nebula.common.result.Result;
-import com.nebula.user.entity.User;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.web.bind.annotation.*;
@@ -33,12 +31,29 @@ public class AuthController {
 
     /**
      * 注册
-     *
      * @param dto 用户名 密码
      */
     @PostMapping("/register")
-    public Result<Boolean> register(@RequestBody RegisterRequestDTO dto) {
+    public Result<Boolean> register(@Valid @RequestBody RegisterRequestDTO dto) {
         return Result.success(authService.register(dto));
+    }
+
+    /**
+     * 修改密码（用户自己操作）
+     */
+    @PostMapping("/change-password/{userId}")
+    public String changePassword(@PathVariable Long userId, @RequestParam String newPassword) {
+        boolean success = authService.changePassword(userId, newPassword);
+        return success ? Result.success("修改成功").getMessage() : Result.error("修改失败").getMessage();
+    }
+
+    /**
+     * 管理员重置用户密码
+     */
+    @PostMapping("/reset-password/{userId}")
+    public String resetPassword(@PathVariable Long userId) {
+        boolean success = authService.resetPassword(userId);
+        return success ? Result.success("重置成功").getMessage() : Result.error("重置失败").getMessage();
     }
 
     /**

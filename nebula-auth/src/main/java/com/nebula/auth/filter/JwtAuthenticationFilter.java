@@ -42,8 +42,6 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
         }
         // 提取Token
         String token = authHeader.substring(7);
-//        TODO print token
-        System.out.println("token: Bearer " + token);
         // 校验Token
         if (!jwtUtil.validateToken(token)) {
             filterChain.doFilter(request, response);
