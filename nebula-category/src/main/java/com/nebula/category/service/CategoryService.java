@@ -2,19 +2,24 @@ package com.nebula.category.service;
 
 import com.mybatisflex.core.paginate.Page;
 import com.mybatisflex.core.service.IService;
+import com.nebula.category.dto.CreateCategoryDTO;
+import com.nebula.category.dto.UpdateCategoryDTO;
 import com.nebula.category.entity.Category;
+import com.nebula.category.vo.CategoryVO;
 
 import java.util.List;
 
 public interface CategoryService extends IService<Category> {
 
-    Page<Category> pageCategories(int page, int size, String name, String orderBy, boolean asc);
+    Page<CategoryVO> pageCategories(String name, int page, int size, String orderBy, boolean asc);
 
-    boolean deleteCategoriesBatch(List<Long> ids);
+    List<CategoryVO> listCategories();
 
-    boolean updateStatusBatch(List<Long> ids, Integer status);
+    boolean createCategory(CreateCategoryDTO dto);
 
-    boolean updateCategoryPartial(Long id, Category category);
+    boolean updateCategory(UpdateCategoryDTO dto);
+
+    boolean deleteCategory(Long id);
 
     Category getCategoryById(Long id);
 }

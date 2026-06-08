@@ -2,19 +2,24 @@ package com.nebula.tag.service;
 
 import com.mybatisflex.core.paginate.Page;
 import com.mybatisflex.core.service.IService;
+import com.nebula.tag.dto.CreateTagDTO;
+import com.nebula.tag.dto.UpdateTagDTO;
 import com.nebula.tag.entity.Tag;
+import com.nebula.tag.vo.TagVO;
 
 import java.util.List;
 
 public interface TagService extends IService<Tag> {
 
-    Page<Tag> pageTags(int page, int size, String name, String orderBy, boolean asc);
+    Page<TagVO> pageTags(String name, int page, int size, String orderBy, boolean asc);
 
-    boolean deleteTagsBatch(List<Long> ids);
+    List<TagVO> listTags();
 
-    boolean updateStatusBatch(List<Long> ids, Integer status);
+    boolean createTag(CreateTagDTO dto);
 
-    boolean updateTagPartial(Long id, Tag tag);
+    boolean updateTag(UpdateTagDTO dto);
+
+    boolean deleteTag(Long id);
 
     Tag getTagById(Long id);
 }

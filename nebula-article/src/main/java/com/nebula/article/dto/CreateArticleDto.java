@@ -5,6 +5,8 @@ import lombok.AllArgsConstructor;
 import lombok.Data;
 import lombok.experimental.Accessors;
 
+import java.util.List;
+
 /**
  * 新增文章DTO
  *
@@ -26,4 +28,8 @@ public class CreateArticleDto {
      */
     @NotBlank(message = "文章内容不能为空")
     private String content;
+
+    private Long categoryId;
+
+    private List<Long> tagIds;
 }

@@ -5,6 +5,8 @@ import jakarta.validation.constraints.NotNull;
 import lombok.Data;
 import lombok.experimental.Accessors;
 
+import java.util.List;
+
 /**
  * 修改文章DTO
  *
@@ -31,4 +33,8 @@ public class UpdateArticleDto {
      */
     @NotBlank(message = "文章内容不能为空")
     private String content;
+
+    private Long categoryId;
+
+    private List<Long> tagIds;
 }
