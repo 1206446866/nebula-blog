@@ -1,57 +1,148 @@
 package com.nebula.article.service.impl;
 
 import cn.hutool.core.bean.BeanUtil;
+import cn.hutool.core.collection.CollUtil;
 import com.mybatisflex.core.paginate.Page;
 import com.mybatisflex.core.query.QueryWrapper;
 import com.mybatisflex.core.update.UpdateChain;
 import com.mybatisflex.core.util.StringUtil;
 import com.mybatisflex.spring.service.impl.ServiceImpl;
 import com.nebula.article.dto.ChangeArticleStatusDto;
+import com.nebula.article.dto.CreateArticleDto;
+import com.nebula.article.dto.UpdateArticleDto;
 import com.nebula.article.entity.Article;
+import com.nebula.article.entity.ArticleCategory;
+import com.nebula.article.entity.ArticleTag;
+import com.nebula.article.mapper.ArticleCategoryMapper;
 import com.nebula.article.mapper.ArticleMapper;
+import com.nebula.article.mapper.ArticleTagMapper;
 import com.nebula.article.service.ArticleService;
 import com.nebula.article.vo.ArticleVO;
 import com.nebula.common.constant.ArticleStatus;
+import com.nebula.common.util.SecurityUtils;
+import lombok.RequiredArgsConstructor;
 import org.apache.ibatis.javassist.NotFoundException;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
+import java.util.List;
 import java.util.Objects;
 
+import static com.nebula.article.entity.table.ArticleCategoryTableDef.ARTICLE_CATEGORY;
 import static com.nebula.article.entity.table.ArticleTableDef.ARTICLE;
+import static com.nebula.article.entity.table.ArticleTagTableDef.ARTICLE_TAG;
 
 @Service
+@RequiredArgsConstructor
 public class ArticleServiceImpl extends ServiceImpl<ArticleMapper, Article> implements ArticleService {
 
+    private final ArticleCategoryMapper articleCategoryMapper;
+    private final ArticleTagMapper articleTagMapper;
+
+
     @Override
-    public Page<Article> pageArticles(int page, int size, Long userId, String title, String author, String orderBy, boolean asc) {
+    public Page<ArticleVO> pageArticles(int page, int size, Long userId, String title, String author, String orderBy, boolean asc) {
         QueryWrapper queryWrapper = QueryWrapper.create()
                 .where(ARTICLE.TITLE.like(title).when(StringUtil.hasText(title)))
-                .and(ARTICLE.AUTHOR.eq(author,StringUtil::hasText))
+                .and(ARTICLE.AUTHOR.eq(author, StringUtil::hasText))
                 .and(ARTICLE.USER_ID.eq(userId, Objects::nonNull));
-        if(Objects.nonNull(orderBy)){
-                queryWrapper.orderBy(orderBy, asc);
+        if (Objects.nonNull(orderBy)) {
+            queryWrapper.orderBy(orderBy, asc);
         }
-        return page(Page.of(page, size), queryWrapper);
+        return pageAs(Page.of(page, size), queryWrapper, ArticleVO.class);
     }
-
-//    @Override
-//    public boolean deleteArticlesBatch(List<Long> ids) {
-//        if (Objects.isNull(ids) || ids.isEmpty()) {return true;}
-//        QueryWrapper queryWrapper = QueryWrapper.create()
-//                .where(ARTICLE.ID.eq(ids));
-//        return remove(queryWrapper);
-//    }
 
 
     @Override
     public ArticleVO getArticleById(Long id) throws NotFoundException {
         Article article = Article.create().where(ARTICLE.ID.eq(id)).one();
-        if (Objects.isNull(article)) { throw new NotFoundException("文章不存在或未发布");}
+        if (Objects.isNull(article)) {
+            throw new NotFoundException("文章不存在或未发布");
+        }
         UpdateChain.of(Article.class)
-                .setRaw(ARTICLE.VIEW_COUNT,ARTICLE.VIEW_COUNT.add(1))
+                .setRaw(ARTICLE.VIEW_COUNT, ARTICLE.VIEW_COUNT.add(1))
                 .where(ARTICLE.ID.eq(id))
                 .update();
-        return BeanUtil.copyProperties(article, ArticleVO.class);
+        ArticleVO articleVO = BeanUtil.copyProperties(article, ArticleVO.class);
+        ArticleCategory articleCategory = articleCategoryMapper.selectOneByCondition(ARTICLE_CATEGORY.ARTICLE_ID.eq(id));
+        if (articleCategory != null) {
+            articleVO.setCategoryId(articleCategory.getCategoryId());
+        }
+        List<ArticleTag> articleTags =
+                articleTagMapper.selectListByQuery(
+                        QueryWrapper.create().select(ARTICLE_TAG.TAG_ID)
+                                .where(
+                                        ARTICLE_TAG.ARTICLE_ID.eq(id)
+                                )
+                );
+        articleVO.setTagIds(
+                articleTags.stream()
+                        .map(ArticleTag::getTagId)
+                        .toList()
+        );
+        return articleVO;
+    }
+
+    @Transactional(rollbackFor = Exception.class)
+    @Override
+    public boolean createArticle(CreateArticleDto dto) {
+//        草稿态
+        Article article = Article.create().setUserId(SecurityUtils.getUserId())
+                .setAuthor(Objects.requireNonNull(SecurityUtils.getLoginUser()).getUsername())
+                .setTitle(dto.getTitle()).setContent(dto.getContent())
+                .setStatus(ArticleStatus.DRAFT.getCode());
+        boolean res = article.save();
+        articleCategoryMapper.insertSelective(ArticleCategory.create().setArticleId(article.getId()).setCategoryId(dto.getCategoryId()));
+        if (CollUtil.isNotEmpty(dto.getTagIds())) {
+            List<ArticleTag> articleTags = dto.getTagIds()
+                    .stream()
+                    .map(tagId -> ArticleTag.create()
+                            .setArticleId(article.getId())
+                            .setTagId(tagId))
+                    .toList();
+            articleTagMapper.insertBatchSelective(articleTags);
+        }
+        return res;
+    }
+
+    @Transactional(rollbackFor = Exception.class)
+    @Override
+    public boolean updateArticle(UpdateArticleDto dto) {
+        boolean res = updateById(Article.create()
+                .setId(dto.getId())
+                .setTitle(dto.getTitle())
+                .setContent(dto.getContent())
+        );
+
+        // 分类重建
+        QueryWrapper categoryQuery = QueryWrapper.create()
+                .where(ARTICLE_CATEGORY.ARTICLE_ID.eq(dto.getId()));
+        //删除原有关系
+        articleCategoryMapper.deleteByQuery(categoryQuery);
+        //建立新关系
+        articleCategoryMapper.insert(
+                ArticleCategory.create()
+                        .setArticleId(dto.getId())
+                        .setCategoryId(dto.getCategoryId())
+        );
+
+        // 标签重建
+        QueryWrapper tagQuery = QueryWrapper.create()
+                .where(ARTICLE_TAG.ARTICLE_ID.eq(dto.getId()));
+
+        articleTagMapper.deleteByQuery(tagQuery);
+
+        if (CollUtil.isNotEmpty(dto.getTagIds())) {
+            List<ArticleTag> articleTags = dto.getTagIds()
+                    .stream()
+                    .map(tagId -> ArticleTag.create()
+                            .setArticleId(dto.getId())
+                            .setTagId(tagId))
+                    .toList();
+
+            articleTagMapper.insertBatch(articleTags);
+        }
+        return res;
     }
 
     @Override
@@ -60,12 +151,12 @@ public class ArticleServiceImpl extends ServiceImpl<ArticleMapper, Article> impl
     }
 
     @Override
-    public Page<Article> pagePublishedArticles(String title, Integer currentPage, Integer size) {
+    public Page<ArticleVO> pagePublishedArticles(String title, Integer currentPage, Integer size) {
         QueryWrapper query = QueryWrapper.create()
                 .where(ARTICLE.STATUS.eq(
                         ArticleStatus.PUBLISHED.getCode()
                 ))
                 .and(ARTICLE.TITLE.eq(title, StringUtil::hasText));
-        return page(Page.of(currentPage, size), query);
+        return pageAs(Page.of(currentPage, size), query, ArticleVO.class);
     }
 }

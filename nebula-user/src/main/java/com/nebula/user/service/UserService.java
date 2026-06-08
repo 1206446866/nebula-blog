@@ -14,16 +14,13 @@ public interface UserService extends IService<User> {
     /**
      * 分页查询用户，可根据角色和用户名模糊搜索
      *
-     * @param page 当前页
-     * @param size 每页数量
-     * @param role 角色，可选
+     * @param page     当前页
+     * @param size     每页数量
+     * @param role     角色，可选
      * @param username 用户名，可选
      * @return 用户分页列表
      */
-    Page<User> pageUsers(String role, String username, int page, int size);
-
-    // 根据角色查询用户
-    Page<User> getUsersByRole(String role,long current,long size);
+    Page<UserVO> pageUsers(String role, String username, int page, int size);
 
     /**
      * 修改用户状态（启用/禁用）

@@ -3,6 +3,8 @@ package com.nebula.article.service;
 import com.mybatisflex.core.paginate.Page;
 import com.mybatisflex.core.service.IService;
 import com.nebula.article.dto.ChangeArticleStatusDto;
+import com.nebula.article.dto.CreateArticleDto;
+import com.nebula.article.dto.UpdateArticleDto;
 import com.nebula.article.entity.Article;
 import com.nebula.article.vo.ArticleVO;
 import org.apache.ibatis.javassist.NotFoundException;
@@ -21,7 +23,7 @@ public interface ArticleService extends IService<Article> {
      * @param asc     升序/降序
      * @return 分页数据
      */
-    Page<Article> pageArticles(int page, int size, Long userId, String title, String author, String orderBy, boolean asc);
+    Page<ArticleVO> pageArticles(int page, int size, Long userId, String title, String author, String orderBy, boolean asc);
 
 
     /**
@@ -32,6 +34,10 @@ public interface ArticleService extends IService<Article> {
      */
     ArticleVO getArticleById(Long id) throws NotFoundException;
 
+
+    boolean createArticle(CreateArticleDto dto);
+
+    boolean updateArticle(UpdateArticleDto dto);
     /**
      * 修改文章状态
      *
@@ -48,5 +54,5 @@ public interface ArticleService extends IService<Article> {
      * @param title       标题
      * @return 已发布文章分页数据
      */
-    Page<Article> pagePublishedArticles(String title,Integer currentPage, Integer size);
+    Page<ArticleVO> pagePublishedArticles(String title,Integer currentPage, Integer size);
 }

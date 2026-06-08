@@ -3,7 +3,7 @@ package com.nebula.comment.controller;
 import com.mybatisflex.core.paginate.Page;
 import com.nebula.comment.dto.ReleaseCommentDto;
 import com.nebula.comment.service.CommentService;
-import com.nebula.comment.vo.CommentVo;
+import com.nebula.comment.vo.CommentVO;
 import com.nebula.common.result.Result;
 import lombok.RequiredArgsConstructor;
 import org.springframework.validation.annotation.Validated;
@@ -17,9 +17,9 @@ public class CommentController {
 
     private final CommentService commentService;
 
-    @GetMapping("/article/{articleId}")
-    public Result<Page<CommentVo>> pageComments(@RequestParam(required = false) Long articleId, @RequestParam(defaultValue = "1") Integer currentPage, @RequestParam(defaultValue = "10") Integer size) {
-        return Result.success(commentService.pageComments(currentPage, size, articleId));
+    @GetMapping
+    public Result<Page<CommentVO>> pageComments(@RequestParam(required = false) Long articleId, @RequestParam(required = false) String content,@RequestParam(defaultValue = "1") Integer currentPage, @RequestParam(defaultValue = "10") Integer size) {
+        return Result.success(commentService.pageComments(articleId,content,currentPage, size));
     }
 
     @PutMapping("/release")

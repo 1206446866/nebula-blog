@@ -4,6 +4,7 @@ import lombok.Data;
 import lombok.experimental.Accessors;
 
 import java.time.LocalDateTime;
+import java.util.List;
 
 @Data
 @Accessors(chain = true)
@@ -54,6 +55,11 @@ public class ArticleVO {
      */
     private Long viewCount;
 
+    private Integer status;
+
+    private Long categoryId;
+
+    private List<Long> tagIds;
 
 
     public static ArticleVO create() {

@@ -50,9 +50,4 @@ public class TagServiceImpl extends ServiceImpl<TagMapper, Tag> implements TagSe
         return removeById(id);
     }
 
-//    TODO
-    @Override
-    public Tag getTagById(Long id) {
-        return null;
-    }
 }

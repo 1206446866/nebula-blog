@@ -21,5 +21,4 @@ public interface TagService extends IService<Tag> {
 
     boolean deleteTag(Long id);
 
-    Tag getTagById(Long id);
 }

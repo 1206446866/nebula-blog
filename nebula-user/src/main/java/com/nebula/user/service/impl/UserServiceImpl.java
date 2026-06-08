@@ -31,17 +31,11 @@ public class UserServiceImpl extends ServiceImpl<UserMapper, User> implements Us
     private String uploadDir;
 
     @Override
-    public Page<User> pageUsers(String role, String username, int page, int size) {
-        QueryWrapper query = new QueryWrapper().where(USER.ROLE.eq(role, StringUtil::hasText)).and(USER.USERNAME.eq(username, StringUtil::hasText)).orderBy(USER.ID.asc());
-        return page(Page.of(page, size), query);
+    public Page<UserVO> pageUsers(String role, String username, int page, int size) {
+        QueryWrapper query = new QueryWrapper().where(USER.ROLE.eq(role, StringUtil::hasText)).and(USER.USERNAME.like(username, StringUtil::hasText)).orderBy(USER.ID.asc());
+        return pageAs(Page.of(page, size), query, UserVO.class);
     }
 
-    @Override
-    public Page<User> getUsersByRole(String role, long current, long size) {
-        QueryWrapper query = new QueryWrapper();
-        query.select(USER.ID, USER.USERNAME, USER.ROLE, USER.STATUS, USER.CREATE_TIME).where(USER.ROLE.eq(role, StringUtil::hasText)).orderBy(USER.ID.asc());
-        return page(Page.of(current, size), query);
-    }
 
     @Override
     public Boolean switchStatusById(Long userId, Integer status) {

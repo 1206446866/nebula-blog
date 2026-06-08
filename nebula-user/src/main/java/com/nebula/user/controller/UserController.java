@@ -22,7 +22,6 @@ public class UserController {
 
     private final UserService userService;
 
-
     @GetMapping("/info")
     public Result<UserVO> getUserInfo() {
         Long userId = SecurityUtils.getUserId();
@@ -32,14 +31,9 @@ public class UserController {
     /**
      * 查询用户列表（可分页/可模糊查询用户名）
      */
-    @GetMapping("/list")
-    public Result<Page<User>> list(@RequestParam(required = false) String role, @RequestParam(defaultValue = "1") Long current, @RequestParam(defaultValue = "10") Long size) {
-        return Result.success(userService.getUsersByRole(role, current, size));
-    }
-
-    @GetMapping("/page")
-    public Result<Page<User>> page(@RequestParam(required = false) String role, @RequestParam(required = false) String username, @RequestParam int page, @RequestParam int size) {
-        return Result.success(userService.pageUsers(role, username, page, size));
+    @GetMapping
+    public Result<Page<UserVO>> list(@RequestParam(required = false) String role,@RequestParam(required = false) String username, @RequestParam(defaultValue = "1") Integer current, @RequestParam(defaultValue = "10") Integer size) {
+        return Result.success(userService.pageUsers(role,username,current, size));
     }
 
     /**

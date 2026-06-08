@@ -3,6 +3,8 @@ package com.nebula.user.vo;
 import lombok.Data;
 import lombok.experimental.Accessors;
 
+import java.time.LocalDateTime;
+
 /**
  * 用户信息展示 VO
  * 用于用户主页 / 个人中心展示
@@ -36,6 +38,8 @@ public class UserVO {
      * 用户状态（可选扩展）
      */
     private Integer status;
+
+    private LocalDateTime createTime;
 
     public static UserVO create() {
         return new UserVO();
