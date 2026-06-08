@@ -3,7 +3,7 @@ package com.nebula.user.controller;
 import com.mybatisflex.core.paginate.Page;
 import com.nebula.common.result.Result;
 import com.nebula.common.util.SecurityUtils;
-import com.nebula.user.entity.User;
+import com.nebula.user.dto.EditUserDTO;
 import com.nebula.user.service.UserService;
 import com.nebula.user.vo.UserProfileVO;
 import com.nebula.user.vo.UserVO;
@@ -32,13 +32,14 @@ public class UserController {
      * 查询用户列表（可分页/可模糊查询用户名）
      */
     @GetMapping
-    public Result<Page<UserVO>> list(@RequestParam(required = false) String role,@RequestParam(required = false) String username, @RequestParam(defaultValue = "1") Integer current, @RequestParam(defaultValue = "10") Integer size) {
-        return Result.success(userService.pageUsers(role,username,current, size));
+    public Result<Page<UserVO>> list(@RequestParam(required = false) String role, @RequestParam(required = false) String username, @RequestParam(defaultValue = "1") Integer current, @RequestParam(defaultValue = "10") Integer size) {
+        return Result.success(userService.pageUsers(role, username, current, size));
     }
 
     /**
      * 切换状态
-     * @param id 用户ID
+     *
+     * @param id     用户ID
      * @param status 状态标识
      * @return 操作状态
      */
@@ -48,8 +49,15 @@ public class UserController {
         return Result.success(userService.switchStatusById(id, status));
     }
 
+    @PreAuthorize("hasAuthority('user:update')")
+    @PutMapping("/edit")
+    public Result<Boolean> editUser(@RequestBody EditUserDTO editUserDTO) {
+        return Result.success(userService.editUser(editUserDTO));
+    }
+
     /**
      * 删除用户
+     *
      * @param id 用户ID
      */
     @PreAuthorize("hasAuthority('user:update')")

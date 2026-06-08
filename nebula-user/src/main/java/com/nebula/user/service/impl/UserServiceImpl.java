@@ -4,6 +4,7 @@ import com.mybatisflex.core.paginate.Page;
 import com.mybatisflex.core.query.QueryWrapper;
 import com.mybatisflex.core.util.StringUtil;
 import com.mybatisflex.spring.service.impl.ServiceImpl;
+import com.nebula.user.dto.EditUserDTO;
 import com.nebula.user.entity.User;
 import com.nebula.user.mapper.UserMapper;
 import com.nebula.user.service.UserService;
@@ -42,6 +43,10 @@ public class UserServiceImpl extends ServiceImpl<UserMapper, User> implements Us
         return updateById(User.create().setId(userId).setStatus(status));
     }
 
+    @Override
+    public boolean editUser(EditUserDTO dto) {
+        return updateById(User.create().setId(dto.getId()).setRole(dto.getRole()));
+    }
 
     @Override
     public Boolean deleteUserById(Long id) {

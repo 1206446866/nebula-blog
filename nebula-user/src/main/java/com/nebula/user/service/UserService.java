@@ -2,6 +2,7 @@ package com.nebula.user.service;
 
 import com.mybatisflex.core.paginate.Page;
 import com.mybatisflex.core.service.IService;
+import com.nebula.user.dto.EditUserDTO;
 import com.nebula.user.entity.User;
 import com.nebula.user.vo.UserProfileVO;
 import com.nebula.user.vo.UserVO;
@@ -31,7 +32,7 @@ public interface UserService extends IService<User> {
      */
     Boolean switchStatusById(Long userId, Integer status);
 
-
+    boolean editUser(EditUserDTO dto);
 
     /**
      * 删除用户
