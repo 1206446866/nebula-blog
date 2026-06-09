@@ -24,8 +24,8 @@ public class TagController {
     private final TagService tagService;
 
     @GetMapping
-    public Result<Page<TagVO>> pageTags(@RequestParam(required = false) String name, @RequestParam(defaultValue = "1") @Min(1) int currentPage, @RequestParam(defaultValue = "10") @Min(1) @Max(100) int size) {
-        return Result.success(tagService.pageTags(name, size, currentPage, null, false));
+    public Result<Page<TagVO>> pageTags(@RequestParam(required = false) String name, @RequestParam(defaultValue = "1") @Min(1) int current, @RequestParam(defaultValue = "10") @Min(1) @Max(100) int size) {
+        return Result.success(tagService.pageTags(name, current, size, null, false));
     }
 
     @GetMapping("list")
