@@ -45,7 +45,7 @@ public class UserServiceImpl extends ServiceImpl<UserMapper, User> implements Us
 
     @Override
     public boolean editUser(EditUserDTO dto) {
-        return updateById(User.create().setId(dto.getId()).setRole(dto.getRole()));
+        return updateById(User.create().setId(dto.getId()).setUsername(dto.getUsername()).setRole(dto.getRole()));
     }
 
     @Override

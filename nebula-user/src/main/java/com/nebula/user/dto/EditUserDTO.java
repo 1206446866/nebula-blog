@@ -5,5 +5,6 @@ import lombok.Data;
 @Data
 public class EditUserDTO {
     private Long id;
+    private String username;
     private String role;
 }
