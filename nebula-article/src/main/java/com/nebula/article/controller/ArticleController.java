@@ -1,6 +1,7 @@
 package com.nebula.article.controller;
 
 import com.mybatisflex.core.paginate.Page;
+import com.nebula.article.dto.ArticlePageDTO;
 import com.nebula.article.dto.ChangeArticleStatusDto;
 import com.nebula.article.dto.CreateArticleDto;
 import com.nebula.article.dto.UpdateArticleDto;
@@ -27,15 +28,12 @@ public class ArticleController {
     /**
      * 分页查询文章列表
      *
-     * @param title       文章标题（支持模糊查询）
-     * @param author      作者名称
-     * @param currentPage 当前页码
-     * @param size        每页条数
+     * @param articlePageDTO       文章查询接口
      * @return 文章分页数据
      */
     @GetMapping
-    public Result<Page<ArticleVO>> page(@RequestParam(required = false) Long userId,@RequestParam(required = false) String title, @RequestParam(required = false) String author, @RequestParam(defaultValue = "1") @Min(1) int currentPage, @Min(1) @Max(100) @RequestParam(defaultValue = "10") int size) {
-        return Result.success(articleService.pageArticles(currentPage, size,userId, title, author, null, true));
+    public Result<Page<ArticleVO>> page(ArticlePageDTO  articlePageDTO) {
+        return Result.success(articleService.pageArticles(articlePageDTO, null, true));
     }
 
     /**
@@ -95,14 +93,10 @@ public class ArticleController {
 
     /**
      * 分页查询已发布文章
-     *
-     * @param title       标题
-     * @param currentPage 当前页
-     * @param size        每页条数
      * @return 已发布文章分页数据
      */
     @GetMapping("/published")
-    public Result<Page<ArticleVO>> pagePublished(@RequestParam(required = false) String title, @RequestParam(defaultValue = "1") @Min(1) Integer currentPage, @RequestParam(defaultValue = "10") @Min(1) @Max(100) Integer size) {
-        return Result.success(articleService.pagePublishedArticles(title,currentPage, size ));
+    public Result<Page<ArticleVO>> pagePublished(ArticlePageDTO dto) {
+        return Result.success(articleService.pagePublishedArticles(dto));
     }
 }

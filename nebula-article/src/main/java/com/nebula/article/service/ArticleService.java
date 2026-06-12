@@ -2,6 +2,7 @@ package com.nebula.article.service;
 
 import com.mybatisflex.core.paginate.Page;
 import com.mybatisflex.core.service.IService;
+import com.nebula.article.dto.ArticlePageDTO;
 import com.nebula.article.dto.ChangeArticleStatusDto;
 import com.nebula.article.dto.CreateArticleDto;
 import com.nebula.article.dto.UpdateArticleDto;
@@ -14,16 +15,12 @@ public interface ArticleService extends IService<Article> {
     /**
      * 分页查询文章
      *
-     * @param page    当前页
-     * @param size    每页大小
-     * @param userId  用户ID
-     * @param title   标题模糊搜索，可空
-     * @param author  作者精确搜索，可空
+     * @param dto
      * @param orderBy 排序字段 createTime/updateTime，可空
      * @param asc     升序/降序
      * @return 分页数据
      */
-    Page<ArticleVO> pageArticles(int page, int size, Long userId, String title, String author, String orderBy, boolean asc);
+    Page<ArticleVO> pageArticles(ArticlePageDTO dto, String orderBy, boolean asc);
 
 
     /**
@@ -49,10 +46,7 @@ public interface ArticleService extends IService<Article> {
     /**
      * 分页查询已发布文章
      *
-     * @param currentPage 当前页
-     * @param size        每页条数
-     * @param title       标题
      * @return 已发布文章分页数据
      */
-    Page<ArticleVO> pagePublishedArticles(String title,Integer currentPage, Integer size);
+    Page<ArticleVO> pagePublishedArticles(ArticlePageDTO dto);
 }

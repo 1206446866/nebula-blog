@@ -7,6 +7,7 @@ import com.mybatisflex.core.query.QueryWrapper;
 import com.mybatisflex.core.update.UpdateChain;
 import com.mybatisflex.core.util.StringUtil;
 import com.mybatisflex.spring.service.impl.ServiceImpl;
+import com.nebula.article.dto.ArticlePageDTO;
 import com.nebula.article.dto.ChangeArticleStatusDto;
 import com.nebula.article.dto.CreateArticleDto;
 import com.nebula.article.dto.UpdateArticleDto;
@@ -41,15 +42,15 @@ public class ArticleServiceImpl extends ServiceImpl<ArticleMapper, Article> impl
 
 
     @Override
-    public Page<ArticleVO> pageArticles(int page, int size, Long userId, String title, String author, String orderBy, boolean asc) {
+    public Page<ArticleVO> pageArticles(ArticlePageDTO dto, String orderBy, boolean asc) {
         QueryWrapper queryWrapper = QueryWrapper.create()
-                .where(ARTICLE.TITLE.like(title).when(StringUtil.hasText(title)))
-                .and(ARTICLE.AUTHOR.eq(author, StringUtil::hasText))
-                .and(ARTICLE.USER_ID.eq(userId, Objects::nonNull));
+                .where(ARTICLE.TITLE.like(dto.getTitle()).when(StringUtil.hasText(dto.getTitle())))
+                .and(ARTICLE.AUTHOR.eq(dto.getAuthor(), StringUtil::hasText))
+                .and(ARTICLE.USER_ID.eq(dto.getUserId(), Objects::nonNull));
         if (Objects.nonNull(orderBy)) {
             queryWrapper.orderBy(orderBy, asc);
         }
-        return pageAs(Page.of(page, size), queryWrapper, ArticleVO.class);
+        return pageAs(Page.of(dto.getCurrentPage(), dto.getSize()), queryWrapper, ArticleVO.class);
     }
 
 
@@ -151,12 +152,24 @@ public class ArticleServiceImpl extends ServiceImpl<ArticleMapper, Article> impl
     }
 
     @Override
-    public Page<ArticleVO> pagePublishedArticles(String title, Integer currentPage, Integer size) {
+    public Page<ArticleVO> pagePublishedArticles(ArticlePageDTO dto) {
         QueryWrapper query = QueryWrapper.create()
                 .where(ARTICLE.STATUS.eq(
                         ArticleStatus.PUBLISHED.getCode()
                 ))
-                .and(ARTICLE.TITLE.eq(title, StringUtil::hasText));
-        return pageAs(Page.of(currentPage, size), query, ArticleVO.class);
+                .and(ARTICLE.TITLE.eq(dto.getTitle(), StringUtil::hasText));
+        // 分类筛选
+        if (Objects.nonNull(dto.getCategoryId())) {
+            query.innerJoin(ARTICLE_CATEGORY)
+                    .on(ARTICLE.ID.eq(ARTICLE_CATEGORY.ARTICLE_ID))
+                    .and(ARTICLE_CATEGORY.CATEGORY_ID.eq(dto.getCategoryId()));
+        }
+        // 标签筛选
+        if (Objects.nonNull(dto.getTagId())) {
+            query.innerJoin(ARTICLE_TAG)
+                    .on(ARTICLE.ID.eq(ARTICLE_TAG.ARTICLE_ID))
+                    .and(ARTICLE_TAG.TAG_ID.eq(dto.getTagId()));
+        }
+        return pageAs(Page.of(dto.getCurrentPage(), dto.getSize()), query, ArticleVO.class);
     }
 }
