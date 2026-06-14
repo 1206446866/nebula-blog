@@ -64,21 +64,14 @@ public class JwtUtil {
         );
 
         return Jwts.builder()
-
-                .claim("role",user.getRole())
-                .claim("username",user.getUsername())
                 // 用户唯一标识
                 .setSubject(String.valueOf(user.getId()))
-
                 // 签发时间
                 .setIssuedAt(now)
-
                 // 过期时间
                 .setExpiration(expireDate)
-
                 // 签名
                 .signWith(key, SignatureAlgorithm.HS256)
-
                 .compact();
     }
 

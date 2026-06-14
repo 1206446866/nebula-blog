@@ -33,3 +33,7 @@ jwt:
 
 file:
   upload-dir: upload/avatar/
+
+logging:
+  level:
+    org.springframework.security: DEBUG

@@ -17,6 +17,7 @@ import java.util.List;
 
 import static com.nebula.role.entity.table.RoleTableDef.ROLE;
 import static com.nebula.user.entity.table.UserRoleTableDef.USER_ROLE;
+import static com.nebula.user.entity.table.UserTableDef.USER;
 
 @Service
 @RequiredArgsConstructor
@@ -41,6 +42,15 @@ public class RoleServiceImpl extends ServiceImpl<RoleMapper, Role> implements Ro
     @Override
     public List<Role> getRolesByUserId(Long userId) {
         List<Long> roleIds = userRoleMapper.selectListByCondition(USER_ROLE.USER_ID.eq(userId))
+                .stream().map(UserRole::getRoleId).toList();
+        if (roleIds.isEmpty()) return List.of();
+        return getMapper().selectListByIds(roleIds);
+    }
+
+    @Override
+    public List<Role> getRolesByUserNid(String Nid) {
+        User user = userMapper.selectOneByCondition(USER.NID.eq(Nid));
+        List<Long> roleIds = userRoleMapper.selectListByCondition(USER_ROLE.USER_ID.eq(user.getId()))
                 .stream().map(UserRole::getRoleId).toList();
         if (roleIds.isEmpty()) return List.of();
         return getMapper().selectListByIds(roleIds);

@@ -2,6 +2,8 @@ package com.nebula.role.entity;
 
 
 import com.mybatisflex.annotation.Column;
+import com.mybatisflex.annotation.Id;
+import com.mybatisflex.annotation.KeyType;
 import com.mybatisflex.annotation.Table;
 import com.mybatisflex.core.activerecord.Model;
 import lombok.Data;
@@ -16,6 +18,7 @@ import java.time.LocalDateTime;
 @Accessors(chain = true)
 public class Role extends Model<Role> {
 
+    @Id(keyType = KeyType.Auto)
     private Long id;
     private String name;
     private String description;

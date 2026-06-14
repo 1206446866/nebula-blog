@@ -14,6 +14,8 @@ import com.nebula.auth.vo.LoginVO;
 import com.nebula.common.constant.RoleEnum;
 import com.nebula.common.exception.AuthenticationException;
 import com.nebula.common.exception.code.AuthErrorCode;
+import com.nebula.role.entity.Role;
+import com.nebula.role.service.RoleService;
 import com.nebula.user.entity.User;
 import com.nebula.user.entity.UserRole;
 import com.nebula.user.mapper.UserMapper;
@@ -59,7 +61,10 @@ public class AuthServiceImpl implements AuthService {
      */
     private final PermissionMapper permissionMapper;
 
+    private final RoleService roleService;
     private final PermissionService permissionService;
+
+
 
     /**
      * JWT 工具类
@@ -89,20 +94,17 @@ public class AuthServiceImpl implements AuthService {
      */
     @Override
     public LoginVO login(LoginDTO loginDTO) {
-        User user = userMapper.selectOneByCondition(
-                USER.NID.eq(loginDTO.getNid())
-        );
-
+        User user = userMapper.selectOneByCondition(USER.NID.eq(loginDTO.getNid()));
         if (user == null) {
             throw new AuthenticationException(AuthErrorCode.USER_NOT_FOUND);
         }
-
         if (!matchesPassword(loginDTO.getPassword(), user.getPassword())) {
             throw new AuthenticationException(AuthErrorCode.PASSWORD_ERROR);
         }
-
         String token = jwtUtil.createToken(user);
-        List<String> roles = List.of(user.getRole());
+        List<Role> roleList = roleService.getRolesByUserId(user.getId());
+        List<String> roles = roleList
+                .stream().map(Role::getName).toList();
         List<String> permissions = permissionService.getPermissionsByUserId(user.getId());
         return LoginVO.create().setToken(token)
                 .setUser(BeanUtil.copyProperties(user, UserVO.class))
@@ -117,7 +119,8 @@ public class AuthServiceImpl implements AuthService {
                 .setNid(UUID.randomUUID().toString().replace("-", ""))
                 .setUsername("普通用户" + UUID.randomUUID())
                 .setPassword(passwordEncoder.encode(dto.getPassword()))
-                .setRole(RoleEnum.USER.getCode());
+//                .setRole(RoleEnum.USER.getCode())
+                ;
 //        角色关联
         userMapper.insertSelective(user);
         UserRole userRole = UserRole.create()

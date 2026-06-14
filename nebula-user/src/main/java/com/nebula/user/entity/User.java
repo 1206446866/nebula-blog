@@ -30,8 +30,6 @@ public class User extends Model<User> {
     private String password;
 
 
-    private String role = "USER";
-
     /**
      * 头像
      */

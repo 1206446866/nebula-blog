@@ -10,7 +10,6 @@ import com.nebula.article.service.ArticleService;
 import com.nebula.article.vo.ArticleVO;
 import com.nebula.common.result.Result;
 import jakarta.validation.Valid;
-import jakarta.validation.constraints.Max;
 import jakarta.validation.constraints.Min;
 import lombok.RequiredArgsConstructor;
 import org.apache.ibatis.javassist.NotFoundException;

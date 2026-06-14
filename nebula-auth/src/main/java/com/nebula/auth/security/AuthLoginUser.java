@@ -34,9 +34,12 @@ public class AuthLoginUser implements LoginUser {
 
     @Override
     public Collection<? extends GrantedAuthority> getAuthorities() {
+        if (permissions == null || permissions.isEmpty()) {
+            return List.of();
+        }
         return permissions.stream()
                 .map(SimpleGrantedAuthority::new)
-                .collect(Collectors.toList());
+                .toList();
     }
 
     @Override
@@ -51,7 +54,7 @@ public class AuthLoginUser implements LoginUser {
 
     @Override
     public boolean isEnabled() {
-        return user.getStatus() == 1;
+        return user.getStatus() == 0;
     }
 
     @Override

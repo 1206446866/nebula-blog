@@ -28,6 +28,14 @@ public interface RoleService extends IService<Role> {
     List<Role> getRolesByUserId(Long userId);
 
     /**
+     * 查询用户拥有的角色
+     *
+     * @param Nid 用户ID
+     * @return 角色列表
+     */
+    List<Role> getRolesByUserNid(String Nid);
+
+    /**
      * 查询角色下的所有用户
      *
      * @param roleId 角色ID

@@ -31,10 +31,12 @@ public class UserServiceImpl extends ServiceImpl<UserMapper, User> implements Us
     @Value("${file.upload-dir}")
     private String uploadDir;
 
+//TODO
     @Override
     public Page<UserVO> pageUsers(String role, String username, int page, int size) {
-        QueryWrapper query = new QueryWrapper().where(USER.ROLE.eq(role, StringUtil::hasText)).and(USER.USERNAME.like(username, StringUtil::hasText)).orderBy(USER.ID.asc());
-        return pageAs(Page.of(page, size), query, UserVO.class);
+//        QueryWrapper query = new QueryWrapper().where(USER.ROLE.eq(role, StringUtil::hasText)).and(USER.USERNAME.like(username, StringUtil::hasText)).orderBy(USER.ID.asc());
+//        return pageAs(Page.of(page, size), query, UserVO.class);
+        return null;
     }
 
 
@@ -42,10 +44,11 @@ public class UserServiceImpl extends ServiceImpl<UserMapper, User> implements Us
     public Boolean switchStatusById(Long userId, Integer status) {
         return updateById(User.create().setId(userId).setStatus(status));
     }
-
+//TODO
     @Override
     public boolean editUser(EditUserDTO dto) {
-        return updateById(User.create().setId(dto.getId()).setUsername(dto.getUsername()).setRole(dto.getRole()));
+//        return updateById(User.create().setId(dto.getId()).setUsername(dto.getUsername()).setRole(dto.getRole()));
+        return false;
     }
 
     @Override
@@ -110,11 +113,11 @@ public class UserServiceImpl extends ServiceImpl<UserMapper, User> implements Us
 
         return fileName;
     }
-
+//TODO
     @Override
     public UserVO getUserInfo(Long userId) {
-        User user = getById(userId);
-
-        return UserVO.create().setId(user.getId()).setUsername(user.getUsername()).setAvatar(user.getAvatar()).setRole(user.getRole());
+//        User user = getById(userId);
+        return null;
+//        return UserVO.create().setId(user.getId()).setUsername(user.getUsername()).setAvatar(user.getAvatar()).setRole(user.getRole());
     }
 }
