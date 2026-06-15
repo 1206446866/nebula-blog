@@ -3,6 +3,7 @@ package com.nebula.role.controller;
 import com.nebula.common.result.Result;
 import com.nebula.role.entity.Role;
 import com.nebula.role.service.RoleService;
+import com.nebula.role.vo.RoleVO;
 import lombok.RequiredArgsConstructor;
 import org.springframework.web.bind.annotation.*;
 
@@ -15,10 +16,19 @@ public class RoleController {
 
     private final RoleService roleService;
 
+
+    /**
+     * 获取角色列表
+     */
+    @GetMapping
+    public Result<List<RoleVO>> getAllRoles() {
+        return Result.success(roleService.findAll());
+    }
+
     /**
      * 查询用户的所有角色
      */
-    @GetMapping("/user/{userId}")
+    @GetMapping("/{userId}")
     public Result<List<Role>> getRolesByUserId(@PathVariable Long userId) {
         List<Role> roles = roleService.getRolesByUserId(userId);
         return Result.success(roles);

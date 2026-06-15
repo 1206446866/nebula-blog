@@ -4,6 +4,7 @@ import lombok.Data;
 import lombok.experimental.Accessors;
 
 import java.time.LocalDateTime;
+import java.util.List;
 
 /**
  * 用户信息展示 VO
@@ -19,6 +20,11 @@ public class UserVO {
     private Long id;
 
     /**
+     * NID
+     */
+    private String nid;
+
+    /**
      * 用户名
      */
     private String username;
@@ -32,7 +38,7 @@ public class UserVO {
     /**
      * 用户角色
      */
-    private String role;
+    private List<Long> roleIds;
 
     /**
      * 用户状态（可选扩展）

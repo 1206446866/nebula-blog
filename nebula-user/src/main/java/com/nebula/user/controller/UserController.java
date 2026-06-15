@@ -52,7 +52,6 @@ public class UserController {
     @PreAuthorize("hasAuthority('user:update')")
     @PutMapping("/edit")
     public Result<Boolean> editUser(@RequestBody EditUserDTO editUserDTO) {
-        System.out.println(editUserDTO);
         return Result.success(userService.editUser(editUserDTO));
     }
 

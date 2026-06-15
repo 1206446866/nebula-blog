@@ -6,6 +6,7 @@ import com.mybatisflex.spring.service.impl.ServiceImpl;
 import com.nebula.role.entity.Role;
 import com.nebula.role.mapper.RoleMapper;
 import com.nebula.role.service.RoleService;
+import com.nebula.role.vo.RoleVO;
 import com.nebula.user.entity.User;
 import com.nebula.user.entity.UserRole;
 import com.nebula.user.mapper.UserMapper;
@@ -25,6 +26,11 @@ public class RoleServiceImpl extends ServiceImpl<RoleMapper, Role> implements Ro
 
     private final UserMapper userMapper;
     private final UserRoleMapper userRoleMapper;
+
+    @Override
+    public List<RoleVO> findAll() {
+        return listAs(QueryWrapper.create(), RoleVO.class);
+    }
 
     @Override
     public Page<Role> pageRoles(int page, int size, String roleName) {

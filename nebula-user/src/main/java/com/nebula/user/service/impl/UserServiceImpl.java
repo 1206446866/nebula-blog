@@ -1,18 +1,25 @@
 package com.nebula.user.service.impl;
 
+import cn.hutool.core.bean.BeanUtil;
+import cn.hutool.core.collection.CollUtil;
 import com.mybatisflex.core.paginate.Page;
 import com.mybatisflex.core.query.QueryWrapper;
 import com.mybatisflex.core.util.StringUtil;
 import com.mybatisflex.spring.service.impl.ServiceImpl;
+import com.nebula.common.exception.BusinessException;
+import com.nebula.common.exception.code.UserErrorCode;
 import com.nebula.user.dto.EditUserDTO;
 import com.nebula.user.entity.User;
+import com.nebula.user.entity.UserRole;
 import com.nebula.user.mapper.UserMapper;
+import com.nebula.user.mapper.UserRoleMapper;
 import com.nebula.user.service.UserService;
 import com.nebula.user.vo.UserProfileVO;
 import com.nebula.user.vo.UserVO;
 import lombok.RequiredArgsConstructor;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.multipart.MultipartFile;
 
 import java.io.File;
@@ -20,8 +27,12 @@ import java.nio.file.Files;
 import java.nio.file.StandardCopyOption;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
+import java.util.List;
+import java.util.Map;
 import java.util.UUID;
+import java.util.stream.Collectors;
 
+import static com.nebula.user.entity.table.UserRoleTableDef.USER_ROLE;
 import static com.nebula.user.entity.table.UserTableDef.USER;
 
 @Service
@@ -31,12 +42,29 @@ public class UserServiceImpl extends ServiceImpl<UserMapper, User> implements Us
     @Value("${file.upload-dir}")
     private String uploadDir;
 
-//TODO
+    private final UserRoleMapper userRoleMapper;
+
     @Override
     public Page<UserVO> pageUsers(String role, String username, int page, int size) {
-//        QueryWrapper query = new QueryWrapper().where(USER.ROLE.eq(role, StringUtil::hasText)).and(USER.USERNAME.like(username, StringUtil::hasText)).orderBy(USER.ID.asc());
-//        return pageAs(Page.of(page, size), query, UserVO.class);
-        return null;
+        QueryWrapper query = new QueryWrapper().where(USER.USERNAME.like(username, StringUtil::hasText)).orderBy(USER.ID.asc());
+        // 如果传了 role，需要 join user_role + role
+        if (StringUtil.hasText(role)) {
+            query.innerJoin(USER_ROLE).on(USER.ID.eq(USER_ROLE.USER_ID));
+        }
+        Page<User> userPage = pageAs(Page.of(page, size), query, User.class);
+        List<Long> userIds = userPage.getRecords().stream().map(User::getId).toList();
+
+        List<UserRole> userRoles = userRoleMapper.selectListByCondition(USER_ROLE.USER_ID.in(userIds));
+        Map<Long, List<Long>> roleMap = userRoles.stream().collect(Collectors.groupingBy(UserRole::getUserId, Collectors.mapping(UserRole::getRoleId, Collectors.toList())));
+        List<UserVO> voList = userPage.getRecords().stream().map(u -> {
+            UserVO vo = BeanUtil.copyProperties(u, UserVO.class);
+            vo.setRoleIds(roleMap.getOrDefault(u.getId(), List.of()));
+            return vo;
+        }).toList();
+        Page<UserVO> userVOPage = new Page<>();
+        userVOPage.setRecords(voList);
+        userVOPage.setTotalPage(userPage.getTotalPage());
+        return userVOPage;
     }
 
 
@@ -44,11 +72,18 @@ public class UserServiceImpl extends ServiceImpl<UserMapper, User> implements Us
     public Boolean switchStatusById(Long userId, Integer status) {
         return updateById(User.create().setId(userId).setStatus(status));
     }
-//TODO
+
+    @Transactional(rollbackFor = Exception.class)
     @Override
     public boolean editUser(EditUserDTO dto) {
-//        return updateById(User.create().setId(dto.getId()).setUsername(dto.getUsername()).setRole(dto.getRole()));
-        return false;
+        updateById(User.create().setId(dto.getId()).setUsername(dto.getUsername()));
+        userRoleMapper.deleteByCondition(USER_ROLE.USER_ID.eq(dto.getId()));
+        if (CollUtil.isEmpty(dto.getRoleIds())) {
+            throw new BusinessException(UserErrorCode.USER_ROLE_EMPTY);
+        }
+        List<UserRole> userRoles = dto.getRoleIds().stream().map(item -> UserRole.create().setUserId(dto.getId()).setRoleId(item)).toList();
+        userRoleMapper.insertBatchSelective(userRoles);
+        return true;
     }
 
     @Override
@@ -113,11 +148,10 @@ public class UserServiceImpl extends ServiceImpl<UserMapper, User> implements Us
 
         return fileName;
     }
-//TODO
+
     @Override
     public UserVO getUserInfo(Long userId) {
-//        User user = getById(userId);
-        return null;
-//        return UserVO.create().setId(user.getId()).setUsername(user.getUsername()).setAvatar(user.getAvatar()).setRole(user.getRole());
+        User user = getById(userId);
+        return BeanUtil.copyProperties(user, UserVO.class);
     }
 }

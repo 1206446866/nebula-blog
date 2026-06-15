@@ -40,7 +40,7 @@ public class SecurityConfig {
 
                         // 登录接口放行
                         // 静态资源放行
-                        .requestMatchers("/auth/login","/avatar/**").permitAll()
+                        .requestMatchers("/auth/login","/upload/**").permitAll()
                         // 其他请求需要认证
                         .anyRequest().authenticated()).exceptionHandling(exception -> exception
 

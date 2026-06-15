@@ -62,9 +62,8 @@ public class AuthServiceImpl implements AuthService {
     private final PermissionMapper permissionMapper;
 
     private final RoleService roleService;
+
     private final PermissionService permissionService;
-
-
 
     /**
      * JWT 工具类

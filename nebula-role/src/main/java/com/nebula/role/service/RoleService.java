@@ -3,12 +3,14 @@ package com.nebula.role.service;
 import com.mybatisflex.core.paginate.Page;
 import com.mybatisflex.core.service.IService;
 import com.nebula.role.entity.Role;
+import com.nebula.role.vo.RoleVO;
 import com.nebula.user.entity.User;
 
 import java.util.List;
 
 public interface RoleService extends IService<Role> {
 
+    List<RoleVO> findAll();
     /**
      * 分页查询角色，可根据角色名模糊搜索
      */
