@@ -34,4 +34,6 @@ public class Role extends Model<Role> {
     @Column(onInsertValue = "now()", onUpdateValue = "now()")
     private LocalDateTime updateTime;
 
+    @Column(isLogicDelete = true, comment = "逻辑删除 0未删除 1已删除")
+    private Integer deleted;
 }

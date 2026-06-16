@@ -1,4 +1,4 @@
-package com.nebula.auth.entity;
+package com.nebula.role.entity;
 
 import com.mybatisflex.annotation.Column;
 import com.mybatisflex.annotation.Id;

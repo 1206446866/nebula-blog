@@ -1,14 +1,18 @@
-package com.nebula.auth.service;
+package com.nebula.role.service;
 
 import com.mybatisflex.core.service.IService;
-import com.nebula.auth.entity.Permission;
+import com.nebula.role.dto.SaveRolePermissionsDto;import com.nebula.role.entity.Permission;
+import com.nebula.role.vo.PermissionVO;
 
 import java.util.List;
+import java.util.Map;
 
 public interface PermissionService extends IService<Permission> {
 
-    // 查询角色的权限列表
-    List<Permission> getPermissionsByRoleId(Long roleId);
+
+    Map<String, List<PermissionVO>> getPermissionByRoleId(String roleId);
+
+    Boolean saveRolePermissions(SaveRolePermissionsDto dto);
 
     // 给角色分配权限
     boolean assignPermissionsToRole(Long roleId, List<Long> permissionIds);

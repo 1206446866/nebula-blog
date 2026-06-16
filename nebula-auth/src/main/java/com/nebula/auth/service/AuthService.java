@@ -1,5 +1,6 @@
 package com.nebula.auth.service;
 
+import com.nebula.auth.dto.ChangePasswordDTO;
 import com.nebula.auth.dto.LoginDTO;
 import com.nebula.auth.dto.RegisterRequestDTO;
 import com.nebula.auth.vo.LoginVO;
@@ -29,11 +30,9 @@ public interface AuthService {
     /**
      * 修改用户密码（用户自己操作）
      *
-     * @param userId      用户ID
-     * @param newPassword 新密码
-     * @return 操作是否成功
+     * @param dto@return 操作是否成功
      */
-    Boolean changePassword(Long userId, String newPassword);
+    Boolean changePassword(ChangePasswordDTO dto);
 
     /**
      * 管理员重置用户密码

@@ -40,6 +40,11 @@ public class GlobalExceptionHandler {
         return Result.error(e.getMessage());
     }
 
+    @ExceptionHandler(RuntimeException.class)
+    public Result<?> handleRuntimeException(RuntimeException e) {
+        return Result.error(e.getMessage());
+    }
+
     /**
      * 全局异常
      */

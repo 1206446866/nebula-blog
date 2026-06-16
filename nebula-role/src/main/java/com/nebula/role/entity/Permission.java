@@ -1,4 +1,4 @@
-package com.nebula.auth.entity;
+package com.nebula.role.entity;
 
 import com.mybatisflex.annotation.Column;
 import com.mybatisflex.annotation.Table;
@@ -27,4 +27,6 @@ public class Permission extends Model<Permission> {
 
     @Column(isLogicDelete = true)
     private Integer status; // 0: 删除, 1: 正常
+
+    private Long parentId;
 }

@@ -2,6 +2,8 @@ package com.nebula.role.service;
 
 import com.mybatisflex.core.paginate.Page;
 import com.mybatisflex.core.service.IService;
+import com.nebula.role.dto.CreateRoleDto;
+import com.nebula.role.dto.RolePageDto;
 import com.nebula.role.entity.Role;
 import com.nebula.role.vo.RoleVO;
 import com.nebula.user.entity.User;
@@ -11,15 +13,12 @@ import java.util.List;
 public interface RoleService extends IService<Role> {
 
     List<RoleVO> findAll();
+
     /**
      * 分页查询角色，可根据角色名模糊搜索
      */
-    Page<Role> pageRoles(int page, int size, String roleName);
+    Page<RoleVO> pageRoles(RolePageDto dto);
 
-    /**
-     * 查询所有角色
-     */
-    List<Role> getAllRoles();
 
     /**
      * 查询用户拥有的角色
@@ -55,12 +54,12 @@ public interface RoleService extends IService<Role> {
     boolean assignRoles(Long userId, List<Long> roleIds);
 
     /**
-     * 移除用户角色
+     * 移除角色
      *
-     * @param userId 用户ID
      * @param roleId 角色ID
      * @return 是否成功
      */
-    boolean removeRole(Long userId, Long roleId);
+    Boolean removeRole( Long roleId);
 
+    Boolean createRole(CreateRoleDto dto);
 }

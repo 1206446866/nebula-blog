@@ -1,7 +1,7 @@
 package com.nebula.auth.filter;
 
 import com.nebula.auth.security.AuthLoginUser;
-import com.nebula.auth.service.PermissionService;
+import com.nebula.role.service.PermissionService;
 import com.nebula.auth.util.JwtUtil;
 import com.nebula.user.entity.User;
 import com.nebula.user.mapper.UserMapper;
@@ -32,15 +32,12 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
 
     private final PermissionService permissionService;
 
+
     @Override
     protected void doFilterInternal(HttpServletRequest request, @Nonnull HttpServletResponse response, @Nonnull FilterChain filterChain) throws ServletException, IOException {
         String authHeader = request.getHeader("Authorization");
         String uri = request.getRequestURI();
         if (uri.startsWith("/upload")) {
-            filterChain.doFilter(request, response);
-            return;
-        }
-        if (!uri.startsWith("/api")) {
             filterChain.doFilter(request, response);
             return;
         }

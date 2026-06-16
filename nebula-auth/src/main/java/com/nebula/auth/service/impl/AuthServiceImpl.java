@@ -1,19 +1,22 @@
 package com.nebula.auth.service.impl;
 
 import cn.hutool.core.bean.BeanUtil;
+import com.nebula.auth.dto.ChangePasswordDTO;
 import com.nebula.auth.dto.LoginDTO;
 import com.nebula.auth.dto.RegisterRequestDTO;
-import com.nebula.auth.entity.Permission;
-import com.nebula.auth.entity.RolePermission;
-import com.nebula.auth.mapper.PermissionMapper;
-import com.nebula.auth.mapper.RolePermissionMapper;
+import com.nebula.role.entity.Permission;
+import com.nebula.role.entity.RolePermission;
+import com.nebula.role.mapper.PermissionMapper;
+import com.nebula.role.mapper.RolePermissionMapper;
 import com.nebula.auth.service.AuthService;
-import com.nebula.auth.service.PermissionService;
+import com.nebula.role.service.PermissionService;
 import com.nebula.auth.util.JwtUtil;
 import com.nebula.auth.vo.LoginVO;
 import com.nebula.common.constant.RoleEnum;
 import com.nebula.common.exception.AuthenticationException;
 import com.nebula.common.exception.code.AuthErrorCode;
+import com.nebula.common.security.LoginUser;
+import com.nebula.common.util.SecurityUtils;
 import com.nebula.role.entity.Role;
 import com.nebula.role.service.RoleService;
 import com.nebula.user.entity.User;
@@ -26,11 +29,12 @@ import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 
 import java.util.List;
+import java.util.Objects;
 import java.util.UUID;
 import java.util.stream.Collectors;
 
-import static com.nebula.auth.entity.table.PermissionTableDef.PERMISSION;
-import static com.nebula.auth.entity.table.RolePermissionTableDef.ROLE_PERMISSION;
+import static com.nebula.role.entity.table.PermissionTableDef.PERMISSION;
+import static com.nebula.role.entity.table.RolePermissionTableDef.ROLE_PERMISSION;
 import static com.nebula.user.entity.table.UserRoleTableDef.USER_ROLE;
 import static com.nebula.user.entity.table.UserTableDef.USER;
 
@@ -78,8 +82,21 @@ public class AuthServiceImpl implements AuthService {
     }
 
     @Override
-    public Boolean changePassword(Long userId, String newPassword) {
-        return userMapper.insertSelective(User.create().setId(userId).setPassword(passwordEncoder.encode(newPassword))) == 1;
+    public Boolean changePassword(ChangePasswordDTO dto) {
+        LoginUser lu =  SecurityUtils.getLoginUser();
+        if (Objects.isNull(lu) || Objects.isNull(lu.getPassword())) {
+            throw new RuntimeException("当前用户状态异常");
+        }
+        if (!passwordEncoder.matches(dto.getOldPassword(), lu.getPassword())) {
+            throw new RuntimeException("旧密码错误");
+        }
+        if (!dto.getNewPassword().equals(dto.getConfirmPassword())) {
+            throw new RuntimeException("两次密码不一致");
+        }
+        User user = User.create();
+        user.setId(lu.getUserId());
+        user.setPassword(passwordEncoder.encode(dto.getNewPassword()));
+        return userMapper.update(user)>0;
     }
 
     //TODO

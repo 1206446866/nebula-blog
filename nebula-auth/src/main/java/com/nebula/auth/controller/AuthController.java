@@ -1,5 +1,6 @@
 package com.nebula.auth.controller;
 
+import com.nebula.auth.dto.ChangePasswordDTO;
 import com.nebula.auth.dto.LoginDTO;
 import com.nebula.auth.dto.RegisterRequestDTO;
 import com.nebula.auth.service.AuthService;
@@ -7,6 +8,7 @@ import com.nebula.auth.vo.LoginVO;
 import com.nebula.common.result.Result;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
@@ -41,10 +43,10 @@ public class AuthController {
     /**
      * 修改密码（用户自己操作）
      */
-    @PostMapping("/change-password/{userId}")
-    public String changePassword(@PathVariable Long userId, @RequestParam String newPassword) {
-        boolean success = authService.changePassword(userId, newPassword);
-        return success ? Result.success("修改成功").getMessage() : Result.error("修改失败").getMessage();
+    @PreAuthorize("hasAuthority('user:update')")
+    @PostMapping("/change-password")
+    public Result<Boolean> changePassword(@RequestBody @Valid ChangePasswordDTO dto) {
+        return Result.success(authService.changePassword(dto));
     }
 
     /**

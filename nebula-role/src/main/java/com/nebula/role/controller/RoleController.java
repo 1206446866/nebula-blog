@@ -1,6 +1,10 @@
 package com.nebula.role.controller;
 
+import com.mybatisflex.core.paginate.Page;
 import com.nebula.common.result.Result;
+import com.nebula.role.dto.CreateRoleDto;
+import com.nebula.role.dto.RolePageDto;
+import com.nebula.role.dto.UpdateRoleDto;
 import com.nebula.role.entity.Role;
 import com.nebula.role.service.RoleService;
 import com.nebula.role.vo.RoleVO;
@@ -26,6 +30,14 @@ public class RoleController {
     }
 
     /**
+     * 获取角色分页
+     */
+    @GetMapping("/page")
+    public Result<Page<RoleVO>> getPageRoles(RolePageDto dto) {
+        return Result.success(roleService.pageRoles(dto));
+    }
+
+    /**
      * 查询用户的所有角色
      */
     @GetMapping("/{userId}")
@@ -34,23 +46,32 @@ public class RoleController {
         return Result.success(roles);
     }
 
-    /**
-     * 给用户分配角色
-     */
-    @PostMapping("/user/{userId}/assign")
-    public String assignRolesToUser(@PathVariable Long userId, @RequestBody List<Long> roleIds) {
-        boolean success = roleService.assignRoles(userId, roleIds);
-        return success ? Result.success("分配角色成功").getMessage() : Result.error("分配角色失败").getMessage();
+    @PostMapping("/create")
+    public Result<Boolean> createRole(@RequestBody CreateRoleDto  dto) {
+        return  Result.success(roleService.createRole(dto));
+    }
+
+    @PutMapping("/update")
+    public Result<Boolean> updateRole(@RequestBody UpdateRoleDto dto) {
+        return Result.success(Role.create().setId(dto.getId()).setName(dto.getName()).setDescription(dto.getDescription()).updateById());
     }
 
     /**
-     * 移除用户角色
+     * 移除角色
      */
-    @DeleteMapping("/user/{userId}/remove/{roleId}")
-    public String removeRoleFromUser(@PathVariable Long userId, @PathVariable Long roleId) {
-        boolean success = roleService.removeRole(userId, roleId);
-        return success ? Result.success("移除角色成功").getMessage() : Result.error("移除角色失败").getMessage();
+    @DeleteMapping("/remove/{roleId}")
+    public Result<Boolean> removeRole(@PathVariable Long roleId) {
+        return Result.success(roleService.removeRole(roleId));
     }
+
+    /**
+     * 给用户分配角色
+     */
+//    @PostMapping("/assign/{userId}")
+//    public Result<Boolean> assignRolesToUser(@PathVariable Long userId, @RequestBody List<Long> roleIds) {
+//        return Result.success(roleService.assignRoles(userId, roleIds));
+//    }
+
 
 
 }
