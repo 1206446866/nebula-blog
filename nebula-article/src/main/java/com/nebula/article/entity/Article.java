@@ -17,10 +17,8 @@ import java.time.LocalDateTime;
 @Data
 @EqualsAndHashCode(callSuper = true)
 public class Article extends Model<Article> {
-    /**
-     * 文章ID
-     */
-    @Id(keyType = KeyType.Auto)
+
+    @Id(keyType = KeyType.Auto,comment = "文章ID" )
     private Long id;
     /**
      * 标题
@@ -49,6 +47,7 @@ public class Article extends Model<Article> {
     @Column(isLogicDelete = true, comment = "逻辑删除 0未删除 1已删除")
     private Integer deleted;
 
+    @Column(comment = "浏览量")
     private Long viewCount;
 
     public static Article create() {

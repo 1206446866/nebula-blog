@@ -135,7 +135,6 @@ public class AuthServiceImpl implements AuthService {
                 .setNid(UUID.randomUUID().toString().replace("-", ""))
                 .setUsername("普通用户" + UUID.randomUUID())
                 .setPassword(passwordEncoder.encode(dto.getPassword()))
-//                .setRole(RoleEnum.USER.getCode())
                 ;
 //        角色关联
         userMapper.insertSelective(user);

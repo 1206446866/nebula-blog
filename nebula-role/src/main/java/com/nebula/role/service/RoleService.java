@@ -62,4 +62,6 @@ public interface RoleService extends IService<Role> {
     Boolean removeRole( Long roleId);
 
     Boolean createRole(CreateRoleDto dto);
+
+    List<String> getDescriptions(Long userId);
 }

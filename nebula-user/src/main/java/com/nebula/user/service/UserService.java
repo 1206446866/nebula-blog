@@ -4,13 +4,11 @@ import com.mybatisflex.core.paginate.Page;
 import com.mybatisflex.core.service.IService;
 import com.nebula.user.dto.EditUserDTO;
 import com.nebula.user.entity.User;
-import com.nebula.user.vo.UserProfileVO;
 import com.nebula.user.vo.UserVO;
-import jakarta.validation.constraints.Min;
 import org.springframework.web.multipart.MultipartFile;
 
 
-public interface UserService extends IService<User> {
+public interface UserService extends IService<com.nebula.user.entity.User> {
 
     /**
      * 分页查询用户，可根据角色和用户名模糊搜索
@@ -42,18 +40,6 @@ public interface UserService extends IService<User> {
     Boolean deleteUserById(Long id);
 
 
-    /**
-     * 获取用户主页信息
-     *
-     * <p>
-     * 包含用户基础信息、文章统计、评论统计、
-     * 总浏览量以及最近发布的文章列表。
-     * </p>
-     *
-     * @param id 用户ID
-     * @return 用户主页信息
-     */
-    UserProfileVO getProfile(@Min(value = 1, message = "用户ID非法") Long id);
 
     /**
      * 上传用户头像
@@ -67,5 +53,5 @@ public interface UserService extends IService<User> {
     /**
      * @param userId 用户ID
      */
-    UserVO getUserInfo(Long userId);
+    User getUserById(Long userId);
 }

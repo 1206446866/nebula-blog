@@ -49,4 +49,10 @@ public interface ArticleService extends IService<Article> {
      * @return 已发布文章分页数据
      */
     Page<ArticleVO> pagePublishedArticles(ArticlePageDTO dto);
+
+    Long getAllCount(Long userId);
+
+    Long getViewAllCount(Long userId);
+
+    Page<Article> pageArticleProfile(Long userId,Integer status, int currentPage, int pageSize);
 }

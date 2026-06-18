@@ -57,4 +57,13 @@ public class CommentServiceImpl extends ServiceImpl<CommentMapper, Comment> impl
         return false;
     }
 
+    @Override
+    public Long getAllCount(Long userId) {
+        return getMapper().selectCountByCondition(COMMENT.USER_ID.eq(userId));
+    }
+
+    @Override
+    public Page<Comment> getCommentPageByUserId(Long userId, int currentPage, int size) {
+        return page(Page.of(currentPage,size),QueryWrapper.create().where(COMMENT.USER_ID.eq(userId)));
+    }
 }

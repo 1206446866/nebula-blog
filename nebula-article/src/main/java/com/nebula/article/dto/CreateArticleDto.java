@@ -12,7 +12,7 @@ import java.util.List;
  *
  * @author Nebula
  */
-@Data(staticConstructor = "create")
+@Data
 @Accessors(chain = true)
 @AllArgsConstructor
 public class CreateArticleDto {

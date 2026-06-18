@@ -7,7 +7,7 @@ import lombok.experimental.Accessors;
 /**
  * 发布评论的实体类
  */
-@Data(staticConstructor = "create")
+@Data
 @Accessors(chain=true)
 @AllArgsConstructor
 public class ReleaseCommentDto {

@@ -40,14 +40,17 @@ public class SecurityConfig {
 
                         // 登录接口放行
                         // 静态资源放行
-                        .requestMatchers("/auth/login","/upload/**").permitAll()
+                        .requestMatchers("/auth/login", "/upload/**").permitAll()
                         // 其他请求需要认证
-                        .anyRequest().authenticated()).exceptionHandling(exception -> exception
+                        .anyRequest().authenticated())
 
-                        .authenticationEntryPoint(jwtAuthenticationEntryPoint).accessDeniedHandler(jwtAccessDeniedHandler))
+                .exceptionHandling(exception -> exception.authenticationEntryPoint(jwtAuthenticationEntryPoint).accessDeniedHandler(jwtAccessDeniedHandler))
                 // 添加JWT过滤器
-                .addFilterBefore(jwtAuthenticationFilter, UsernamePasswordAuthenticationFilter.class);
-
+                .addFilterBefore(jwtAuthenticationFilter, UsernamePasswordAuthenticationFilter.class)
+//               Security的表单登陆
+                .formLogin(AbstractHttpConfigurer::disable)
+//                HTTP 头基础认证入口Authorization: Basic base64(username:password)
+                .httpBasic(AbstractHttpConfigurer::disable);
         return http.build();
     }
 

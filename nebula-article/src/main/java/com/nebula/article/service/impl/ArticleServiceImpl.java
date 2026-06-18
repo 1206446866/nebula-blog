@@ -3,6 +3,7 @@ package com.nebula.article.service.impl;
 import cn.hutool.core.bean.BeanUtil;
 import cn.hutool.core.collection.CollUtil;
 import com.mybatisflex.core.paginate.Page;
+import com.mybatisflex.core.query.QueryMethods;
 import com.mybatisflex.core.query.QueryWrapper;
 import com.mybatisflex.core.update.UpdateChain;
 import com.mybatisflex.core.util.StringUtil;
@@ -172,4 +173,23 @@ public class ArticleServiceImpl extends ServiceImpl<ArticleMapper, Article> impl
         }
         return pageAs(Page.of(dto.getCurrentPage(), dto.getSize()), query, ArticleVO.class);
     }
+
+    @Override
+    public Long getAllCount(Long userId) {
+        return getMapper().selectCountByCondition(ARTICLE.USER_ID.eq(userId));
+    }
+
+    @Override
+    public Long getViewAllCount(Long userId) {
+        Long total =getMapper().selectObjectByQueryAs(QueryWrapper.create().select(QueryMethods.sum(ARTICLE.VIEW_COUNT)).where(ARTICLE.USER_ID.eq(userId)),Long.class);
+        return total == null ? 0L : total;
+    }
+
+
+    @Override
+    public Page<Article> pageArticleProfile(Long userId,Integer status, int currentPage, int pageSize) {
+        QueryWrapper query = QueryWrapper.create().where(ARTICLE.USER_ID.eq(userId).and(ARTICLE.STATUS.eq(status)));
+        return page(Page.of(currentPage,pageSize),query);
+    }
+
 }

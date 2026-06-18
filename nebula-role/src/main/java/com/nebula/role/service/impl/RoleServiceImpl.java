@@ -88,4 +88,12 @@ public class RoleServiceImpl extends ServiceImpl<RoleMapper, Role> implements Ro
     public Boolean createRole(CreateRoleDto dto) {
         return save(Role.create().setName(dto.getName()).setDescription(dto.getDescription()));
     }
+
+    @Override
+    public List<String> getDescriptions(Long userId) {
+        List<UserRole> userRoles = userRoleMapper.selectListByCondition(USER_ROLE.USER_ID.eq(userId));
+        List<Long> roleIds = userRoles.stream().map(UserRole::getRoleId).toList();
+        List<Role> roleList = getMapper().selectListByQuery(QueryWrapper.create().select(ROLE.DESCRIPTION).where(ROLE.ID.in(roleIds, !roleIds.isEmpty())));
+        return roleList.stream().map(Role::getDescription).toList();
+    }
 }

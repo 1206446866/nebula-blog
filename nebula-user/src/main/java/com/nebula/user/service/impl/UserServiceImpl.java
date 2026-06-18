@@ -14,7 +14,6 @@ import com.nebula.user.entity.UserRole;
 import com.nebula.user.mapper.UserMapper;
 import com.nebula.user.mapper.UserRoleMapper;
 import com.nebula.user.service.UserService;
-import com.nebula.user.vo.UserProfileVO;
 import com.nebula.user.vo.UserVO;
 import lombok.RequiredArgsConstructor;
 import org.springframework.beans.factory.annotation.Value;
@@ -37,7 +36,7 @@ import static com.nebula.user.entity.table.UserTableDef.USER;
 
 @Service
 @RequiredArgsConstructor
-public class UserServiceImpl extends ServiceImpl<UserMapper, User> implements UserService {
+public class UserServiceImpl extends ServiceImpl<UserMapper, com.nebula.user.entity.User> implements UserService {
 
     @Value("${file.upload-dir}")
     private String uploadDir;
@@ -51,7 +50,7 @@ public class UserServiceImpl extends ServiceImpl<UserMapper, User> implements Us
         if (StringUtil.hasText(role)) {
             query.innerJoin(USER_ROLE).on(USER.ID.eq(USER_ROLE.USER_ID));
         }
-        Page<User> userPage = pageAs(Page.of(page, size), query, User.class);
+        Page<User> userPage = page(Page.of(page, size), query);
         List<Long> userIds = userPage.getRecords().stream().map(User::getId).toList();
 
         List<UserRole> userRoles = userRoleMapper.selectListByCondition(USER_ROLE.USER_ID.in(userIds));
@@ -91,14 +90,6 @@ public class UserServiceImpl extends ServiceImpl<UserMapper, User> implements Us
         return removeById(id);
     }
 
-    @Override
-    public UserProfileVO getProfile(Long id) {
-        UserProfileVO userProfileVO = getOneAs(QueryWrapper.create().where(USER.ID.eq(id)), UserProfileVO.class);
-        if (userProfileVO == null) {
-            throw new RuntimeException("用户不存在");
-        }
-        return userProfileVO;
-    }
 
     @Override
     public String uploadAvatar(Long userId, MultipartFile file) {
@@ -150,8 +141,7 @@ public class UserServiceImpl extends ServiceImpl<UserMapper, User> implements Us
     }
 
     @Override
-    public UserVO getUserInfo(Long userId) {
-        User user = getById(userId);
-        return BeanUtil.copyProperties(user, UserVO.class);
+    public User getUserById(Long userId) {
+        return getById(userId);
     }
 }

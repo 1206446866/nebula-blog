@@ -57,7 +57,8 @@
         <hutool.version>5.8.38</hutool.version>
     </properties>
     <dependencyManagement>
-        <dependencies> <!-- MyBatis Flex -->
+        <dependencies>
+            <!-- MyBatis Flex -->
             <dependency>
                 <groupId>com.mybatis-flex</groupId>
                 <artifactId>mybatis-flex-spring-boot3-starter</artifactId>
@@ -93,6 +94,60 @@
                 <groupId>cn.hutool</groupId>
                 <artifactId>hutool-all</artifactId>
                 <version>${hutool.version}</version>
+            </dependency>
+
+            <dependency>
+                <groupId>com.nebula</groupId>
+                <artifactId>nebula-common</artifactId>
+                <version>${project.version}</version>
+            </dependency>
+
+            <dependency>
+                <groupId>com.nebula</groupId>
+                <artifactId>nebula-auth</artifactId>
+                <version>${project.version}</version>
+            </dependency>
+
+            <dependency>
+                <groupId>com.nebula</groupId>
+                <artifactId>nebula-user</artifactId>
+                <version>${project.version}</version>
+            </dependency>
+
+            <dependency>
+                <groupId>com.nebula</groupId>
+                <artifactId>nebula-article</artifactId>
+                <version>${project.version}</version>
+            </dependency>
+
+            <dependency>
+                <groupId>com.nebula</groupId>
+                <artifactId>nebula-tag</artifactId>
+                <version>${project.version}</version>
+            </dependency>
+
+            <dependency>
+                <groupId>com.nebula</groupId>
+                <artifactId>nebula-category</artifactId>
+                <version>${project.version}</version>
+            </dependency>
+
+            <dependency>
+                <groupId>com.nebula</groupId>
+                <artifactId>nebula-comment</artifactId>
+                <version>${project.version}</version>
+            </dependency>
+
+            <dependency>
+                <groupId>com.nebula</groupId>
+                <artifactId>nebula-api</artifactId>
+                <version>${project.version}</version>
+            </dependency>
+
+            <dependency>
+                <groupId>com.nebula</groupId>
+                <artifactId>nebula-start</artifactId>
+                <version>${project.version}</version>
             </dependency>
         </dependencies>
     </dependencyManagement>

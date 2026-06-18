@@ -44,4 +44,8 @@ public interface CommentService extends IService<Comment> {
      * @return 是否删除成功
      */
     Boolean deleteCommentById(Long id);
+
+    Long getAllCount(Long userId);
+
+    Page<Comment> getCommentPageByUserId(Long userId, int currentPage,  int size);
 }

@@ -5,9 +5,7 @@ import com.nebula.common.result.Result;
 import com.nebula.common.util.SecurityUtils;
 import com.nebula.user.dto.EditUserDTO;
 import com.nebula.user.service.UserService;
-import com.nebula.user.vo.UserProfileVO;
 import com.nebula.user.vo.UserVO;
-import jakarta.validation.constraints.Min;
 import lombok.RequiredArgsConstructor;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.validation.annotation.Validated;
@@ -22,17 +20,11 @@ public class UserController {
 
     private final UserService userService;
 
-    @GetMapping("/info")
-    public Result<UserVO> getUserInfo() {
-        Long userId = SecurityUtils.getUserId();
-        return Result.success(userService.getUserInfo(userId));
-    }
-
     /**
      * 查询用户列表（可分页/可模糊查询用户名）
      */
     @GetMapping
-    public Result<Page<UserVO>> list(@RequestParam(required = false) String role, @RequestParam(required = false) String username, @RequestParam(defaultValue = "1") Integer current, @RequestParam(defaultValue = "10") Integer size) {
+    public Result<Page<UserVO>> page(@RequestParam(required = false) String role, @RequestParam(required = false) String username, @RequestParam(defaultValue = "1") Integer current, @RequestParam(defaultValue = "10") Integer size) {
         return Result.success(userService.pageUsers(role, username, current, size));
     }
 
@@ -57,7 +49,6 @@ public class UserController {
 
     /**
      * 删除用户
-     *
      * @param id 用户ID
      */
     @PreAuthorize("hasAuthority('user:update')")
@@ -67,16 +58,7 @@ public class UserController {
     }
 
 
-    /**
-     * 获取用户主页信息
-     *
-     * @param id 用户ID
-     * @return 用户主页信息
-     */
-    @GetMapping("/profile/{id}")
-    public Result<UserProfileVO> getProfile(@PathVariable @Min(value = 1, message = "用户ID非法") Long id) {
-        return Result.success(userService.getProfile(id));
-    }
+
 
     /**
      * 上传用户头像
