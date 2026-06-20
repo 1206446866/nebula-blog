@@ -10,12 +10,13 @@ import com.nebula.article.entity.Article;
 import com.nebula.article.vo.ArticleVO;
 import org.apache.ibatis.javassist.NotFoundException;
 
+import java.util.List;
+
 public interface ArticleService extends IService<Article> {
 
     /**
      * 分页查询文章
      *
-     * @param dto
      * @param orderBy 排序字段 createTime/updateTime，可空
      * @param asc     升序/降序
      * @return 分页数据
@@ -55,4 +56,6 @@ public interface ArticleService extends IService<Article> {
     Long getViewAllCount(Long userId);
 
     Page<Article> pageArticleProfile(Long userId,Integer status, int currentPage, int pageSize);
+
+    List<Article> getArticleTitlesByCommentIds(List<Long> list);
 }

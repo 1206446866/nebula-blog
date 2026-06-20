@@ -11,6 +11,11 @@ spring:
     password: 123456
     driver-class-name: com.mysql.cj.jdbc.Driver
 
+    Hikari:
+      maximum-pool-size: 20
+      minimum-idle: 8
+      connection-timeout: 30000
+
   data:
     redis:
       host: localhost
@@ -25,10 +30,10 @@ mybatis-flex:
   global-config:
     print-banner: false
 
-#  secret：用作 HS256 签名密钥，必须保证长度足够（>=32字节），否则会报错。
-#  expire：token 过期时间，单位毫秒，这里 604800000ms = 7天。
 jwt:
+#  secret：用作 HS256 签名密钥，必须保证长度足够（>=32字节），否则会报错。
   secret: nebula-blog-auth-secret-key-nebula-blog-auth-secret-key
+#  expire：token 过期时间，单位毫秒，这里 604800000ms = 7天。
   expire: 604800000
 
 file:

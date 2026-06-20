@@ -4,6 +4,7 @@ import com.mybatisflex.core.service.IService;
 import com.nebula.article.entity.ArticleTag;
 
 import java.util.List;
+import java.util.Map;
 
 /**
  * 文章标签关联 Service
@@ -18,10 +19,12 @@ public interface ArticleTagService extends IService<ArticleTag> {
     /**
      * 删除文章全部标签
      */
-    boolean removeTags(Long articleId);
+    Integer removeTags(Long articleId);
+
 
     /**
-     * 查询文章标签ID列表
+     * 获取标签下对应的文章数目
+     * @return 标签ID，文章数目
      */
-    List<Long> getTagIds(Long articleId);
+    Map<Long,Long> getArticleCountByTag();
 }

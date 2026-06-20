@@ -97,8 +97,12 @@
 			<groupId>com.nebula</groupId>
 			<artifactId>nebula-comment</artifactId>
 		</dependency>
+        <dependency>
+            <groupId>com.nebula</groupId>
+            <artifactId>nebula-tag</artifactId>
+        </dependency>
 
-	</dependencies>
+    </dependencies>
 
 	<build>
 		<plugins>

@@ -1,7 +1,6 @@
 package com.nebula.article.service.impl;
 
 import cn.hutool.core.bean.BeanUtil;
-import cn.hutool.core.collection.CollUtil;
 import com.mybatisflex.core.paginate.Page;
 import com.mybatisflex.core.query.QueryMethods;
 import com.mybatisflex.core.query.QueryWrapper;
@@ -19,6 +18,7 @@ import com.nebula.article.mapper.ArticleCategoryMapper;
 import com.nebula.article.mapper.ArticleMapper;
 import com.nebula.article.mapper.ArticleTagMapper;
 import com.nebula.article.service.ArticleService;
+import com.nebula.article.service.ArticleTagService;
 import com.nebula.article.vo.ArticleVO;
 import com.nebula.common.constant.ArticleStatus;
 import com.nebula.common.util.SecurityUtils;
@@ -40,7 +40,7 @@ public class ArticleServiceImpl extends ServiceImpl<ArticleMapper, Article> impl
 
     private final ArticleCategoryMapper articleCategoryMapper;
     private final ArticleTagMapper articleTagMapper;
-
+    private final ArticleTagService articleTagService;
 
     @Override
     public Page<ArticleVO> pageArticles(ArticlePageDTO dto, String orderBy, boolean asc) {
@@ -95,15 +95,7 @@ public class ArticleServiceImpl extends ServiceImpl<ArticleMapper, Article> impl
                 .setStatus(ArticleStatus.DRAFT.getCode());
         boolean res = article.save();
         articleCategoryMapper.insertSelective(ArticleCategory.create().setArticleId(article.getId()).setCategoryId(dto.getCategoryId()));
-        if (CollUtil.isNotEmpty(dto.getTagIds())) {
-            List<ArticleTag> articleTags = dto.getTagIds()
-                    .stream()
-                    .map(tagId -> ArticleTag.create()
-                            .setArticleId(article.getId())
-                            .setTagId(tagId))
-                    .toList();
-            articleTagMapper.insertBatchSelective(articleTags);
-        }
+        articleTagService.bindTags(article.getId(), dto.getTagIds());
         return res;
     }
 
@@ -128,22 +120,8 @@ public class ArticleServiceImpl extends ServiceImpl<ArticleMapper, Article> impl
                         .setCategoryId(dto.getCategoryId())
         );
 
-        // 标签重建
-        QueryWrapper tagQuery = QueryWrapper.create()
-                .where(ARTICLE_TAG.ARTICLE_ID.eq(dto.getId()));
+        articleTagService.bindTags(dto.getId(), dto.getTagIds());
 
-        articleTagMapper.deleteByQuery(tagQuery);
-
-        if (CollUtil.isNotEmpty(dto.getTagIds())) {
-            List<ArticleTag> articleTags = dto.getTagIds()
-                    .stream()
-                    .map(tagId -> ArticleTag.create()
-                            .setArticleId(dto.getId())
-                            .setTagId(tagId))
-                    .toList();
-
-            articleTagMapper.insertBatch(articleTags);
-        }
         return res;
     }
 
@@ -181,15 +159,20 @@ public class ArticleServiceImpl extends ServiceImpl<ArticleMapper, Article> impl
 
     @Override
     public Long getViewAllCount(Long userId) {
-        Long total =getMapper().selectObjectByQueryAs(QueryWrapper.create().select(QueryMethods.sum(ARTICLE.VIEW_COUNT)).where(ARTICLE.USER_ID.eq(userId)),Long.class);
+        Long total = getMapper().selectObjectByQueryAs(QueryWrapper.create().select(QueryMethods.sum(ARTICLE.VIEW_COUNT)).where(ARTICLE.USER_ID.eq(userId)), Long.class);
         return total == null ? 0L : total;
     }
 
 
     @Override
-    public Page<Article> pageArticleProfile(Long userId,Integer status, int currentPage, int pageSize) {
+    public Page<Article> pageArticleProfile(Long userId, Integer status, int currentPage, int pageSize) {
         QueryWrapper query = QueryWrapper.create().where(ARTICLE.USER_ID.eq(userId).and(ARTICLE.STATUS.eq(status)));
-        return page(Page.of(currentPage,pageSize),query);
+        return page(Page.of(currentPage, pageSize), query);
     }
 
+
+    @Override
+    public List<Article> getArticleTitlesByCommentIds(List<Long> list) {
+        return getMapper().selectListByQuery(QueryWrapper.create().select(ARTICLE.ID, ARTICLE.TITLE).where(ARTICLE.ID.in(list, Objects.nonNull(list)&& !list.isEmpty())));
+    }
 }

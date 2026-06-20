@@ -8,7 +8,7 @@ import com.nebula.user.vo.UserVO;
 import org.springframework.web.multipart.MultipartFile;
 
 
-public interface UserService extends IService<com.nebula.user.entity.User> {
+public interface UserService extends IService<User> {
 
     /**
      * 分页查询用户，可根据角色和用户名模糊搜索

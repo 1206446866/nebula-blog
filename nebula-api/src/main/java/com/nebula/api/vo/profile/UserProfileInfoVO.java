@@ -1,5 +1,6 @@
 package com.nebula.api.vo.profile;
 
+import com.fasterxml.jackson.annotation.JsonFormat;
 import lombok.Data;
 import lombok.experimental.Accessors;
 
@@ -56,6 +57,7 @@ public class UserProfileInfoVO {
     /**
      * 创建时间
      */
+    @JsonFormat(pattern = "yyyy-MM-dd HH:mm", timezone = "Asia/Shanghai")
     private LocalDateTime createTime;
 
     public static UserProfileInfoVO create() {
