@@ -6,6 +6,7 @@ import com.nebula.comment.service.CommentService;
 import com.nebula.comment.vo.CommentVO;
 import com.nebula.common.result.Result;
 import lombok.RequiredArgsConstructor;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.*;
 
@@ -22,6 +23,7 @@ public class CommentController {
         return Result.success(commentService.pageComments(articleId,content,currentPage, size));
     }
 
+    @PreAuthorize("hasAuthority('user:create')")
     @PutMapping("/release")
     public Result<Boolean> releaseComment(@RequestBody ReleaseCommentDto dto) {
         return Result.success(commentService.releaseComment(dto));
@@ -33,6 +35,7 @@ public class CommentController {
      * @param id 评论发布请求参数
      * @return 是否发布成功
      */
+    @PreAuthorize("hasAuthority('user:delete')")
     @DeleteMapping("/delete/{id}")
     public Result<Boolean> deleteComment(@PathVariable Long id) {
         return Result.success(commentService.deleteCommentById(id));

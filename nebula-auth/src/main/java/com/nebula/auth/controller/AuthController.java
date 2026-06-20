@@ -52,6 +52,7 @@ public class AuthController {
     /**
      * 管理员重置用户密码
      */
+    @PreAuthorize("hasAuthority('user:update')")
     @PostMapping("/reset-password/{userId}")
     public String resetPassword(@PathVariable Long userId) {
         boolean success = authService.resetPassword(userId);
@@ -61,6 +62,7 @@ public class AuthController {
     /**
      * 获取用户权限列表
      */
+    @PreAuthorize("hasAuthority('user:list')")
     @GetMapping("/user/permissions/{userId}")
     public Result<List<String>> getUserPermissions(@PathVariable Long userId) {
         return Result.success(authService.getUserPermissionsByUserId(userId));
@@ -69,6 +71,7 @@ public class AuthController {
     /**
      * 判断用户是否拥有指定权限
      */
+    @PreAuthorize("hasAuthority('user:list')")
     @GetMapping("/user/has-permission/{userId}")
     public Result<Boolean> hasPermission(@PathVariable Long userId, @RequestParam String permission) {
         boolean has = authService.hasPermission(userId, permission);

@@ -6,6 +6,7 @@ import com.nebula.api.facade.UserProfileFacade;
 import com.nebula.api.vo.profile.UserProfileVO;
 import com.nebula.api.vo.tag.home.TagHomeVO;
 import com.nebula.common.result.Result;
+import jakarta.validation.Valid;
 import jakarta.validation.constraints.Min;
 import lombok.RequiredArgsConstructor;
 import org.springframework.validation.annotation.Validated;
@@ -31,7 +32,7 @@ public class ApiController {
      * @return 用户主页信息
      */
     @GetMapping("/profile/{id}")
-    public Result<UserProfileVO> getProfile(@PathVariable("id") @Min(value = 1, message = "非法的用户ID") Long id, ProfileQueryDto dto) {
+    public Result<UserProfileVO> getProfile(@PathVariable("id") @Min(value = 1, message = "非法的用户ID") Long id, @Valid ProfileQueryDto dto) {
         long l = System.nanoTime();
         UserProfileVO profile = userProfileFacade.getProfile(id, dto);
         System.out.println((System.nanoTime() - l)+"ms--------------------------------------------------------------------------");

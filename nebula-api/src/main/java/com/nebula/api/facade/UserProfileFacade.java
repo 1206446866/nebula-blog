@@ -136,17 +136,19 @@ public class UserProfileFacade {
 
         UserProfileStatisticsVO userProfileStatisticsVO = UserProfileStatisticsVO.create().setArticleCount(articleCount).setCommentCount(commentCount).setTotalViewCount(articleViewAllCount);
 
+        Map<Long, Long> countByArticleIds = commentService.getCountByArticleIds(publicArticlePage.getRecords().stream().map(Article::getId).toList());
         Page<UserProfileArticleVO> publicArticles = publicArticlePage.map(article -> {
             UserProfileArticleVO vo = BeanUtil.copyProperties(article, UserProfileArticleVO.class);
             String content = article.getContent();
-            vo.setContent(content.length() > 150 ? content.substring(0, 150)+"..." : content);
+            vo.setContent(content != null && content.length() > 150 ? content.substring(0, 150)+"..." : content)
+                    .setComments(countByArticleIds.getOrDefault(article.getId(), 0L));
             return vo;
         });
 
         Page<UserProfileArticleVO> draftArticles = draftArticlePage.map(article -> {
             UserProfileArticleVO vo = BeanUtil.copyProperties(article, UserProfileArticleVO.class);
             String content = article.getContent();
-            vo.setContent(content.length() > 150 ? content.substring(0, 150)+"..." : content);
+            vo.setContent(content != null &&content.length() > 150 ? content.substring(0, 150)+"..." : content);
             return vo;
         });
 

@@ -10,6 +10,7 @@ import jakarta.validation.Valid;
 import jakarta.validation.constraints.Max;
 import jakarta.validation.constraints.Min;
 import lombok.RequiredArgsConstructor;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.*;
 
@@ -23,26 +24,31 @@ public class TagController {
 
     private final TagService tagService;
 
+    @PreAuthorize("hasAuthority('tag:list')")
     @GetMapping
     public Result<Page<TagVO>> pageTags(@RequestParam(required = false) String name, @RequestParam(defaultValue = "1") @Min(1) int current, @RequestParam(defaultValue = "10") @Min(1) @Max(100) int size) {
         return Result.success(tagService.pageTags(name, current, size, null, false));
     }
 
+    @PreAuthorize("hasAuthority('tag:list')")
     @GetMapping("list")
     public Result<List<TagVO>> listTags() {
         return Result.success(tagService.listTags());
     }
 
+    @PreAuthorize("hasAuthority('tag:create')")
     @PostMapping("/create")
     public Result<Boolean> createTag(@RequestBody @Valid CreateTagDTO dto) {
         return Result.success(tagService.createTag(dto));
     }
 
+    @PreAuthorize("hasAuthority('tag:update')")
     @PutMapping("/edit")
     public Result<Boolean> updateTag(@RequestBody @Valid UpdateTagDTO dto) {
         return Result.success(tagService.updateTag(dto));
     }
 
+    @PreAuthorize("hasAuthority('tag:delete')")
     @DeleteMapping("/delete/{id}")
     public Result<Boolean> deleteTag(@PathVariable @Min(1) Long id) {
         return Result.success(tagService.deleteTag(id));

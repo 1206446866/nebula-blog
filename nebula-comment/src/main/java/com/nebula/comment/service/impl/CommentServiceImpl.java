@@ -1,9 +1,11 @@
 package com.nebula.comment.service.impl;
 
 import com.mybatisflex.core.paginate.Page;
+import com.mybatisflex.core.query.QueryMethods;
 import com.mybatisflex.core.query.QueryWrapper;
 import com.mybatisflex.core.util.StringUtil;
 import com.mybatisflex.spring.service.impl.ServiceImpl;
+import com.nebula.comment.dto.ArticleCommentCountDTO;
 import com.nebula.comment.dto.ReleaseCommentDto;
 import com.nebula.comment.entity.Comment;
 import com.nebula.comment.mapper.CommentMapper;
@@ -13,8 +15,11 @@ import com.nebula.common.util.SecurityUtils;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.Objects;
+import java.util.stream.Collectors;
 
 import static com.nebula.comment.entity.table.CommentTableDef.COMMENT;
 import static com.nebula.user.entity.table.UserTableDef.USER;
@@ -65,5 +70,15 @@ public class CommentServiceImpl extends ServiceImpl<CommentMapper, Comment> impl
     @Override
     public Page<Comment> getCommentPageByUserId(Long userId, int currentPage, int size) {
         return page(Page.of(currentPage,size),QueryWrapper.create().where(COMMENT.USER_ID.eq(userId)));
+    }
+
+    @Override
+    public Map<Long, Long> getCountByArticleIds(List<Long> articleIds) {
+        if (articleIds == null || articleIds.isEmpty()) {
+            return new HashMap<>();
+        }
+        QueryWrapper queryWrapper = QueryWrapper.create().select(COMMENT.ARTICLE_ID,QueryMethods.count(COMMENT.ID).as("commentCount")).from(COMMENT).where(COMMENT.ARTICLE_ID.in(articleIds)).groupBy(COMMENT.ARTICLE_ID);
+        List<ArticleCommentCountDTO> count = getMapper().selectListByQueryAs(queryWrapper, ArticleCommentCountDTO.class);
+        return count.stream().collect(Collectors.toMap(ArticleCommentCountDTO::getArticleId, ArticleCommentCountDTO::getCommentCount));
     }
 }

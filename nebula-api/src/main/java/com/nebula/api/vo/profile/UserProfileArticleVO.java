@@ -45,7 +45,7 @@ public class UserProfileArticleVO {
     /**
      * 评论数
      */
-    private Long comments = 99999999L;
+    private Long comments;
 
     public static UserProfileArticleVO create() {
         return new UserProfileArticleVO();

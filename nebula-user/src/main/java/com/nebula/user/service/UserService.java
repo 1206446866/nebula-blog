@@ -3,6 +3,7 @@ package com.nebula.user.service;
 import com.mybatisflex.core.paginate.Page;
 import com.mybatisflex.core.service.IService;
 import com.nebula.user.dto.EditUserDTO;
+import com.nebula.user.dto.UpdateNameDTO;
 import com.nebula.user.entity.User;
 import com.nebula.user.vo.UserVO;
 import org.springframework.web.multipart.MultipartFile;
@@ -56,4 +57,6 @@ public interface UserService extends IService<User> {
      * @param userId 用户ID
      */
     User getUserById(Long userId);
+
+    Boolean updateSelfName(UpdateNameDTO dto);
 }

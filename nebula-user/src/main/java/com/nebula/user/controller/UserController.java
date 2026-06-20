@@ -4,8 +4,10 @@ import com.mybatisflex.core.paginate.Page;
 import com.nebula.common.result.Result;
 import com.nebula.common.util.SecurityUtils;
 import com.nebula.user.dto.EditUserDTO;
+import com.nebula.user.dto.UpdateNameDTO;
 import com.nebula.user.service.UserService;
 import com.nebula.user.vo.UserVO;
+import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.validation.annotation.Validated;
@@ -25,6 +27,7 @@ public class UserController {
     /**
      * 查询用户列表（可分页/可模糊查询用户名）
      */
+    @PreAuthorize("hasAuthority('user:list')")
     @GetMapping
     public Result<Page<UserVO>> page(@RequestParam(required = false) String role, @RequestParam(required = false) String username, @RequestParam(defaultValue = "1") Integer current, @RequestParam(defaultValue = "10") Integer size) {
         return Result.success(userService.pageUsers(role, username, current, size));
@@ -59,18 +62,22 @@ public class UserController {
         return Result.success(userService.deleteUserById(id));
     }
 
-
-
-
     /**
      * 上传用户头像
      *
      * @param file 文件
      * @return 头像URL
      */
+    @PreAuthorize("hasAuthority('user:update')")
     @PostMapping("/upload/avatar")
     public Result<String> uploadAvatar(@RequestParam("file") MultipartFile file) throws IOException {
         Long userId = SecurityUtils.getUserId();
         return Result.success(userService.uploadAvatar(userId, file));
+    }
+
+    @PreAuthorize("hasAuthority('user:update')")
+    @PutMapping("/self/name")
+    public Result<Boolean> updateSelfName(@RequestBody @Valid UpdateNameDTO dto) {
+        return Result.success(userService.updateSelfName(dto));
     }
 }

@@ -9,7 +9,9 @@ import com.mybatisflex.spring.service.impl.ServiceImpl;
 import com.nebula.common.constant.NumberConstant;
 import com.nebula.common.exception.BusinessException;
 import com.nebula.common.exception.code.UserErrorCode;
+import com.nebula.common.util.SecurityUtils;
 import com.nebula.user.dto.EditUserDTO;
+import com.nebula.user.dto.UpdateNameDTO;
 import com.nebula.user.entity.User;
 import com.nebula.user.entity.UserRole;
 import com.nebula.user.mapper.UserMapper;
@@ -217,4 +219,8 @@ public class UserServiceImpl extends ServiceImpl<UserMapper, com.nebula.user.ent
     }
 
 
+    @Override
+    public Boolean updateSelfName(UpdateNameDTO dto) {
+        return updateById(User.create().setId(SecurityUtils.getUserId()).setUsername(dto.getUsername()));
+    }
 }

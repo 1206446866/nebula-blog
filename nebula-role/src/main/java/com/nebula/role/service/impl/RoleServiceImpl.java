@@ -60,15 +60,6 @@ public class RoleServiceImpl extends ServiceImpl<RoleMapper, Role> implements Ro
     }
 
     @Override
-    public List<User> getUsersByRoleId(Long roleId) {
-        List<Long> userIds = userRoleMapper.selectListByCondition(USER_ROLE.ROLE_ID.eq(roleId)).stream().map(UserRole::getUserId).toList();
-        if (userIds.isEmpty()) {
-            return List.of();
-        }
-        return userMapper.selectListByIds(userIds);
-    }
-
-    @Override
     public boolean assignRoles(Long userId, List<Long> roleIds) {
         // 先删除已有角色
         userRoleMapper.deleteByCondition(USER_ROLE.USER_ID.eq(userId));

@@ -38,6 +38,24 @@ public class PermissionServiceImpl extends ServiceImpl<PermissionMapper, Permiss
 
 
     @Override
+    public Map<String, List<PermissionVO>> getPermissions() {
+        List<Permission> list = list();
+        return list.stream()
+                .map(p -> BeanUtil.toBean(p, PermissionVO.class))
+                .collect(Collectors.groupingBy(p -> {
+                    String name = p.getName(); // 你当前字段
+                    if (name == null || name.isBlank()) {
+                        return "other";
+                    }
+                    int idx = name.indexOf(':');
+                    if (idx == -1) {
+                        return "other";
+                    }
+                    return name.substring(0, idx);
+                }));
+    }
+
+    @Override
     public Map<String, List<PermissionVO>> getPermissionByRoleId(String roleId) {
         List<RolePermission> rp = rolePermissionMapper.selectListByCondition(ROLE_PERMISSION.ROLE_ID.eq(roleId));
         if (rp == null || rp.isEmpty()) {

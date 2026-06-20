@@ -7,6 +7,7 @@ import com.nebula.comment.entity.Comment;
 import com.nebula.comment.vo.CommentVO;
 
 import java.util.List;
+import java.util.Map;
 
 /**
  * 评论 Service
@@ -48,4 +49,6 @@ public interface CommentService extends IService<Comment> {
     Long getAllCount(Long userId);
 
     Page<Comment> getCommentPageByUserId(Long userId, int currentPage,  int size);
+
+    Map<Long,Long> getCountByArticleIds(List<Long> list);
 }

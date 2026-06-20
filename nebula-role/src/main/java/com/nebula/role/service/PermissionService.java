@@ -11,6 +11,7 @@ import java.util.Map;
 
 public interface PermissionService extends IService<Permission> {
 
+    Map<String, List<PermissionVO>> getPermissions();
 
     Map<String, List<PermissionVO>> getPermissionByRoleId(String roleId);
 

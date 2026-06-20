@@ -13,6 +13,7 @@ import jakarta.validation.Valid;
 import jakarta.validation.constraints.Min;
 import lombok.RequiredArgsConstructor;
 import org.apache.ibatis.javassist.NotFoundException;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.*;
 
@@ -30,6 +31,7 @@ public class ArticleController {
      * @param articlePageDTO       文章查询接口
      * @return 文章分页数据
      */
+    @PreAuthorize("hasAuthority('article:list')")
     @GetMapping
     public Result<Page<ArticleVO>> page(ArticlePageDTO  articlePageDTO) {
         return Result.success(articleService.pageArticles(articlePageDTO, null, true));
@@ -41,6 +43,7 @@ public class ArticleController {
      * @param id 文章ID
      * @return 文章详情
      */
+    @PreAuthorize("hasAuthority('article:list')")
     @GetMapping("/{id}")
     public Result<ArticleVO> getArticleById(@PathVariable @Min(value = 1, message = "文章ID非法") Long id) throws NotFoundException {
         return Result.success(articleService.getArticleById(id));
@@ -53,6 +56,7 @@ public class ArticleController {
      * @param dto 新增文章请求参数
      * @return 是否新增成功
      */
+    @PreAuthorize("hasAuthority('article:create')")
     @PostMapping("/create")
     public Result<Boolean> createArticle(@RequestBody @Valid CreateArticleDto dto) {
         return Result.success(articleService.createArticle(dto));
@@ -64,6 +68,7 @@ public class ArticleController {
      * @param dto 修改文章请求参数
      * @return 是否修改成功
      */
+    @PreAuthorize("hasAuthority('article:update')")
     @PutMapping("/edit")
     public Result<Boolean> update(@RequestBody @Valid UpdateArticleDto dto) {
         return Result.success(articleService.updateArticle(dto));
@@ -74,6 +79,7 @@ public class ArticleController {
      *
      * @param id 文章ID
      */
+    @PreAuthorize("hasAuthority('article:delete')")
     @DeleteMapping("/{id}")
     public Result<Boolean> delete(@PathVariable @Min(value = 1, message = "文章ID非法") Long id) {
         return Result.success(new Article().setId(id).removeById());
@@ -85,6 +91,7 @@ public class ArticleController {
      * @param dto 修改文章状态请求参数
      * @return 是否修改成功
      */
+    @PreAuthorize("hasAuthority('article:update')")
     @PutMapping("/status")
     public Result<Boolean> changeStatus(@RequestBody @Valid ChangeArticleStatusDto dto) {
         return Result.success(articleService.changeArticleStatus(dto));
@@ -94,6 +101,7 @@ public class ArticleController {
      * 分页查询已发布文章
      * @return 已发布文章分页数据
      */
+    @PreAuthorize("hasAuthority('article:list')")
     @GetMapping("/published")
     public Result<Page<ArticleVO>> pagePublished(ArticlePageDTO dto) {
         return Result.success(articleService.pagePublishedArticles(dto));
