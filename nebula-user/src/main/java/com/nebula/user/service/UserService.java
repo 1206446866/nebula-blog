@@ -7,6 +7,8 @@ import com.nebula.user.entity.User;
 import com.nebula.user.vo.UserVO;
 import org.springframework.web.multipart.MultipartFile;
 
+import java.io.IOException;
+
 
 public interface UserService extends IService<User> {
 
@@ -48,7 +50,7 @@ public interface UserService extends IService<User> {
      * @param file   文件
      * @return 头像URL
      */
-    String uploadAvatar(Long userId, MultipartFile file);
+    String uploadAvatar(Long userId, MultipartFile file) throws IOException;
 
     /**
      * @param userId 用户ID

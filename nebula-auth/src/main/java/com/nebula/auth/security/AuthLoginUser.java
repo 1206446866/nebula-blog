@@ -1,5 +1,6 @@
 package com.nebula.auth.security;
 
+import com.nebula.common.constant.UserStatus;
 import com.nebula.common.security.LoginUser;
 import com.nebula.user.entity.User;
 import lombok.Data;
@@ -53,11 +54,16 @@ public class AuthLoginUser implements LoginUser {
 
     @Override
     public boolean isEnabled() {
-        return user.getStatus() == 0;
+        return UserStatus.NORMAL.matches(user.getStatus());
     }
 
     @Override
     public Long getUserId() {
         return user.getId();
+    }
+
+    @Override
+    public boolean isAccountNonLocked() {
+        return UserStatus.LOCKED.notMatches(user.getStatus());
     }
 }

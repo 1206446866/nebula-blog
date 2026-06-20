@@ -12,6 +12,8 @@ import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
 
+import java.io.IOException;
+
 @Validated
 @RestController
 @RequestMapping("/users")
@@ -67,7 +69,7 @@ public class UserController {
      * @return 头像URL
      */
     @PostMapping("/upload/avatar")
-    public Result<String> uploadAvatar(@RequestParam("file") MultipartFile file) {
+    public Result<String> uploadAvatar(@RequestParam("file") MultipartFile file) throws IOException {
         Long userId = SecurityUtils.getUserId();
         return Result.success(userService.uploadAvatar(userId, file));
     }

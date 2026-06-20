@@ -8,9 +8,9 @@ import lombok.Getter;
 @Getter
 public enum RoleEnum {
 
-    SUPER_ADMIN(1L, "SUPER_ADMIN"),
-    ADMIN(2L, "ADMIN"),
-    USER(3L, "USER");
+    SUPER_ADMIN(NumberConstant.ONE_L, "SUPER_ADMIN"),
+    ADMIN(NumberConstant.TWO_L, "ADMIN"),
+    USER(NumberConstant.TREEE_L, "USER");
 
     /**
      * 数据库中 role_id
