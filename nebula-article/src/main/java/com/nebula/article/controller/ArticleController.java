@@ -1,10 +1,7 @@
 package com.nebula.article.controller;
 
 import com.mybatisflex.core.paginate.Page;
-import com.nebula.article.dto.ArticlePageDTO;
-import com.nebula.article.dto.ChangeArticleStatusDto;
-import com.nebula.article.dto.CreateArticleDto;
-import com.nebula.article.dto.UpdateArticleDto;
+import com.nebula.article.dto.*;
 import com.nebula.article.entity.Article;
 import com.nebula.article.service.ArticleService;
 import com.nebula.article.vo.ArticleVO;
@@ -105,5 +102,10 @@ public class ArticleController {
     @GetMapping("/published")
     public Result<Page<ArticleVO>> pagePublished(ArticlePageDTO dto) {
         return Result.success(articleService.pagePublishedArticles(dto));
+    }
+
+    @PutMapping("/like")
+    public Result<Boolean> like(@RequestBody @Valid ArticleLikeDto articleLikeDto) throws NotFoundException {
+        return Result.success(articleService.like(articleLikeDto));
     }
 }

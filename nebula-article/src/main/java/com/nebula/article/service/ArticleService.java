@@ -2,10 +2,7 @@ package com.nebula.article.service;
 
 import com.mybatisflex.core.paginate.Page;
 import com.mybatisflex.core.service.IService;
-import com.nebula.article.dto.ArticlePageDTO;
-import com.nebula.article.dto.ChangeArticleStatusDto;
-import com.nebula.article.dto.CreateArticleDto;
-import com.nebula.article.dto.UpdateArticleDto;
+import com.nebula.article.dto.*;
 import com.nebula.article.entity.Article;
 import com.nebula.article.vo.ArticleVO;
 import org.apache.ibatis.javassist.NotFoundException;
@@ -58,4 +55,6 @@ public interface ArticleService extends IService<Article> {
     Page<Article> pageArticleProfile(Long userId,Integer status, int currentPage, int pageSize);
 
     List<Article> getArticleTitlesByCommentIds(List<Long> list);
+
+    Boolean like(ArticleLikeDto articleLikeDto) throws NotFoundException;
 }

@@ -37,8 +37,10 @@ public class Article extends Model<Article> {
      */
     private String author;
 
+    @Column(onInsertValue = "now()")
     private LocalDateTime createTime;
 
+    @Column(onInsertValue = "now()", onUpdateValue = "now()")
     private LocalDateTime updateTime;
 
     @Column(comment = "0: 草稿, 1: 已发布")
@@ -50,6 +52,10 @@ public class Article extends Model<Article> {
     @Column(comment = "浏览量")
     private Long viewCount;
 
+    /**
+     * 点赞数量
+     */
+    private Integer likeCount;
     public static Article create() {
         return new Article();
     }

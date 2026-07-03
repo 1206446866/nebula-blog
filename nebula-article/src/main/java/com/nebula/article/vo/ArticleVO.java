@@ -55,12 +55,18 @@ public class ArticleVO {
      */
     private Long viewCount;
 
+    /**
+     * 点赞数量
+     */
+    private Integer likeCount;
+
     private Integer status;
 
     private Long categoryId;
 
     private List<Long> tagIds;
 
+    private Boolean like;
 
     public static ArticleVO create() {
         return new ArticleVO();

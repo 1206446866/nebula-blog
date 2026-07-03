@@ -16,6 +16,14 @@ import java.util.Optional;
 @RestControllerAdvice
 public class GlobalExceptionHandler {
 
+    /**
+     * 全局异常
+     */
+    @ExceptionHandler(Exception.class)
+    public Result<?> handleException(Exception e) {
+        return Result.error("未知的服务器异常:"+e.getMessage());
+    }
+
     @ExceptionHandler(BaseException.class)
     public Result<Void> handleBaseException(BaseException e) {
         return Result.error(e.getCode(), e.getMessage());
@@ -45,16 +53,10 @@ public class GlobalExceptionHandler {
         return Result.error(e.getMessage());
     }
 
-    /**
-     * 全局异常
-     */
-    @ExceptionHandler(Exception.class)
-    public Result<?> handleException(Exception e) {
-        return Result.error("未知的服务器异常:"+e.getMessage());
-    }
 
     @ExceptionHandler(AuthorizationDeniedException.class)
     public Result<?> handleAuthorizationDeniedException(AuthorizationDeniedException e) {
         return Result.error(403, "权限不足");
     }
+
 }

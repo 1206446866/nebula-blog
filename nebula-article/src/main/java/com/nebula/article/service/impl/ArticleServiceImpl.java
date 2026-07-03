@@ -7,14 +7,13 @@ import com.mybatisflex.core.query.QueryWrapper;
 import com.mybatisflex.core.update.UpdateChain;
 import com.mybatisflex.core.util.StringUtil;
 import com.mybatisflex.spring.service.impl.ServiceImpl;
-import com.nebula.article.dto.ArticlePageDTO;
-import com.nebula.article.dto.ChangeArticleStatusDto;
-import com.nebula.article.dto.CreateArticleDto;
-import com.nebula.article.dto.UpdateArticleDto;
+import com.nebula.article.dto.*;
 import com.nebula.article.entity.Article;
 import com.nebula.article.entity.ArticleCategory;
+import com.nebula.article.entity.ArticleLike;
 import com.nebula.article.entity.ArticleTag;
 import com.nebula.article.mapper.ArticleCategoryMapper;
+import com.nebula.article.mapper.ArticleLikeMapper;
 import com.nebula.article.mapper.ArticleMapper;
 import com.nebula.article.mapper.ArticleTagMapper;
 import com.nebula.article.service.ArticleService;
@@ -24,6 +23,7 @@ import com.nebula.common.constant.ArticleStatus;
 import com.nebula.common.util.SecurityUtils;
 import lombok.RequiredArgsConstructor;
 import org.apache.ibatis.javassist.NotFoundException;
+import org.springframework.dao.DuplicateKeyException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -31,6 +31,7 @@ import java.util.List;
 import java.util.Objects;
 
 import static com.nebula.article.entity.table.ArticleCategoryTableDef.ARTICLE_CATEGORY;
+import static com.nebula.article.entity.table.ArticleLikeTableDef.ARTICLE_LIKE;
 import static com.nebula.article.entity.table.ArticleTableDef.ARTICLE;
 import static com.nebula.article.entity.table.ArticleTagTableDef.ARTICLE_TAG;
 
@@ -41,6 +42,7 @@ public class ArticleServiceImpl extends ServiceImpl<ArticleMapper, Article> impl
     private final ArticleCategoryMapper articleCategoryMapper;
     private final ArticleTagMapper articleTagMapper;
     private final ArticleTagService articleTagService;
+    private final ArticleLikeMapper articleLikeMapper;
 
     @Override
     public Page<ArticleVO> pageArticles(ArticlePageDTO dto, String orderBy, boolean asc) {
@@ -82,6 +84,8 @@ public class ArticleServiceImpl extends ServiceImpl<ArticleMapper, Article> impl
                         .map(ArticleTag::getTagId)
                         .toList()
         );
+        ArticleLike like = ArticleLike.create().setArticleId(id).setUserId(article.getUserId()).one();
+        articleVO.setLike(Objects.nonNull(like));
         return articleVO;
     }
 
@@ -173,6 +177,39 @@ public class ArticleServiceImpl extends ServiceImpl<ArticleMapper, Article> impl
 
     @Override
     public List<Article> getArticleTitlesByCommentIds(List<Long> list) {
-        return getMapper().selectListByQuery(QueryWrapper.create().select(ARTICLE.ID, ARTICLE.TITLE).where(ARTICLE.ID.in(list, Objects.nonNull(list)&& !list.isEmpty())));
+        return getMapper().selectListByQuery(QueryWrapper.create().select(ARTICLE.ID, ARTICLE.TITLE).where(ARTICLE.ID.in(list, Objects.nonNull(list) && !list.isEmpty())));
+    }
+
+    @Override
+    @Transactional(rollbackFor = Exception.class)
+    public Boolean like(ArticleLikeDto articleLikeDto) throws NotFoundException {
+        Article article = mapper.selectOneById(articleLikeDto.getArticleId());
+        if (article.getId() == null || !ArticleStatus.PUBLISHED.getCode().equals(article.getStatus())) {
+            throw new NotFoundException("文章不存在或未发布");
+        }
+
+        try {
+            ArticleLike entity = ArticleLike.create().setArticleId(articleLikeDto.getArticleId()).setUserId(articleLikeDto.getUserId());
+            articleLikeMapper.insert(entity);
+            UpdateChain.of(Article.class)
+                    .setRaw(ARTICLE.LIKE_COUNT, ARTICLE.LIKE_COUNT.add(1))
+                    .where(ARTICLE.ID.eq(articleLikeDto.getArticleId()))
+                    .update();
+
+            return true;
+
+        } catch (DuplicateKeyException e) {
+            articleLikeMapper.deleteByQuery(QueryWrapper.create()
+                    .where(ARTICLE_LIKE.ARTICLE_ID.eq(articleLikeDto.getArticleId()))
+                    .and(ARTICLE_LIKE.USER_ID.eq(articleLikeDto.getUserId()))
+            );
+
+            UpdateChain.of(Article.class)
+                    .setRaw(ARTICLE.LIKE_COUNT, ARTICLE.LIKE_COUNT.subtract(1))
+                    .where(ARTICLE.ID.eq(articleLikeDto.getArticleId()))
+                    .update();
+
+            return false;
+        }
     }
 }
