@@ -86,6 +86,6 @@ public class UserController {
     @PreAuthorize("hasAuthority('user:update')")
     @GetMapping("/{userId}")
     public Result<UserVO> getUserById(@PathVariable Long userId) {
-        return Result.success(BeanUtil.copyProperties(User.create().setId(userId).one(), UserVO.class));
+        return Result.success(BeanUtil.copyProperties(User.create().where(User::getId).eq(userId).one(), UserVO.class));
     }
 }
