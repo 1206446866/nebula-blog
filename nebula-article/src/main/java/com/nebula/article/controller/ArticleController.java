@@ -105,6 +105,7 @@ public class ArticleController {
     }
 
     @PutMapping("/like")
+    @PreAuthorize("hasAuthority('article:list')")
     public Result<Boolean> like(@RequestBody @Valid ArticleLikeDto articleLikeDto) throws NotFoundException {
         return Result.success(articleService.like(articleLikeDto));
     }

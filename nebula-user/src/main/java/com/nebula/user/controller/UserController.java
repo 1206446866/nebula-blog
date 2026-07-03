@@ -1,10 +1,12 @@
 package com.nebula.user.controller;
 
+import cn.hutool.core.bean.BeanUtil;
 import com.mybatisflex.core.paginate.Page;
 import com.nebula.common.result.Result;
 import com.nebula.common.util.SecurityUtils;
 import com.nebula.user.dto.EditUserDTO;
 import com.nebula.user.dto.UpdateNameDTO;
+import com.nebula.user.entity.User;
 import com.nebula.user.service.UserService;
 import com.nebula.user.vo.UserVO;
 import jakarta.validation.Valid;
@@ -79,5 +81,11 @@ public class UserController {
     @PutMapping("/self/name")
     public Result<Boolean> updateSelfName(@RequestBody @Valid UpdateNameDTO dto) {
         return Result.success(userService.updateSelfName(dto));
+    }
+
+    @PreAuthorize("hasAuthority('user:update')")
+    @GetMapping("/{userId}")
+    public Result<UserVO> getUserById(@PathVariable Long userId) {
+        return Result.success(BeanUtil.copyProperties(User.create().setId(userId).one(), UserVO.class));
     }
 }

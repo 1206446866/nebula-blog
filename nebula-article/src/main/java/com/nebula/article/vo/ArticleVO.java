@@ -66,7 +66,7 @@ public class ArticleVO {
 
     private List<Long> tagIds;
 
-    private Boolean like;
+    private Boolean liked;
 
     public static ArticleVO create() {
         return new ArticleVO();

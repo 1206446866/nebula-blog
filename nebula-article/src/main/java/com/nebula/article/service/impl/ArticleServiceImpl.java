@@ -63,29 +63,25 @@ public class ArticleServiceImpl extends ServiceImpl<ArticleMapper, Article> impl
         if (Objects.isNull(article)) {
             throw new NotFoundException("文章不存在或未发布");
         }
-        UpdateChain.of(Article.class)
-                .setRaw(ARTICLE.VIEW_COUNT, ARTICLE.VIEW_COUNT.add(1))
-                .where(ARTICLE.ID.eq(id))
-                .update();
+        UpdateChain.of(Article.class).setRaw(ARTICLE.VIEW_COUNT, ARTICLE.VIEW_COUNT.add(1))
+                .where(ARTICLE.ID.eq(id)).update();
         ArticleVO articleVO = BeanUtil.copyProperties(article, ArticleVO.class);
         ArticleCategory articleCategory = articleCategoryMapper.selectOneByCondition(ARTICLE_CATEGORY.ARTICLE_ID.eq(id));
         if (articleCategory != null) {
             articleVO.setCategoryId(articleCategory.getCategoryId());
         }
-        List<ArticleTag> articleTags =
-                articleTagMapper.selectListByQuery(
-                        QueryWrapper.create().select(ARTICLE_TAG.TAG_ID)
-                                .where(
-                                        ARTICLE_TAG.ARTICLE_ID.eq(id)
-                                )
-                );
-        articleVO.setTagIds(
-                articleTags.stream()
-                        .map(ArticleTag::getTagId)
-                        .toList()
+        List<ArticleTag> articleTags = articleTagMapper.selectListByQuery(
+                QueryWrapper.create().select(ARTICLE_TAG.TAG_ID)
+                        .where(
+                                ARTICLE_TAG.ARTICLE_ID.eq(id)
+                        )
         );
-        ArticleLike like = ArticleLike.create().setArticleId(id).setUserId(article.getUserId()).one();
-        articleVO.setLike(Objects.nonNull(like));
+        articleVO.setTagIds(articleTags.stream()
+                .map(ArticleTag::getTagId)
+                .toList()
+        );
+        ArticleLike like = articleLikeMapper.selectOneByCondition(ARTICLE_LIKE.ARTICLE_ID.eq(id).and(ARTICLE_LIKE.USER_ID.eq(SecurityUtils.getUserId())));
+        articleVO.setLiked(Objects.nonNull(like));
         return articleVO;
     }
 

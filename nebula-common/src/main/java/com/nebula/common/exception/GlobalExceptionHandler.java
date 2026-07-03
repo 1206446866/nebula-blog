@@ -56,7 +56,7 @@ public class GlobalExceptionHandler {
 
     @ExceptionHandler(AuthorizationDeniedException.class)
     public Result<?> handleAuthorizationDeniedException(AuthorizationDeniedException e) {
-        return Result.error(403, "权限不足");
+        return Result.error(403, "权限不足"+e.getMessage());
     }
 
 }
