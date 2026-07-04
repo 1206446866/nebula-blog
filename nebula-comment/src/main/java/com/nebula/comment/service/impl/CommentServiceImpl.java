@@ -32,6 +32,7 @@ public class CommentServiceImpl extends ServiceImpl<CommentMapper, Comment> impl
     public Page<CommentVO> pageComments(Long articleId, String content, int page, int size) {
         QueryWrapper queryWrapper = QueryWrapper.create()
                 .select(COMMENT.ID,
+                        COMMENT.USER_ID,
                         USER.USERNAME,
                         COMMENT.ARTICLE_ID,
                         COMMENT.CONTENT,
@@ -54,12 +55,6 @@ public class CommentServiceImpl extends ServiceImpl<CommentMapper, Comment> impl
     @Override
     public Boolean deleteCommentById(Long id) {
         return removeById(id);
-    }
-
-
-    @Override
-    public boolean deleteCommentsBatch(List<Long> ids) {
-        return false;
     }
 
     @Override

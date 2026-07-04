@@ -9,6 +9,7 @@ import com.nebula.user.vo.UserVO;
 import org.springframework.web.multipart.MultipartFile;
 
 import java.io.IOException;
+import java.util.List;
 
 
 public interface UserService extends IService<User> {
@@ -59,4 +60,6 @@ public interface UserService extends IService<User> {
     User getUserById(Long userId);
 
     Boolean updateSelfName(UpdateNameDTO dto);
+
+    List<UserVO> getUserByIds(List<Long> ids);
 }

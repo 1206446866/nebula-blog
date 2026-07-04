@@ -10,6 +10,7 @@ import java.time.LocalDateTime;
 public class CommentVO {
 
     private Long id;
+    private Long userId;
     private String username;
     private Long articleId;
     private String content;

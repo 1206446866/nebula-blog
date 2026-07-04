@@ -17,6 +17,7 @@ import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
 
 import java.io.IOException;
+import java.util.List;
 
 @Validated
 @RestController
@@ -83,9 +84,15 @@ public class UserController {
         return Result.success(userService.updateSelfName(dto));
     }
 
-    @PreAuthorize("hasAuthority('user:update')")
+    @PreAuthorize("hasAuthority('user:list')")
     @GetMapping("/{userId}")
     public Result<UserVO> getUserById(@PathVariable Long userId) {
         return Result.success(BeanUtil.copyProperties(User.create().where(User::getId).eq(userId).one(), UserVO.class));
+    }
+
+
+    @GetMapping("/batch")
+    public Result<List<UserVO>> getUserByIds(@RequestParam List<Long> ids) {
+        return Result.success(userService.getUserByIds(ids));
     }
 }

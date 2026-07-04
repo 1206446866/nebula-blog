@@ -21,12 +21,6 @@ public interface CommentService extends IService<Comment> {
 
 
     /**
-     * 批量删除评论
-     */
-    boolean deleteCommentsBatch(List<Long> ids);
-
-
-    /**
      * 发布评论
      *
      * @param dto 评论发布请求
