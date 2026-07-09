@@ -2,9 +2,11 @@ package com.nebula.comment.service;
 
 import com.mybatisflex.core.paginate.Page;
 import com.mybatisflex.core.service.IService;
+import com.nebula.comment.dto.CommentLikeDto;
 import com.nebula.comment.dto.ReleaseCommentDto;
 import com.nebula.comment.entity.Comment;
 import com.nebula.comment.vo.CommentVO;
+import jakarta.validation.Valid;
 
 import java.util.List;
 import java.util.Map;
@@ -45,4 +47,6 @@ public interface CommentService extends IService<Comment> {
     Page<Comment> getCommentPageByUserId(Long userId, int currentPage,  int size);
 
     Map<Long,Long> getCountByArticleIds(List<Long> list);
+
+    Boolean like(@Valid CommentLikeDto dto);
 }

@@ -60,7 +60,7 @@ public class ArticleServiceImpl extends ServiceImpl<ArticleMapper, Article> impl
     @Override
     public ArticleVO getArticleById(Long id) throws NotFoundException {
         Article article = Article.create().where(ARTICLE.ID.eq(id)).one();
-        if (Objects.isNull(article)) {
+        if (Objects.isNull(article) || !article.getStatus().equals(ArticleStatus.PUBLISHED.getCode())) {
             throw new NotFoundException("文章不存在或未发布");
         }
         UpdateChain.of(Article.class).setRaw(ARTICLE.VIEW_COUNT, ARTICLE.VIEW_COUNT.add(1))

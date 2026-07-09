@@ -13,7 +13,7 @@ import java.time.LocalDateTime;
 
 @EqualsAndHashCode(callSuper = true)
 @Accessors(chain=true)
-@Data(staticConstructor = "creat")
+@Data
 @Table("comment")
 public class Comment extends Model<Comment> {
     /**
@@ -59,4 +59,10 @@ public class Comment extends Model<Comment> {
      */
     @Column(isLogicDelete = true)
     private Integer status;
+
+    private Long likeCount;
+
+    public static Comment create(){
+        return new Comment();
+    }
 }

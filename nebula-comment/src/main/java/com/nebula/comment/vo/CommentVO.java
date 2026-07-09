@@ -15,4 +15,5 @@ public class CommentVO {
     private Long articleId;
     private String content;
     private LocalDateTime createTime;
+    private Boolean liked;
 }

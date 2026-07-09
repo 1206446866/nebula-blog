@@ -3,17 +3,23 @@ package com.nebula.comment.service.impl;
 import com.mybatisflex.core.paginate.Page;
 import com.mybatisflex.core.query.QueryMethods;
 import com.mybatisflex.core.query.QueryWrapper;
+import com.mybatisflex.core.update.UpdateChain;
 import com.mybatisflex.core.util.StringUtil;
 import com.mybatisflex.spring.service.impl.ServiceImpl;
 import com.nebula.comment.dto.ArticleCommentCountDTO;
+import com.nebula.comment.dto.CommentLikeDto;
 import com.nebula.comment.dto.ReleaseCommentDto;
 import com.nebula.comment.entity.Comment;
+import com.nebula.comment.entity.CommentLike;
+import com.nebula.comment.mapper.CommentLikeMapper;
 import com.nebula.comment.mapper.CommentMapper;
 import com.nebula.comment.service.CommentService;
 import com.nebula.comment.vo.CommentVO;
 import com.nebula.common.util.SecurityUtils;
 import lombok.RequiredArgsConstructor;
+import org.springframework.dao.DuplicateKeyException;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.util.HashMap;
 import java.util.List;
@@ -21,12 +27,15 @@ import java.util.Map;
 import java.util.Objects;
 import java.util.stream.Collectors;
 
+import static com.nebula.comment.entity.table.CommentLikeTableDef.COMMENT_LIKE;
 import static com.nebula.comment.entity.table.CommentTableDef.COMMENT;
 import static com.nebula.user.entity.table.UserTableDef.USER;
 
 @Service
 @RequiredArgsConstructor
 public class CommentServiceImpl extends ServiceImpl<CommentMapper, Comment> implements CommentService {
+
+    private final CommentLikeMapper commentLikeMapper;
 
     @Override
     public Page<CommentVO> pageComments(Long articleId, String content, int page, int size) {
@@ -36,11 +45,17 @@ public class CommentServiceImpl extends ServiceImpl<CommentMapper, Comment> impl
                         USER.USERNAME,
                         COMMENT.ARTICLE_ID,
                         COMMENT.CONTENT,
-                        COMMENT.CREATE_TIME
+                        COMMENT.CREATE_TIME,
+                        QueryMethods.case_()
+                                .when(COMMENT_LIKE.ID.isNotNull()).then(QueryMethods.true_())
+                                .else_(QueryMethods.false_()).end().as("liked")
                 )
                 .from(COMMENT)
                 .leftJoin(USER)
                 .on(COMMENT.USER_ID.eq(USER.ID))
+                .leftJoin(COMMENT_LIKE)
+                .on(COMMENT_LIKE.COMMENT_ID.eq(COMMENT.ID)
+                .and(COMMENT_LIKE.USER_ID.eq(SecurityUtils.getUserId())))
                 .where(COMMENT.ARTICLE_ID.eq(articleId, Objects::nonNull))
                 .and(COMMENT.CONTENT.like(content, StringUtil::hasText))
                 .orderBy(COMMENT.CREATE_TIME.desc());
@@ -49,7 +64,7 @@ public class CommentServiceImpl extends ServiceImpl<CommentMapper, Comment> impl
 
     @Override
     public Boolean releaseComment(ReleaseCommentDto comment) {
-        return save(Comment.creat().setUserId(SecurityUtils.getUserId()).setArticleId(comment.getArticleId()).setContent(comment.getContent()));
+        return save(Comment.create().setUserId(SecurityUtils.getUserId()).setArticleId(comment.getArticleId()).setContent(comment.getContent()));
     }
 
     @Override
@@ -75,5 +90,25 @@ public class CommentServiceImpl extends ServiceImpl<CommentMapper, Comment> impl
         QueryWrapper queryWrapper = QueryWrapper.create().select(COMMENT.ARTICLE_ID,QueryMethods.count(COMMENT.ID).as("commentCount")).from(COMMENT).where(COMMENT.ARTICLE_ID.in(articleIds)).groupBy(COMMENT.ARTICLE_ID);
         List<ArticleCommentCountDTO> count = getMapper().selectListByQueryAs(queryWrapper, ArticleCommentCountDTO.class);
         return count.stream().collect(Collectors.toMap(ArticleCommentCountDTO::getArticleId, ArticleCommentCountDTO::getCommentCount));
+    }
+
+    @Override
+    @Transactional(rollbackFor = Exception.class)
+    public Boolean like(CommentLikeDto dto) {
+        // 1. 插入关系表（防重复点赞）
+        CommentLike entity = CommentLike.create().setCommentId(dto.getCommentId()).setUserId(dto.getUserId());
+        try {
+            commentLikeMapper.insert(entity);
+            UpdateChain.of(Comment.class)
+                    .setRaw(COMMENT.LIKE_COUNT, COMMENT.LIKE_COUNT.add(1))
+                    .where(COMMENT.ID.eq(entity.getCommentId())).update();
+            return true;
+        }catch (DuplicateKeyException e){
+            commentLikeMapper.deleteByCondition(COMMENT_LIKE.COMMENT_ID.eq(dto.getCommentId()).and(COMMENT_LIKE.USER_ID.eq(dto.getUserId())));
+            UpdateChain.of(Comment.class)
+                    .setRaw(COMMENT.LIKE_COUNT, COMMENT.LIKE_COUNT.subtract(1))
+                    .where(COMMENT.ID.eq(entity.getCommentId())).update();
+            return false;
+        }
     }
 }
