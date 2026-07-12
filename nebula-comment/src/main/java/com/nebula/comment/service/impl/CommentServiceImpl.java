@@ -15,6 +15,9 @@ import com.nebula.comment.mapper.CommentLikeMapper;
 import com.nebula.comment.mapper.CommentMapper;
 import com.nebula.comment.service.CommentService;
 import com.nebula.comment.vo.CommentVO;
+import com.nebula.common.constant.RoleEnum;
+import com.nebula.common.exception.BusinessException;
+import com.nebula.common.exception.code.CommentErrorCode;
 import com.nebula.common.util.SecurityUtils;
 import lombok.RequiredArgsConstructor;
 import org.springframework.dao.DuplicateKeyException;
@@ -55,7 +58,7 @@ public class CommentServiceImpl extends ServiceImpl<CommentMapper, Comment> impl
                 .on(COMMENT.USER_ID.eq(USER.ID))
                 .leftJoin(COMMENT_LIKE)
                 .on(COMMENT_LIKE.COMMENT_ID.eq(COMMENT.ID)
-                .and(COMMENT_LIKE.USER_ID.eq(SecurityUtils.getUserId())))
+                        .and(COMMENT_LIKE.USER_ID.eq(SecurityUtils.getUserId())))
                 .where(COMMENT.ARTICLE_ID.eq(articleId, Objects::nonNull))
                 .and(COMMENT.CONTENT.like(content, StringUtil::hasText))
                 .orderBy(COMMENT.CREATE_TIME.desc());
@@ -69,6 +72,13 @@ public class CommentServiceImpl extends ServiceImpl<CommentMapper, Comment> impl
 
     @Override
     public Boolean deleteCommentById(Long id) {
+        Comment comment = mapper.selectOneById(id);
+        if (comment == null) {
+            throw new BusinessException(
+                    CommentErrorCode.COMMENT_NOT_FOUND
+            );
+        }
+        checkOwnerOrAdmin(comment.getUserId());
         return removeById(id);
     }
 
@@ -79,7 +89,7 @@ public class CommentServiceImpl extends ServiceImpl<CommentMapper, Comment> impl
 
     @Override
     public Page<Comment> getCommentPageByUserId(Long userId, int currentPage, int size) {
-        return page(Page.of(currentPage,size),QueryWrapper.create().where(COMMENT.USER_ID.eq(userId)));
+        return page(Page.of(currentPage, size), QueryWrapper.create().where(COMMENT.USER_ID.eq(userId)));
     }
 
     @Override
@@ -87,7 +97,7 @@ public class CommentServiceImpl extends ServiceImpl<CommentMapper, Comment> impl
         if (articleIds == null || articleIds.isEmpty()) {
             return new HashMap<>();
         }
-        QueryWrapper queryWrapper = QueryWrapper.create().select(COMMENT.ARTICLE_ID,QueryMethods.count(COMMENT.ID).as("commentCount")).from(COMMENT).where(COMMENT.ARTICLE_ID.in(articleIds)).groupBy(COMMENT.ARTICLE_ID);
+        QueryWrapper queryWrapper = QueryWrapper.create().select(COMMENT.ARTICLE_ID, QueryMethods.count(COMMENT.ID).as("commentCount")).from(COMMENT).where(COMMENT.ARTICLE_ID.in(articleIds)).groupBy(COMMENT.ARTICLE_ID);
         List<ArticleCommentCountDTO> count = getMapper().selectListByQueryAs(queryWrapper, ArticleCommentCountDTO.class);
         return count.stream().collect(Collectors.toMap(ArticleCommentCountDTO::getArticleId, ArticleCommentCountDTO::getCommentCount));
     }
@@ -95,6 +105,7 @@ public class CommentServiceImpl extends ServiceImpl<CommentMapper, Comment> impl
     @Override
     @Transactional(rollbackFor = Exception.class)
     public Boolean like(CommentLikeDto dto) {
+        checkOwnerOrAdmin(dto.getUserId());
         // 1. 插入关系表（防重复点赞）
         CommentLike entity = CommentLike.create().setCommentId(dto.getCommentId()).setUserId(dto.getUserId());
         try {
@@ -103,12 +114,25 @@ public class CommentServiceImpl extends ServiceImpl<CommentMapper, Comment> impl
                     .setRaw(COMMENT.LIKE_COUNT, COMMENT.LIKE_COUNT.add(1))
                     .where(COMMENT.ID.eq(entity.getCommentId())).update();
             return true;
-        }catch (DuplicateKeyException e){
+        } catch (DuplicateKeyException e) {
             commentLikeMapper.deleteByCondition(COMMENT_LIKE.COMMENT_ID.eq(dto.getCommentId()).and(COMMENT_LIKE.USER_ID.eq(dto.getUserId())));
             UpdateChain.of(Comment.class)
                     .setRaw(COMMENT.LIKE_COUNT, COMMENT.LIKE_COUNT.subtract(1))
                     .where(COMMENT.ID.eq(entity.getCommentId())).update();
             return false;
+        }
+    }
+
+    /**
+     * 检查评论是否本人或管理员
+     */
+    private void checkOwnerOrAdmin(Long userId) {
+        if (!SecurityUtils.hasRole(RoleEnum.ADMIN.getCode())
+                && !Objects.equals(userId, SecurityUtils.getUserId()
+        )) {
+            throw new BusinessException(
+                    CommentErrorCode.COMMENT_ACCESS_DENIED
+            );
         }
     }
 }

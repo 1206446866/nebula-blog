@@ -56,5 +56,7 @@ public interface ArticleService extends IService<Article> {
 
     List<Article> getArticleTitlesByCommentIds(List<Long> list);
 
-    Boolean like(ArticleLikeDto articleLikeDto) throws NotFoundException;
+    Boolean like(ArticleLikeDto articleLikeDto);
+
+    Boolean delete(Long id);
 }

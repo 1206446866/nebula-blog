@@ -2,7 +2,6 @@ package com.nebula.article.controller;
 
 import com.mybatisflex.core.paginate.Page;
 import com.nebula.article.dto.*;
-import com.nebula.article.entity.Article;
 import com.nebula.article.service.ArticleService;
 import com.nebula.article.vo.ArticleVO;
 import com.nebula.common.result.Result;
@@ -28,7 +27,7 @@ public class ArticleController {
      * @param articlePageDTO       文章查询接口
      * @return 文章分页数据
      */
-    @PreAuthorize("hasAuthority('article:list')")
+    @PreAuthorize("hasAuthority('article:list') && hasRole('ADMIN')")
     @GetMapping
     public Result<Page<ArticleVO>> page(ArticlePageDTO  articlePageDTO) {
         return Result.success(articleService.pageArticles(articlePageDTO, null, true));
@@ -67,7 +66,7 @@ public class ArticleController {
      */
     @PreAuthorize("hasAuthority('article:update')")
     @PutMapping("/edit")
-    public Result<Boolean> update(@RequestBody @Valid UpdateArticleDto dto) {
+    public Result<Boolean> update(@RequestBody @Valid UpdateArticleDto dto){
         return Result.success(articleService.updateArticle(dto));
     }
 
@@ -76,10 +75,10 @@ public class ArticleController {
      *
      * @param id 文章ID
      */
-    @PreAuthorize("hasAuthority('article:delete')")
+    @PreAuthorize("hasAuthority('article:delete') && hasRole('ADMIN')")
     @DeleteMapping("/{id}")
     public Result<Boolean> delete(@PathVariable @Min(value = 1, message = "文章ID非法") Long id) {
-        return Result.success(new Article().setId(id).removeById());
+        return Result.success(articleService.delete(id));
     }
 
     /**
@@ -88,7 +87,7 @@ public class ArticleController {
      * @param dto 修改文章状态请求参数
      * @return 是否修改成功
      */
-    @PreAuthorize("hasAuthority('article:update')")
+    @PreAuthorize("hasAuthority('user:update') && hasRole('ADMIN')")
     @PutMapping("/status")
     public Result<Boolean> changeStatus(@RequestBody @Valid ChangeArticleStatusDto dto) {
         return Result.success(articleService.changeArticleStatus(dto));
@@ -106,7 +105,7 @@ public class ArticleController {
 
     @PutMapping("/like")
     @PreAuthorize("hasAuthority('article:list')")
-    public Result<Boolean> like(@RequestBody @Valid ArticleLikeDto articleLikeDto) throws NotFoundException {
+    public Result<Boolean> like(@RequestBody @Valid ArticleLikeDto articleLikeDto) {
         return Result.success(articleService.like(articleLikeDto));
     }
 }

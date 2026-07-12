@@ -7,6 +7,7 @@ import com.mybatisflex.core.query.QueryWrapper;
 import com.mybatisflex.core.util.StringUtil;
 import com.mybatisflex.spring.service.impl.ServiceImpl;
 import com.nebula.common.constant.NumberConstant;
+import com.nebula.common.constant.RoleEnum;
 import com.nebula.common.exception.BusinessException;
 import com.nebula.common.exception.code.UserErrorCode;
 import com.nebula.common.util.SecurityUtils;
@@ -34,10 +35,7 @@ import java.nio.file.Files;
 import java.nio.file.StandardCopyOption;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
-import java.util.Collections;
-import java.util.List;
-import java.util.Map;
-import java.util.UUID;
+import java.util.*;
 import java.util.stream.Collectors;
 
 import static com.nebula.user.entity.table.UserRoleTableDef.USER_ROLE;
@@ -78,12 +76,14 @@ public class UserServiceImpl extends ServiceImpl<UserMapper, com.nebula.user.ent
 
     @Override
     public Boolean switchStatusById(Long userId, Integer status) {
+        checkSelfOrAdmin(userId);
         return updateById(User.create().setId(userId).setStatus(status));
     }
 
     @Transactional(rollbackFor = Exception.class)
     @Override
     public boolean editUser(EditUserDTO dto) {
+        checkSelfOrAdmin(dto.getId());
         updateById(User.create().setId(dto.getId()).setUsername(dto.getUsername()));
         userRoleMapper.deleteByCondition(USER_ROLE.USER_ID.eq(dto.getId()));
         if (CollUtil.isEmpty(dto.getRoleIds())) {
@@ -96,6 +96,7 @@ public class UserServiceImpl extends ServiceImpl<UserMapper, com.nebula.user.ent
 
     @Override
     public Boolean deleteUserById(Long id) {
+        checkSelfOrAdmin(id);
         return removeById(id);
     }
 
@@ -121,6 +122,7 @@ public class UserServiceImpl extends ServiceImpl<UserMapper, com.nebula.user.ent
      */
     @Override
     public String uploadAvatar(Long userId, MultipartFile file) throws IOException {
+        checkSelfOrAdmin(userId);
         // 校验文件后缀（并返回标准化后缀）
         String suffix = validateAndGetSuffix(file);
         String fileName = LocalDateTime.now().format(DateTimeFormatter.ofPattern("yyyyMMddHHmmss")) + "_" + UUID.randomUUID() + suffix;
@@ -221,7 +223,7 @@ public class UserServiceImpl extends ServiceImpl<UserMapper, com.nebula.user.ent
 
 
     @Override
-    public Boolean updateSelfName(UpdateNameDTO dto) {
+    public Boolean rename(UpdateNameDTO dto) {
         return updateById(User.create().setId(SecurityUtils.getUserId()).setUsername(dto.getUsername()));
     }
 
@@ -231,5 +233,16 @@ public class UserServiceImpl extends ServiceImpl<UserMapper, com.nebula.user.ent
             return Collections.emptyList();
         }
         return listAs(QueryWrapper.create().where(USER.ID.in(ids)), UserVO.class);
+    }
+
+    /**
+     * 校验当前用户是否为本人或管理员
+     *
+     * @param userId 用户ID
+     */
+    private void checkSelfOrAdmin(Long userId) {
+        if (!SecurityUtils.hasRole(RoleEnum.ADMIN.getCode())&& !Objects.equals(userId, SecurityUtils.getUserId())) {
+            throw new BusinessException(UserErrorCode.USER_ACCESS_DENIED);
+        }
     }
 }

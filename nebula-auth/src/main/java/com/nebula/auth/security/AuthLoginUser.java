@@ -8,6 +8,7 @@ import lombok.NoArgsConstructor;
 import org.springframework.security.core.GrantedAuthority;
 import org.springframework.security.core.authority.SimpleGrantedAuthority;
 
+import java.util.ArrayList;
 import java.util.Collection;
 import java.util.List;
 
@@ -22,24 +23,35 @@ public class AuthLoginUser implements LoginUser {
      * 当前登录用户
      */
     private User user;
+
+    /**
+     * 角色标识集合
+     */
+    private List<String> roles;
+
     /**
      * 权限标识集合
      */
     private List<String> permissions;
 
-    public AuthLoginUser(User user, List<String> permissions) {
+    public AuthLoginUser(User user, List<String> roles, List<String> permissions) {
         this.user = user;
+        this.roles = roles;
         this.permissions = permissions;
     }
 
     @Override
     public Collection<? extends GrantedAuthority> getAuthorities() {
+        List<GrantedAuthority> authorities = new ArrayList<>();
+        if (roles == null || roles.isEmpty()) {
+            return List.of();
+        }
         if (permissions == null || permissions.isEmpty()) {
             return List.of();
         }
-        return permissions.stream()
-                .map(SimpleGrantedAuthority::new)
-                .toList();
+        authorities.addAll(roles.stream().map(SimpleGrantedAuthority::new).toList());
+        authorities.addAll(permissions.stream().map(SimpleGrantedAuthority::new).toList());
+        return authorities;
     }
 
     @Override

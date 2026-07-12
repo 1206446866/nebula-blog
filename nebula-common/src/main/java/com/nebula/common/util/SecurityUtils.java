@@ -42,4 +42,29 @@ public class SecurityUtils {
     public static Long getUserId() {
         return Objects.requireNonNull(getLoginUser()).getUserId();
     }
+
+    /**
+     * 判断角色
+     */
+    public static boolean hasRole(String role) {
+
+        Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
+
+        if (authentication == null) {
+            return false;
+        }
+        String authority = "ROLE_" + role;
+        return authentication.getAuthorities().stream().anyMatch(item -> item.getAuthority().equals(authority));
+    }
+
+    /**
+     * 判断权限
+     */
+    public static boolean hasPermission(String permission) {
+        Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
+        if (authentication == null) {
+            return false;
+        }
+        return authentication.getAuthorities().stream().anyMatch(item -> item.getAuthority().equals(permission));
+    }
 }

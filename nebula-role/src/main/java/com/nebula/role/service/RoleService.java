@@ -6,7 +6,6 @@ import com.nebula.role.dto.CreateRoleDto;
 import com.nebula.role.dto.RolePageDto;
 import com.nebula.role.entity.Role;
 import com.nebula.role.vo.RoleVO;
-import com.nebula.user.entity.User;
 
 import java.util.List;
 
@@ -27,14 +26,6 @@ public interface RoleService extends IService<Role> {
      * @return 角色列表
      */
     List<Role> getRolesByUserId(Long userId);
-
-    /**
-     * 查询用户拥有的角色
-     *
-     * @param Nid 用户ID
-     * @return 角色列表
-     */
-    List<Role> getRolesByUserNid(String Nid);
 
 
     /**

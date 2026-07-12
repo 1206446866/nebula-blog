@@ -59,7 +59,7 @@ public interface UserService extends IService<User> {
      */
     User getUserById(Long userId);
 
-    Boolean updateSelfName(UpdateNameDTO dto);
+    Boolean rename(UpdateNameDTO dto);
 
     List<UserVO> getUserByIds(List<Long> ids);
 }

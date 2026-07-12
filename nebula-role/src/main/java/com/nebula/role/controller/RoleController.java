@@ -50,13 +50,13 @@ public class RoleController {
         return Result.success(roles);
     }
 
-    @PreAuthorize("hasAuthority('user:create')")
+    @PreAuthorize("hasAuthority('user:create') && hasRole('ADMIN')")
     @PostMapping("/create")
     public Result<Boolean> createRole(@RequestBody CreateRoleDto  dto) {
         return  Result.success(roleService.createRole(dto));
     }
 
-    @PreAuthorize("hasAuthority('user:update')")
+    @PreAuthorize("hasAuthority('user:update') && hasRole('ADMIN')")
     @PutMapping("/update")
     public Result<Boolean> updateRole(@RequestBody UpdateRoleDto dto) {
         return Result.success(Role.create().setId(dto.getId()).setName(dto.getName()).setDescription(dto.getDescription()).updateById());
@@ -65,7 +65,7 @@ public class RoleController {
     /**
      * 移除角色
      */
-    @PreAuthorize("hasAuthority('user:delete')")
+    @PreAuthorize("hasAuthority('user:delete') && hasRole('ADMIN')")
     @DeleteMapping("/remove/{roleId}")
     public Result<Boolean> removeRole(@PathVariable Long roleId) {
         return Result.success(roleService.removeRole(roleId));

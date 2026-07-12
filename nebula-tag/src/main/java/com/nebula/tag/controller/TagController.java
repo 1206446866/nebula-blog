@@ -36,19 +36,19 @@ public class TagController {
         return Result.success(tagService.listTags());
     }
 
-    @PreAuthorize("hasAuthority('tag:create')")
+    @PreAuthorize("hasAuthority('tag:create') && hasRole('ADMIN')")
     @PostMapping("/create")
     public Result<Boolean> createTag(@RequestBody @Valid CreateTagDTO dto) {
         return Result.success(tagService.createTag(dto));
     }
 
-    @PreAuthorize("hasAuthority('tag:update')")
+    @PreAuthorize("hasAuthority('tag:update') && hasRole('ADMIN')")
     @PutMapping("/edit")
     public Result<Boolean> updateTag(@RequestBody @Valid UpdateTagDTO dto) {
         return Result.success(tagService.updateTag(dto));
     }
 
-    @PreAuthorize("hasAuthority('tag:delete')")
+    @PreAuthorize("hasAuthority('tag:delete') && hasRole('ADMIN')")
     @DeleteMapping("/delete/{id}")
     public Result<Boolean> deleteTag(@PathVariable @Min(1) Long id) {
         return Result.success(tagService.deleteTag(id));

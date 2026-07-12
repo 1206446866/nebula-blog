@@ -16,10 +16,13 @@ import com.nebula.article.mapper.ArticleCategoryMapper;
 import com.nebula.article.mapper.ArticleLikeMapper;
 import com.nebula.article.mapper.ArticleMapper;
 import com.nebula.article.mapper.ArticleTagMapper;
+import com.nebula.article.service.ArticleCategoryService;
 import com.nebula.article.service.ArticleService;
 import com.nebula.article.service.ArticleTagService;
 import com.nebula.article.vo.ArticleVO;
 import com.nebula.common.constant.ArticleStatus;
+import com.nebula.common.constant.RoleEnum;
+import com.nebula.common.exception.BusinessException;
 import com.nebula.common.util.SecurityUtils;
 import lombok.RequiredArgsConstructor;
 import org.apache.ibatis.javassist.NotFoundException;
@@ -34,6 +37,7 @@ import static com.nebula.article.entity.table.ArticleCategoryTableDef.ARTICLE_CA
 import static com.nebula.article.entity.table.ArticleLikeTableDef.ARTICLE_LIKE;
 import static com.nebula.article.entity.table.ArticleTableDef.ARTICLE;
 import static com.nebula.article.entity.table.ArticleTagTableDef.ARTICLE_TAG;
+import static com.nebula.common.exception.code.ArticleErrorCode.*;
 
 @Service
 @RequiredArgsConstructor
@@ -41,6 +45,7 @@ public class ArticleServiceImpl extends ServiceImpl<ArticleMapper, Article> impl
 
     private final ArticleCategoryMapper articleCategoryMapper;
     private final ArticleTagMapper articleTagMapper;
+    private final ArticleCategoryService articleCategoryService;
     private final ArticleTagService articleTagService;
     private final ArticleLikeMapper articleLikeMapper;
 
@@ -102,31 +107,20 @@ public class ArticleServiceImpl extends ServiceImpl<ArticleMapper, Article> impl
     @Transactional(rollbackFor = Exception.class)
     @Override
     public boolean updateArticle(UpdateArticleDto dto) {
+        checkOwnerOrAdmin(dto.getId());
         boolean res = updateById(Article.create()
                 .setId(dto.getId())
                 .setTitle(dto.getTitle())
                 .setContent(dto.getContent())
         );
-
-        // 分类重建
-        QueryWrapper categoryQuery = QueryWrapper.create()
-                .where(ARTICLE_CATEGORY.ARTICLE_ID.eq(dto.getId()));
-        //删除原有关系
-        articleCategoryMapper.deleteByQuery(categoryQuery);
-        //建立新关系
-        articleCategoryMapper.insert(
-                ArticleCategory.create()
-                        .setArticleId(dto.getId())
-                        .setCategoryId(dto.getCategoryId())
-        );
-
+        articleCategoryService.bindCategories(dto.getId(), dto.getCategoryId());
         articleTagService.bindTags(dto.getId(), dto.getTagIds());
-
         return res;
     }
 
     @Override
     public boolean changeArticleStatus(ChangeArticleStatusDto dto) {
+        checkOwnerOrAdmin(dto.getId());
         return Article.create().setId(dto.getId()).setStatus(dto.getStatus()).updateById();
     }
 
@@ -178,12 +172,8 @@ public class ArticleServiceImpl extends ServiceImpl<ArticleMapper, Article> impl
 
     @Override
     @Transactional(rollbackFor = Exception.class)
-    public Boolean like(ArticleLikeDto articleLikeDto) throws NotFoundException {
-        Article article = mapper.selectOneById(articleLikeDto.getArticleId());
-        if (article.getId() == null || !ArticleStatus.PUBLISHED.getCode().equals(article.getStatus())) {
-            throw new NotFoundException("文章不存在或未发布");
-        }
-
+    public Boolean like(ArticleLikeDto articleLikeDto) {
+        checkOwnerOrAdmin(articleLikeDto.getArticleId());
         try {
             ArticleLike entity = ArticleLike.create().setArticleId(articleLikeDto.getArticleId()).setUserId(articleLikeDto.getUserId());
             articleLikeMapper.insert(entity);
@@ -207,5 +197,21 @@ public class ArticleServiceImpl extends ServiceImpl<ArticleMapper, Article> impl
 
             return false;
         }
+    }
+
+    @Override
+    public Boolean delete(Long id) {
+        checkOwnerOrAdmin(id);
+        return Article.create().setId(id).removeById();
+    }
+
+    private void checkOwnerOrAdmin(Long articleId) {
+        Article article = mapper.selectOneById(articleId);
+        if (article == null)
+            throw new BusinessException(ARTICLE_NOT_FOUND);
+        if (!ArticleStatus.PUBLISHED.getCode().equals(article.getStatus()))
+            throw new BusinessException(ARTICLE_NOT_PUBLISHED);
+        if (!SecurityUtils.hasRole(RoleEnum.ADMIN.getCode()) && !Objects.equals(article.getUserId(), SecurityUtils.getUserId()))
+            throw new BusinessException(ARTICLE_ACCESS_DENIED);
     }
 }

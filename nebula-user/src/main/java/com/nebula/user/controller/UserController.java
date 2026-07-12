@@ -51,7 +51,7 @@ public class UserController {
 
     @PreAuthorize("hasAuthority('user:update')")
     @PutMapping("/edit")
-    public Result<Boolean> editUser(@RequestBody EditUserDTO editUserDTO) {
+    public Result<Boolean> editUser(@RequestBody @Valid EditUserDTO editUserDTO) {
         return Result.success(userService.editUser(editUserDTO));
     }
 
@@ -80,8 +80,8 @@ public class UserController {
 
     @PreAuthorize("hasAuthority('user:update')")
     @PutMapping("/self/name")
-    public Result<Boolean> updateSelfName(@RequestBody @Valid UpdateNameDTO dto) {
-        return Result.success(userService.updateSelfName(dto));
+    public Result<Boolean> rename(@RequestBody @Valid UpdateNameDTO dto) {
+        return Result.success(userService.rename(dto));
     }
 
     @GetMapping("/{userId}")

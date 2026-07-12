@@ -3,6 +3,7 @@ package com.nebula.auth.filter;
 import com.nebula.auth.security.AuthLoginUser;
 import com.nebula.auth.util.JwtUtil;
 import com.nebula.role.service.PermissionService;
+import com.nebula.role.service.RoleService;
 import com.nebula.user.entity.User;
 import com.nebula.user.mapper.UserMapper;
 import jakarta.annotation.Nonnull;
@@ -29,6 +30,8 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
     private final JwtUtil jwtUtil;
 
     private final UserMapper userMapper;
+
+    private final RoleService roleService;
 
     private final PermissionService permissionService;
 
@@ -66,9 +69,11 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
         }
 
         // 查询用户权限
+        List<String> roles = roleService.getRolesByUserId(userId).stream().map(role -> "ROLE_"+role.getName()).toList();
+         // 查询用户权限
         List<String> permissions = permissionService.getPermissionsByUserId(userId);
         // 构建登录用户
-        AuthLoginUser authLoginUser = new AuthLoginUser(user, permissions);
+        AuthLoginUser authLoginUser = new AuthLoginUser(user,roles, permissions);
         // 创建认证对象
         UsernamePasswordAuthenticationToken authentication = new UsernamePasswordAuthenticationToken(authLoginUser, null, authLoginUser.getAuthorities());
 
