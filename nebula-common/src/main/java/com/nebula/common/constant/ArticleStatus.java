@@ -1,7 +1,7 @@
 package com.nebula.common.constant;
 
+import lombok.AllArgsConstructor;
 import lombok.Getter;
-import lombok.RequiredArgsConstructor;
 
 /**
  * 文章状态
@@ -13,7 +13,7 @@ import lombok.RequiredArgsConstructor;
  * </p>
  */
 @Getter
-@RequiredArgsConstructor
+@AllArgsConstructor
 public enum ArticleStatus {
 
     /**

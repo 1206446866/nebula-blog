@@ -6,9 +6,12 @@ import com.nebula.api.dto.ProfileQueryDto;
 import com.nebula.api.vo.profile.*;
 import com.nebula.article.entity.Article;
 import com.nebula.article.service.ArticleService;
+import com.nebula.auth.entity.LoginLog;
+import com.nebula.auth.service.LoginLogService;
 import com.nebula.comment.entity.Comment;
 import com.nebula.comment.service.CommentService;
 import com.nebula.common.constant.ArticleStatus;
+import com.nebula.common.util.SecurityUtils;
 import com.nebula.role.service.RoleService;
 import com.nebula.user.entity.User;
 import com.nebula.user.service.UserService;
@@ -17,6 +20,7 @@ import org.springframework.stereotype.Service;
 
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.Executor;
 import java.util.stream.Collectors;
@@ -28,19 +32,21 @@ public class UserProfileFacade {
     private final RoleService roleService;
     private final ArticleService articleService;
     private final CommentService commentService;
+    private final LoginLogService loginLogService;
     private final Executor profileExecutor;
 
     public UserProfileFacade(
             UserService userService,
             RoleService roleService,
             ArticleService articleService,
-            CommentService commentService,
+            CommentService commentService, LoginLogService loginLogService,
             @Qualifier("profileExecutor") Executor profileExecutor) {
 
         this.userService = userService;
         this.roleService = roleService;
         this.articleService = articleService;
         this.commentService = commentService;
+        this.loginLogService = loginLogService;
         this.profileExecutor = profileExecutor;
     }
 
@@ -78,6 +84,16 @@ public class UserProfileFacade {
                         () -> articleService.getViewAllCount(userId),
                         profileExecutor);
 
+        CompletableFuture<Long> articleLikeCountFuture =
+                CompletableFuture.supplyAsync(
+                        () -> articleService.getLikeAllCount(userId),
+                        profileExecutor);
+
+        CompletableFuture<Long> commentLikeCountFuture =
+                CompletableFuture.supplyAsync(
+                        () -> commentService.getLikeAllCount(userId),
+                        profileExecutor);
+
         CompletableFuture<Page<Article>> publicPageFuture =
                 CompletableFuture.supplyAsync(
                         () -> articleService.pageArticleProfile(
@@ -104,15 +120,22 @@ public class UserProfileFacade {
                                 dto.getCommentSize()),
                         profileExecutor);
 
+        CompletableFuture<List<LoginLog>> loginLogFuture =
+                CompletableFuture.supplyAsync(
+                        () -> loginLogService.getLoginLog(userId),
+                        profileExecutor);
         CompletableFuture.allOf(
                 userFuture,
                 roleDescriptionsFuture,
                 articleCountFuture,
                 commentCountFuture,
                 viewCountFuture,
+                articleLikeCountFuture,
+                commentLikeCountFuture,
                 publicPageFuture,
                 draftPageFuture,
-                commentPageFuture
+                commentPageFuture,
+                loginLogFuture
         ).join();
 
         User user = userFuture.join();
@@ -125,22 +148,33 @@ public class UserProfileFacade {
 
         Long articleViewAllCount = viewCountFuture.join();
 
+        Long articleLikeAllCount = articleLikeCountFuture.join();
+
+        Long commentLikeAllCount = commentLikeCountFuture.join();
+
         Page<Article> publicArticlePage = publicPageFuture.join();
 
         Page<Article> draftArticlePage = draftPageFuture.join();
 
         Page<Comment> commentPage = commentPageFuture.join();
 
+        List<LoginLog> loginLogsList = loginLogFuture.join();
+        if (Objects.equals(user.getId(), SecurityUtils.getUserId())) {
+            List<UserProfileLoginLogVO> loginLogVOS = loginLogsList.stream().map(item -> BeanUtil.copyProperties(item, UserProfileLoginLogVO.class)).toList();
+            userProfileVO.setLoginLogs(loginLogVOS);
+        }
+
         UserProfileInfoVO userProfileInfoVO = BeanUtil.copyProperties(user, UserProfileInfoVO.class);
         userProfileInfoVO.setRoles(roleDescriptions);
 
-        UserProfileStatisticsVO userProfileStatisticsVO = UserProfileStatisticsVO.create().setArticleCount(articleCount).setCommentCount(commentCount).setTotalViewCount(articleViewAllCount);
+        UserProfileStatisticsVO userProfileStatisticsVO = UserProfileStatisticsVO.create().setArticleCount(articleCount).setCommentCount(commentCount)
+                .setTotalViewCount(articleViewAllCount).setLikeCount(articleLikeAllCount + commentLikeAllCount);
 
         Map<Long, Long> countByArticleIds = commentService.getCountByArticleIds(publicArticlePage.getRecords().stream().map(Article::getId).toList());
         Page<UserProfileArticleVO> publicArticles = publicArticlePage.map(article -> {
             UserProfileArticleVO vo = BeanUtil.copyProperties(article, UserProfileArticleVO.class);
             String content = article.getContent();
-            vo.setContent(content != null && content.length() > 150 ? content.substring(0, 150)+"..." : content)
+            vo.setContent(content != null && content.length() > 150 ? content.substring(0, 150) + "..." : content)
                     .setComments(countByArticleIds.getOrDefault(article.getId(), 0L));
             return vo;
         });
@@ -148,7 +182,7 @@ public class UserProfileFacade {
         Page<UserProfileArticleVO> draftArticles = draftArticlePage.map(article -> {
             UserProfileArticleVO vo = BeanUtil.copyProperties(article, UserProfileArticleVO.class);
             String content = article.getContent();
-            vo.setContent(content != null &&content.length() > 150 ? content.substring(0, 150)+"..." : content);
+            vo.setContent(content != null && content.length() > 150 ? content.substring(0, 150) + "..." : content);
             return vo;
         });
 

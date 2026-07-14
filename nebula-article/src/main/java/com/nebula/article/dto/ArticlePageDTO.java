@@ -5,6 +5,8 @@ import jakarta.validation.constraints.Min;
 import lombok.Data;
 import lombok.experimental.Accessors;
 
+import java.util.List;
+
 @Data(staticConstructor = "create")
 @Accessors(chain = true)
 public class ArticlePageDTO {
@@ -15,9 +17,9 @@ public class ArticlePageDTO {
 
     private String author;
 
-    private Long tagId;
+    private List<Long> tagIds;
 
-    private Long categoryId;
+    private List<Long> categoryIds;
 
     @Min(1)
     private int currentPage = 1;

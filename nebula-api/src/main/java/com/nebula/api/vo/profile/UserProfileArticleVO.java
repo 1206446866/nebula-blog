@@ -40,7 +40,7 @@ public class UserProfileArticleVO {
     /**
      * 获赞数
      */
-    private Long likes = 99999999L;
+    private Long likeCount;
 
     /**
      * 评论数

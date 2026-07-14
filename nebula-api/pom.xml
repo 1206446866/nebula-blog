@@ -101,6 +101,10 @@
             <groupId>com.nebula</groupId>
             <artifactId>nebula-tag</artifactId>
         </dependency>
+		<dependency>
+			<groupId>com.nebula</groupId>
+			<artifactId>nebula-auth</artifactId>
+		</dependency>
 
     </dependencies>
 

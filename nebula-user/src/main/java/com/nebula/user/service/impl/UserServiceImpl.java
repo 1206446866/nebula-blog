@@ -43,7 +43,7 @@ import static com.nebula.user.entity.table.UserTableDef.USER;
 
 @Service
 @RequiredArgsConstructor
-public class UserServiceImpl extends ServiceImpl<UserMapper, com.nebula.user.entity.User> implements UserService {
+public class UserServiceImpl extends ServiceImpl<UserMapper, User> implements UserService {
 
     @Value("${file.upload-dir}")
     private String uploadDir;

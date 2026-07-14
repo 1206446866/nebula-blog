@@ -5,8 +5,10 @@ import com.nebula.auth.dto.ChangePasswordDTO;
 import com.nebula.auth.dto.LoginDTO;
 import com.nebula.auth.dto.RegisterRequestDTO;
 import com.nebula.auth.service.AuthService;
+import com.nebula.auth.service.LoginLogService;
 import com.nebula.auth.util.JwtUtil;
 import com.nebula.auth.vo.LoginVO;
+import com.nebula.common.constant.LoginStatus;
 import com.nebula.common.constant.RoleEnum;
 import com.nebula.common.exception.AuthenticationException;
 import com.nebula.common.exception.code.AuthErrorCode;
@@ -69,6 +71,8 @@ public class AuthServiceImpl implements AuthService {
 
     private final PermissionService permissionService;
 
+    private final LoginLogService loginLogService;
+
     /**
      * JWT 工具类
      */
@@ -83,9 +87,9 @@ public class AuthServiceImpl implements AuthService {
 
     @Override
     public Boolean changePassword(ChangePasswordDTO dto) {
-        LoginUser lu =  SecurityUtils.getLoginUser();
+        LoginUser lu = SecurityUtils.getLoginUser();
         if (Objects.isNull(lu) || Objects.isNull(lu.getPassword())) {
-            throw new RuntimeException("当前用户状态异常");
+            throw new RuntimeException("你还没有登录");
         }
         if (!passwordEncoder.matches(dto.getOldPassword(), lu.getPassword())) {
             throw new RuntimeException("旧密码错误");
@@ -96,7 +100,7 @@ public class AuthServiceImpl implements AuthService {
         User user = User.create();
         user.setId(lu.getUserId());
         user.setPassword(passwordEncoder.encode(dto.getNewPassword()));
-        return userMapper.update(user)>0;
+        return userMapper.update(user) > 0;
     }
 
     //TODO
@@ -112,15 +116,17 @@ public class AuthServiceImpl implements AuthService {
     public LoginVO login(LoginDTO loginDTO) {
         User user = userMapper.selectOneByCondition(USER.NID.eq(loginDTO.getNid()));
         if (user == null) {
+            loginLogService.recordLoginLog(null, LoginStatus.USER_NOT_FOUND.getCode());
             throw new AuthenticationException(AuthErrorCode.USER_NOT_FOUND);
         }
         if (!matchesPassword(loginDTO.getPassword(), user.getPassword())) {
+            loginLogService.recordLoginLog(user.getId(), LoginStatus.PASSWORD_ERROR.getCode());
             throw new AuthenticationException(AuthErrorCode.PASSWORD_ERROR);
         }
         String token = jwtUtil.createToken(user);
+        loginLogService.recordLoginLog(user.getId(), LoginStatus.SUCCESS.getCode());
         List<Role> roleList = roleService.getRolesByUserId(user.getId());
-        List<String> roles = roleList
-                .stream().map(Role::getName).toList();
+        List<String> roles = roleList.stream().map(Role::getName).toList();
         List<String> permissions = permissionService.getPermissionsByUserId(user.getId());
         return LoginVO.create().setToken(token)
                 .setUser(BeanUtil.copyProperties(user, UserVO.class))
@@ -134,8 +140,7 @@ public class AuthServiceImpl implements AuthService {
         User user = User.create()
                 .setNid(UUID.randomUUID().toString().replace("-", ""))
                 .setUsername("普通用户" + UUID.randomUUID())
-                .setPassword(passwordEncoder.encode(dto.getPassword()))
-                ;
+                .setPassword(passwordEncoder.encode(dto.getPassword()));
 //        角色关联
         userMapper.insertSelective(user);
         UserRole userRole = UserRole.create()

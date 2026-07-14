@@ -120,28 +120,25 @@ public class ArticleServiceImpl extends ServiceImpl<ArticleMapper, Article> impl
 
     @Override
     public boolean changeArticleStatus(ChangeArticleStatusDto dto) {
-        checkOwnerOrAdmin(dto.getId());
         return Article.create().setId(dto.getId()).setStatus(dto.getStatus()).updateById();
     }
 
     @Override
     public Page<ArticleVO> pagePublishedArticles(ArticlePageDTO dto) {
         QueryWrapper query = QueryWrapper.create()
-                .where(ARTICLE.STATUS.eq(
-                        ArticleStatus.PUBLISHED.getCode()
-                ))
+                .where(ARTICLE.STATUS.eq(ArticleStatus.PUBLISHED.getCode()))
                 .and(ARTICLE.TITLE.eq(dto.getTitle(), StringUtil::hasText));
         // 分类筛选
-        if (Objects.nonNull(dto.getCategoryId())) {
+        if (Objects.nonNull(dto.getCategoryIds())) {
             query.innerJoin(ARTICLE_CATEGORY)
                     .on(ARTICLE.ID.eq(ARTICLE_CATEGORY.ARTICLE_ID))
-                    .and(ARTICLE_CATEGORY.CATEGORY_ID.eq(dto.getCategoryId()));
+                    .and(ARTICLE_CATEGORY.CATEGORY_ID.in(dto.getCategoryIds()));
         }
         // 标签筛选
-        if (Objects.nonNull(dto.getTagId())) {
+        if (Objects.nonNull(dto.getTagIds())) {
             query.innerJoin(ARTICLE_TAG)
                     .on(ARTICLE.ID.eq(ARTICLE_TAG.ARTICLE_ID))
-                    .and(ARTICLE_TAG.TAG_ID.eq(dto.getTagId()));
+                    .and(ARTICLE_TAG.TAG_ID.in(dto.getTagIds()));
         }
         return pageAs(Page.of(dto.getCurrentPage(), dto.getSize()), query, ArticleVO.class);
     }
@@ -157,6 +154,11 @@ public class ArticleServiceImpl extends ServiceImpl<ArticleMapper, Article> impl
         return total == null ? 0L : total;
     }
 
+    @Override
+    public Long getLikeAllCount(Long userId) {
+        Long total = getMapper().selectObjectByQueryAs(QueryWrapper.create().select(QueryMethods.sum(ARTICLE.LIKE_COUNT)).where(ARTICLE.USER_ID.eq(userId)), Long.class);
+        return total == null ? 0L : total;
+    }
 
     @Override
     public Page<Article> pageArticleProfile(Long userId, Integer status, int currentPage, int pageSize) {

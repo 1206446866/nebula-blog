@@ -21,5 +21,4 @@ public interface CategoryService extends IService<Category> {
 
     boolean deleteCategory(Long id);
 
-    Category getCategoryById(Long id);
 }

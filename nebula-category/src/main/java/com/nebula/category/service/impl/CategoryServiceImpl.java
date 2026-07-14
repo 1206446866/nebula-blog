@@ -50,9 +50,4 @@ public class CategoryServiceImpl extends ServiceImpl<CategoryMapper, Category> i
         return removeById(id);
     }
 
-    @Override
-    public Category getCategoryById(Long id) {
-        // TODO QW单条查询
-        return null;
-    }
 }

@@ -29,7 +29,7 @@ public class UserProfileStatisticsVO {
     /**
      * 获赞总数
      */
-    private Long likeCount = 99999999L;
+    private Long likeCount;
 
     public static UserProfileStatisticsVO create(){
         return new UserProfileStatisticsVO();

@@ -5,6 +5,8 @@ import com.mybatisflex.core.paginate.Page;
 import lombok.Data;
 import lombok.experimental.Accessors;
 
+import java.util.List;
+
 /**
  * 整个个人主页需要的数据。
  */
@@ -16,6 +18,11 @@ public class UserProfileVO {
     private UserProfileInfoVO userProfileInfoVO;
 
     private UserProfileStatisticsVO  statisticsVO;
+
+    /**
+     * 登录记录
+     */
+    private List<UserProfileLoginLogVO> loginLogs;
 
     /**
      * 公开文章列表

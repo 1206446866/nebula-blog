@@ -49,4 +49,6 @@ public interface CommentService extends IService<Comment> {
     Map<Long,Long> getCountByArticleIds(List<Long> list);
 
     Boolean like(@Valid CommentLikeDto dto);
+
+    Long getLikeAllCount(Long userId);
 }

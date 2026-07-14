@@ -52,6 +52,8 @@ public interface ArticleService extends IService<Article> {
 
     Long getViewAllCount(Long userId);
 
+    Long getLikeAllCount(Long userId);
+
     Page<Article> pageArticleProfile(Long userId,Integer status, int currentPage, int pageSize);
 
     List<Article> getArticleTitlesByCommentIds(List<Long> list);

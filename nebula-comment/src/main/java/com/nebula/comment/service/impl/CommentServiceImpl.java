@@ -123,6 +123,12 @@ public class CommentServiceImpl extends ServiceImpl<CommentMapper, Comment> impl
         }
     }
 
+    @Override
+    public Long getLikeAllCount(Long userId) {
+        Long total = getMapper().selectObjectByQueryAs(QueryWrapper.create().select(QueryMethods.sum(COMMENT.LIKE_COUNT)).where(COMMENT.USER_ID.eq(userId)), Long.class);
+        return total == null ? 0L : total;
+    }
+
     /**
      * 检查评论是否本人或管理员
      */
