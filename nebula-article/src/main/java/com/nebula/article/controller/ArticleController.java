@@ -8,7 +8,6 @@ import com.nebula.common.result.Result;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.Min;
 import lombok.RequiredArgsConstructor;
-import org.apache.ibatis.javassist.NotFoundException;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.*;
@@ -27,7 +26,7 @@ public class ArticleController {
      * @param articlePageDTO       文章查询接口
      * @return 文章分页数据
      */
-    @PreAuthorize("hasAuthority('article:list') && hasRole('ADMIN')")
+    @PreAuthorize("@securityUtils.hasPermission('article:list')")
     @GetMapping
     public Result<Page<ArticleVO>> page(ArticlePageDTO  articlePageDTO) {
         return Result.success(articleService.pageArticles(articlePageDTO, null, true));
@@ -41,7 +40,7 @@ public class ArticleController {
      */
     @PreAuthorize("hasAuthority('article:list')")
     @GetMapping("/{id}")
-    public Result<ArticleVO> getArticleById(@PathVariable @Min(value = 1, message = "文章ID非法") Long id) throws NotFoundException {
+    public Result<ArticleVO> getArticleById(@PathVariable @Min(value = 1, message = "文章ID非法") Long id) {
         return Result.success(articleService.getArticleById(id));
     }
 

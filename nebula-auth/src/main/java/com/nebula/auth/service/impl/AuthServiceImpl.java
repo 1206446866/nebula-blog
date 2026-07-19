@@ -4,29 +4,30 @@ import cn.hutool.core.bean.BeanUtil;
 import com.nebula.auth.dto.ChangePasswordDTO;
 import com.nebula.auth.dto.LoginDTO;
 import com.nebula.auth.dto.RegisterRequestDTO;
+import com.nebula.auth.security.AuthLoginUser;
 import com.nebula.auth.service.AuthService;
 import com.nebula.auth.service.LoginLogService;
 import com.nebula.auth.util.JwtUtil;
 import com.nebula.auth.vo.LoginVO;
 import com.nebula.common.constant.LoginStatus;
 import com.nebula.common.constant.RoleEnum;
-import com.nebula.common.exception.AuthenticationException;
-import com.nebula.common.exception.code.AuthErrorCode;
+import com.nebula.common.exception.AuthException;
 import com.nebula.common.security.LoginUser;
 import com.nebula.common.util.SecurityUtils;
 import com.nebula.role.entity.Permission;
-import com.nebula.role.entity.Role;
 import com.nebula.role.entity.RolePermission;
 import com.nebula.role.mapper.PermissionMapper;
 import com.nebula.role.mapper.RolePermissionMapper;
-import com.nebula.role.service.PermissionService;
-import com.nebula.role.service.RoleService;
 import com.nebula.user.entity.User;
 import com.nebula.user.entity.UserRole;
 import com.nebula.user.mapper.UserMapper;
 import com.nebula.user.mapper.UserRoleMapper;
 import com.nebula.user.vo.UserVO;
 import lombok.RequiredArgsConstructor;
+import org.springframework.security.authentication.*;
+import org.springframework.security.core.Authentication;
+import org.springframework.security.core.AuthenticationException;
+import org.springframework.security.core.userdetails.UsernameNotFoundException;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 
@@ -67,12 +68,9 @@ public class AuthServiceImpl implements AuthService {
      */
     private final PermissionMapper permissionMapper;
 
-    private final RoleService roleService;
-
-    private final PermissionService permissionService;
-
     private final LoginLogService loginLogService;
 
+    private final AuthenticationManager authenticationManager;
     /**
      * JWT 工具类
      */
@@ -80,10 +78,6 @@ public class AuthServiceImpl implements AuthService {
 
     private final PasswordEncoder passwordEncoder;
 
-    @Override
-    public boolean matchesPassword(String rawPassword, String encodedPassword) {
-        return passwordEncoder.matches(rawPassword, encodedPassword);
-    }
 
     @Override
     public Boolean changePassword(ChangePasswordDTO dto) {
@@ -114,24 +108,27 @@ public class AuthServiceImpl implements AuthService {
      */
     @Override
     public LoginVO login(LoginDTO loginDTO) {
-        User user = userMapper.selectOneByCondition(USER.NID.eq(loginDTO.getNid()));
-        if (user == null) {
-            loginLogService.recordLoginLog(null, LoginStatus.USER_NOT_FOUND.getCode());
-            throw new AuthenticationException(AuthErrorCode.USER_NOT_FOUND);
+        Authentication authentication;
+        try {
+            authentication = authenticationManager.authenticate(
+                    new UsernamePasswordAuthenticationToken(loginDTO.getNid(), loginDTO.getPassword())
+            );
+        } catch (AuthenticationException e) {
+            //保证登录记录一定是已存账号，不存在的账号不记录
+            User user = userMapper.selectOneByCondition(USER.NID.eq(loginDTO.getNid()));
+            Integer loginStatus = getLoginStatus(e);
+            if(Objects.nonNull(user))
+               loginLogService.recordLoginLog(user.getId(),loginStatus );
+            throw new AuthException(LoginStatus.fromCode(loginStatus));
         }
-        if (!matchesPassword(loginDTO.getPassword(), user.getPassword())) {
-            loginLogService.recordLoginLog(user.getId(), LoginStatus.PASSWORD_ERROR.getCode());
-            throw new AuthenticationException(AuthErrorCode.PASSWORD_ERROR);
-        }
+        AuthLoginUser loginUser = (AuthLoginUser) authentication.getPrincipal();
+        loginLogService.recordLoginLog(loginUser.getUserId(), LoginStatus.SUCCESS.getCode());
+        User user = loginUser.getUser();
         String token = jwtUtil.createToken(user);
-        loginLogService.recordLoginLog(user.getId(), LoginStatus.SUCCESS.getCode());
-        List<Role> roleList = roleService.getRolesByUserId(user.getId());
-        List<String> roles = roleList.stream().map(Role::getName).toList();
-        List<String> permissions = permissionService.getPermissionsByUserId(user.getId());
         return LoginVO.create().setToken(token)
                 .setUser(BeanUtil.copyProperties(user, UserVO.class))
-                .setRoles(roles)
-                .setPermissions(permissions);
+                .setRoles(loginUser.getRoles())
+                .setPermissions(loginUser.getPermissions());
     }
 
     @Override
@@ -180,4 +177,22 @@ public class AuthServiceImpl implements AuthService {
         return permissions.contains(permission);
     }
 
+    private Integer getLoginStatus(Exception e) {
+        if (e instanceof UsernameNotFoundException) {
+            return LoginStatus.USER_NOT_FOUND.getCode();
+        }
+
+        if (e instanceof BadCredentialsException) {
+            return LoginStatus.PASSWORD_ERROR.getCode();
+        }
+
+        if (e instanceof DisabledException) {
+            return LoginStatus.USER_DISABLED.getCode();
+        }
+
+        if (e instanceof LockedException) {
+            return LoginStatus.USER_LOCKED.getCode();
+        }
+        return LoginStatus.FAIL.getCode();
+    }
 }

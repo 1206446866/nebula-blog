@@ -1,5 +1,6 @@
 package com.nebula.common.util;
 
+import com.nebula.common.constant.RoleEnum;
 import com.nebula.common.security.LoginUser;
 import lombok.RequiredArgsConstructor;
 import org.springframework.security.core.Authentication;
@@ -47,9 +48,7 @@ public class SecurityUtils {
      * 判断角色
      */
     public static boolean hasRole(String role) {
-
         Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
-
         if (authentication == null) {
             return false;
         }
@@ -65,6 +64,21 @@ public class SecurityUtils {
         if (authentication == null) {
             return false;
         }
+        if (isSuperAdmin()) {
+            return true;
+        }
         return authentication.getAuthorities().stream().anyMatch(item -> item.getAuthority().equals(permission));
+    }
+
+    public static boolean isAdmin() {
+        return hasRole(RoleEnum.ADMIN.getCode()) || hasRole(RoleEnum.SUPER_ADMIN.getCode());
+    }
+
+    public static boolean isSuperAdmin() {
+        return hasRole(RoleEnum.SUPER_ADMIN.getCode());
+    }
+
+    public static boolean isSelf(Long userId) {
+        return Objects.equals(getUserId(), userId);
     }
 }

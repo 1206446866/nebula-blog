@@ -76,6 +76,11 @@ public class AuthLoginUser implements LoginUser {
 
     @Override
     public boolean isAccountNonLocked() {
-        return UserStatus.LOCKED.notMatches(user.getStatus());
+        return true;
+//        return UserStatus.LOCKED.notMatches(user.getStatus());
+    }
+
+    public static AuthLoginUser create() {
+        return new AuthLoginUser();
     }
 }

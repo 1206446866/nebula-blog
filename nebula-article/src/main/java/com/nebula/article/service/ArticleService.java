@@ -5,7 +5,6 @@ import com.mybatisflex.core.service.IService;
 import com.nebula.article.dto.*;
 import com.nebula.article.entity.Article;
 import com.nebula.article.vo.ArticleVO;
-import org.apache.ibatis.javassist.NotFoundException;
 
 import java.util.List;
 
@@ -27,7 +26,7 @@ public interface ArticleService extends IService<Article> {
      * @param id 文章 id
      * @return 文章对象
      */
-    ArticleVO getArticleById(Long id) throws NotFoundException;
+    ArticleVO getArticleById(Long id);
 
 
     boolean createArticle(CreateArticleDto dto);

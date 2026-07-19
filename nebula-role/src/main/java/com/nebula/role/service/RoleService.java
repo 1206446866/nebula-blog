@@ -27,16 +27,6 @@ public interface RoleService extends IService<Role> {
      */
     List<Role> getRolesByUserId(Long userId);
 
-
-    /**
-     * 给用户分配角色
-     *
-     * @param userId 用户ID
-     * @param roleIds 角色ID列表
-     * @return 是否成功
-     */
-    boolean assignRoles(Long userId, List<Long> roleIds);
-
     /**
      * 移除角色
      *

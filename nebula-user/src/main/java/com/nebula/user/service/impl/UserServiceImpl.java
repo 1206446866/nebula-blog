@@ -7,7 +7,6 @@ import com.mybatisflex.core.query.QueryWrapper;
 import com.mybatisflex.core.util.StringUtil;
 import com.mybatisflex.spring.service.impl.ServiceImpl;
 import com.nebula.common.constant.NumberConstant;
-import com.nebula.common.constant.RoleEnum;
 import com.nebula.common.exception.BusinessException;
 import com.nebula.common.exception.code.UserErrorCode;
 import com.nebula.common.util.SecurityUtils;
@@ -35,9 +34,14 @@ import java.nio.file.Files;
 import java.nio.file.StandardCopyOption;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
-import java.util.*;
+import java.util.Collections;
+import java.util.List;
+import java.util.Map;
+import java.util.UUID;
 import java.util.stream.Collectors;
 
+import static com.nebula.common.exception.code.UserErrorCode.USER_ACCESS_DENIED;
+import static com.nebula.common.exception.code.UserErrorCode.USER_SELF_OPERATION_DENIED;
 import static com.nebula.user.entity.table.UserRoleTableDef.USER_ROLE;
 import static com.nebula.user.entity.table.UserTableDef.USER;
 
@@ -83,12 +87,19 @@ public class UserServiceImpl extends ServiceImpl<UserMapper, User> implements Us
     @Transactional(rollbackFor = Exception.class)
     @Override
     public boolean editUser(EditUserDTO dto) {
-        checkSelfOrAdmin(dto.getId());
+        if (SecurityUtils.isSelf(dto.getId())) {
+            throw new BusinessException(USER_SELF_OPERATION_DENIED);
+        }
+        if (!SecurityUtils.isSuperAdmin()){
+            throw new BusinessException(USER_ACCESS_DENIED);
+        }
         updateById(User.create().setId(dto.getId()).setUsername(dto.getUsername()));
+        // 先删除已有角色
         userRoleMapper.deleteByCondition(USER_ROLE.USER_ID.eq(dto.getId()));
         if (CollUtil.isEmpty(dto.getRoleIds())) {
             throw new BusinessException(UserErrorCode.USER_ROLE_EMPTY);
         }
+        // 再批量插入新角色
         List<UserRole> userRoles = dto.getRoleIds().stream().map(item -> UserRole.create().setUserId(dto.getId()).setRoleId(item)).toList();
         userRoleMapper.insertBatchSelective(userRoles);
         return true;
@@ -241,8 +252,8 @@ public class UserServiceImpl extends ServiceImpl<UserMapper, User> implements Us
      * @param userId 用户ID
      */
     private void checkSelfOrAdmin(Long userId) {
-        if (!SecurityUtils.hasRole(RoleEnum.ADMIN.getCode())&& !Objects.equals(userId, SecurityUtils.getUserId())) {
-            throw new BusinessException(UserErrorCode.USER_ACCESS_DENIED);
+        if (!SecurityUtils.isAdmin() && !SecurityUtils.isSelf(userId)) {
+            throw new BusinessException(USER_ACCESS_DENIED);
         }
     }
 }

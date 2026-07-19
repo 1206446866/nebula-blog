@@ -38,7 +38,12 @@ public enum UserErrorCode implements ErrorCode{
     /**
      * 用户已被禁用
      */
-    USER_DISABLED(1009, "用户已被禁用");
+    USER_DISABLED(1009, "用户已被禁用"),
+
+    /**
+     * 不能对自己进行操作
+     */
+    USER_SELF_OPERATION_DENIED(1010, "不能对自己进行操作");
 
     private final Integer code;
     private final String message;

@@ -25,7 +25,7 @@ public class RoleController {
     /**
      * 获取角色列表
      */
-    @PreAuthorize("hasAuthority('user:list')")
+    @PreAuthorize("@securityUtils.hasPermission('user:list')")
     @GetMapping
     public Result<List<RoleVO>> getAllRoles() {
         return Result.success(roleService.findAll());
@@ -43,20 +43,20 @@ public class RoleController {
     /**
      * 查询用户的所有角色
      */
-    @PreAuthorize("hasAuthority('user:list')")
+    @PreAuthorize("@securityUtils.hasPermission('user:list')")
     @GetMapping("/{userId}")
     public Result<List<Role>> getRolesByUserId(@PathVariable Long userId) {
         List<Role> roles = roleService.getRolesByUserId(userId);
         return Result.success(roles);
     }
 
-    @PreAuthorize("hasAuthority('user:create') && hasRole('ADMIN')")
+    @PreAuthorize("@securityUtils.isSuperAdmin()")
     @PostMapping("/create")
     public Result<Boolean> createRole(@RequestBody CreateRoleDto  dto) {
         return  Result.success(roleService.createRole(dto));
     }
 
-    @PreAuthorize("hasAuthority('user:update') && hasRole('ADMIN')")
+    @PreAuthorize("@securityUtils.isSuperAdmin()")
     @PutMapping("/update")
     public Result<Boolean> updateRole(@RequestBody UpdateRoleDto dto) {
         return Result.success(Role.create().setId(dto.getId()).setName(dto.getName()).setDescription(dto.getDescription()).updateById());
@@ -65,20 +65,10 @@ public class RoleController {
     /**
      * 移除角色
      */
-    @PreAuthorize("hasAuthority('user:delete') && hasRole('ADMIN')")
+    @PreAuthorize("@securityUtils.isSuperAdmin()")
     @DeleteMapping("/remove/{roleId}")
     public Result<Boolean> removeRole(@PathVariable Long roleId) {
         return Result.success(roleService.removeRole(roleId));
     }
-
-    /**
-     * 给用户分配角色
-     */
-//    @PostMapping("/assign/{userId}")
-//    public Result<Boolean> assignRolesToUser(@PathVariable Long userId, @RequestBody List<Long> roleIds) {
-//        return Result.success(roleService.assignRoles(userId, roleIds));
-//    }
-
-
 
 }

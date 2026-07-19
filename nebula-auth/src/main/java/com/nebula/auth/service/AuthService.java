@@ -10,7 +10,6 @@ import java.util.List;
 public interface AuthService {
 
 
-    boolean matchesPassword(String rawPassword, String encodedPassword);
     /**
      * 用户登录
      *

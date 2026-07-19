@@ -48,15 +48,6 @@ public class RoleServiceImpl extends ServiceImpl<RoleMapper, Role> implements Ro
     }
 
     @Override
-    public boolean assignRoles(Long userId, List<Long> roleIds) {
-        // 先删除已有角色
-        userRoleMapper.deleteByCondition(USER_ROLE.USER_ID.eq(userId));
-        // 再批量插入新角色
-        List<UserRole> list = roleIds.stream().map(roleId -> new UserRole().setUserId(userId).setRoleId(roleId)).toList();
-        return userRoleMapper.insertBatch(list) > 0;
-    }
-
-    @Override
     @Transactional(rollbackFor = Exception.class)
     public Boolean removeRole(Long roleId) {
          userRoleMapper.deleteByCondition(USER_ROLE.ROLE_ID.eq(roleId));

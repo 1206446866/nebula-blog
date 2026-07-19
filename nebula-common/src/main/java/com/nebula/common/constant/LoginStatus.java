@@ -1,12 +1,15 @@
 package com.nebula.common.constant;
 
 
+import com.nebula.common.exception.code.ErrorCode;
 import lombok.AllArgsConstructor;
 import lombok.Getter;
 
+import java.util.Arrays;
+
 @Getter
 @AllArgsConstructor
-public enum LoginStatus {
+public enum LoginStatus implements ErrorCode {
 
     FAIL(0, "登录失败"),
 
@@ -40,6 +43,10 @@ public enum LoginStatus {
      */
     TOKEN_INVALID(6, "Token无效"),
 
+    /**
+     * LOCKED 锁定
+     */
+    USER_LOCKED(7,"用户已锁定"),
 
     /**
      * 未知原因
@@ -50,4 +57,18 @@ public enum LoginStatus {
 
     private final String desc;
 
+    /**
+     * 根据状态码获取枚举
+     */
+    public static LoginStatus fromCode(Integer code) {
+        return Arrays.stream(values())
+                .filter(item -> item.code.equals(code))
+                .findFirst()
+                .orElseThrow(() -> new IllegalArgumentException("未知登录状态：" + code));
+    }
+
+    @Override
+    public String getMessage() {
+        return this.desc;
+    }
 }

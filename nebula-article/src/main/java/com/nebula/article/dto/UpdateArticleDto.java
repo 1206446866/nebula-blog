@@ -34,6 +34,7 @@ public class UpdateArticleDto {
     @NotBlank(message = "文章内容不能为空")
     private String content;
 
+    @NotNull(message = "必须选择一个分类")
     private Long categoryId;
 
     private List<Long> tagIds;

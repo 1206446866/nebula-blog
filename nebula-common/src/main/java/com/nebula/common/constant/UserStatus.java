@@ -13,7 +13,7 @@ public enum UserStatus {
 
     DISABLED(NumberConstant.ONE, "禁用"),
 
-    LOCKED(NumberConstant.TWO, "封禁");
+    LOCKED(NumberConstant.TWO, "锁定");
 
     private final Integer code;
     private final String description;

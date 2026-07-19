@@ -21,7 +21,7 @@ public class GlobalExceptionHandler {
      */
     @ExceptionHandler(Exception.class)
     public Result<?> handleException(Exception e) {
-        return Result.error("未知的服务器异常:"+e.getMessage());
+        return Result.error("未知的服务器异常:" + e.getMessage());
     }
 
     @ExceptionHandler(BaseException.class)
@@ -56,7 +56,13 @@ public class GlobalExceptionHandler {
 
     @ExceptionHandler(AuthorizationDeniedException.class)
     public Result<?> handleAuthorizationDeniedException(AuthorizationDeniedException e) {
-        return Result.error(403, "权限不足"+e.getMessage());
+        return Result.error(403, "权限不足" + e.getMessage());
     }
+
+    @ExceptionHandler(AuthException.class)
+    public Result<?> handleAuthException(AuthException e) {
+        return Result.error(e.getCode(), e.getMessage());
+    }
+
 
 }

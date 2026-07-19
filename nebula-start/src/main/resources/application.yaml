@@ -21,11 +21,12 @@ spring:
       host: localhost
       port: 6379
       database: 0
+      timeout: 10s
 
 mybatis-flex:
 
-  configuration:
-    log-impl: org.apache.ibatis.logging.stdout.StdOutImpl
+#  configuration:
+#    log-impl: org.apache.ibatis.logging.stdout.StdOutImpl
 
   global-config:
     print-banner: false
@@ -39,6 +40,6 @@ jwt:
 file:
   upload-dir: upload/avatar/
 
-logging:
-  level:
-    org.springframework.security: DEBUG
+#logging:
+#  level:
+#    org.springframework.security: DEBUG

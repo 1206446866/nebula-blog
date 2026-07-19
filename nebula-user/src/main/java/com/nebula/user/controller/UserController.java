@@ -30,7 +30,7 @@ public class UserController {
     /**
      * 查询用户列表（可分页/可模糊查询用户名）
      */
-    @PreAuthorize("hasAuthority('user:list')")
+    @PreAuthorize("@securityUtils.hasPermission('user:list')")
     @GetMapping
     public Result<Page<UserVO>> page(@RequestParam(required = false) String role, @RequestParam(required = false) String username, @RequestParam(defaultValue = "1") Integer current, @RequestParam(defaultValue = "10") Integer size) {
         return Result.success(userService.pageUsers(role, username, current, size));
@@ -43,13 +43,13 @@ public class UserController {
      * @param status 状态标识
      * @return 操作状态
      */
-    @PreAuthorize("hasAuthority('user:update')")
+    @PreAuthorize("@securityUtils.hasPermission('user:update')")
     @PutMapping("/switchStatusById/{id}")
     public Result<Boolean> switchStatusById(@PathVariable Long id, @RequestParam Integer status) {
         return Result.success(userService.switchStatusById(id, status));
     }
 
-    @PreAuthorize("hasAuthority('user:update')")
+    @PreAuthorize("@securityUtils.hasPermission('user:update')")
     @PutMapping("/edit")
     public Result<Boolean> editUser(@RequestBody @Valid EditUserDTO editUserDTO) {
         return Result.success(userService.editUser(editUserDTO));
@@ -59,7 +59,7 @@ public class UserController {
      * 删除用户
      * @param id 用户ID
      */
-    @PreAuthorize("hasAuthority('user:update')")
+    @PreAuthorize("@securityUtils.hasPermission('user:update')")
     @DeleteMapping("/deleteUserById/{id}")
     public Result<Boolean> deleteUserById(@PathVariable Long id) {
         return Result.success(userService.deleteUserById(id));
@@ -71,14 +71,14 @@ public class UserController {
      * @param file 文件
      * @return 头像URL
      */
-    @PreAuthorize("hasAuthority('user:update')")
+    @PreAuthorize("@securityUtils.hasPermission('user:update')")
     @PostMapping("/upload/avatar")
     public Result<String> uploadAvatar(@RequestParam("file") MultipartFile file) throws IOException {
         Long userId = SecurityUtils.getUserId();
         return Result.success(userService.uploadAvatar(userId, file));
     }
 
-    @PreAuthorize("hasAuthority('user:update')")
+    @PreAuthorize("@securityUtils.hasPermission('user:update')")
     @PutMapping("/self/name")
     public Result<Boolean> rename(@RequestBody @Valid UpdateNameDTO dto) {
         return Result.success(userService.rename(dto));
