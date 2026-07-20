@@ -43,6 +43,12 @@ public class SecurityConfig {
                         // 登录接口放行
                         // 静态资源放行
                         .requestMatchers("/auth/login", "/upload/**").permitAll()
+                        //spring doc放行
+                        .requestMatchers(
+                                "/swagger-ui.html",
+                                "/swagger-ui/**",
+                                "/v3/api-docs/**"
+                        ).permitAll()
                         // 其他请求需要认证
                         .anyRequest().authenticated())
 

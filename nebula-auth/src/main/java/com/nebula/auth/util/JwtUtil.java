@@ -3,15 +3,14 @@ package com.nebula.auth.util;
 import com.nebula.user.entity.User;
 import io.jsonwebtoken.Claims;
 import io.jsonwebtoken.Jwts;
-import io.jsonwebtoken.SignatureAlgorithm;
 import io.jsonwebtoken.security.Keys;
 import jakarta.annotation.PostConstruct;
 import lombok.Setter;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
 
+import javax.crypto.SecretKey;
 import java.nio.charset.StandardCharsets;
-import java.security.Key;
 import java.util.Date;
 
 /**
@@ -36,17 +35,15 @@ public class JwtUtil {
     /**
      * JWT Key
      */
-    private Key key;
+//    private Key key;
+    private SecretKey key;
 
     /**
      * 初始化 Key
      */
     @PostConstruct
     public void init() {
-
-        this.key = Keys.hmacShaKeyFor(
-                secret.getBytes(StandardCharsets.UTF_8)
-        );
+        this.key = Keys.hmacShaKeyFor(secret.getBytes(StandardCharsets.UTF_8));
     }
 
     /**
@@ -59,19 +56,17 @@ public class JwtUtil {
 
         Date now = new Date();
 
-        Date expireDate = new Date(
-                now.getTime() + expire
-        );
+        Date expireDate = new Date(now.getTime() + expire);
 
         return Jwts.builder()
                 // 用户唯一标识
-                .setSubject(String.valueOf(user.getId()))
+                .subject(String.valueOf(user.getId()))
                 // 签发时间
-                .setIssuedAt(now)
+                .issuedAt(now)
                 // 过期时间
-                .setExpiration(expireDate)
+                .expiration(expireDate)
                 // 签名
-                .signWith(key, SignatureAlgorithm.HS256)
+                .signWith(key, Jwts.SIG.HS256)
                 .compact();
     }
 
@@ -79,12 +74,11 @@ public class JwtUtil {
      * 解析 Token
      */
     public Claims parseToken(String token) {
-
-        return Jwts.parserBuilder()
-                .setSigningKey(key)
+        return Jwts.parser()
+                .verifyWith(key)
                 .build()
-                .parseClaimsJws(token)
-                .getBody();
+                .parseSignedClaims(token)
+                .getPayload();
     }
 
     /**
@@ -108,8 +102,6 @@ public class JwtUtil {
      * 获取用户ID
      */
     public Long getUserId(String token) {
-        return Long.parseLong(
-                parseToken(token).getSubject()
-        );
+        return Long.parseLong(parseToken(token).getSubject());
     }
 }

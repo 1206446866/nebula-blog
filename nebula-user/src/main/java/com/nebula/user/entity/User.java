@@ -50,7 +50,7 @@ public class User extends Model<User> {
     /**
      * 状态
      */
-    @Column(comment = "状态 0正常 1禁用")
+    @Column(comment = "状态 0正常 1禁用 参考UserStatus")
     private Integer status;
 
     @Column(isLogicDelete = true, comment = "逻辑删除 0未删除 1已删除")
