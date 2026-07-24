@@ -15,9 +15,12 @@ import com.nebula.common.exception.AuthException;
 import com.nebula.common.security.LoginUser;
 import com.nebula.common.util.SecurityUtils;
 import com.nebula.role.entity.Permission;
+import com.nebula.role.entity.Role;
 import com.nebula.role.entity.RolePermission;
 import com.nebula.role.mapper.PermissionMapper;
 import com.nebula.role.mapper.RolePermissionMapper;
+import com.nebula.role.service.PermissionService;
+import com.nebula.role.service.RoleService;
 import com.nebula.user.entity.User;
 import com.nebula.user.entity.UserRole;
 import com.nebula.user.mapper.UserMapper;
@@ -39,6 +42,7 @@ import java.util.stream.Collectors;
 import static com.nebula.role.entity.table.PermissionTableDef.PERMISSION;
 import static com.nebula.role.entity.table.RolePermissionTableDef.ROLE_PERMISSION;
 import static com.nebula.user.entity.table.UserRoleTableDef.USER_ROLE;
+import static com.nebula.user.entity.table.UserTableDef.USER;
 
 /**
  * 认证 Service 实现
@@ -58,6 +62,11 @@ public class AuthServiceImpl implements AuthService {
     private final UserRoleMapper userRoleMapper;
 
     /**
+     * 权限 Role
+     */
+    private final RoleService roleService;
+
+    /**
      * 角色权限关联 RolePermissionMapper
      */
     private final RolePermissionMapper rolePermissionMapper;
@@ -68,6 +77,8 @@ public class AuthServiceImpl implements AuthService {
     private final PermissionMapper permissionMapper;
 
     private final LoginLogService loginLogService;
+
+    private final PermissionService  permissionService;
 
     private final AuthenticationManager authenticationManager;
     /**
@@ -114,11 +125,10 @@ public class AuthServiceImpl implements AuthService {
             );
         } catch (AuthenticationException e) {
             Integer loginStatus = getLoginStatus(e);
-//            TODO 这里是记录
             //保证登录记录一定是已存账号，不存在的账号不记录
-//            User user = userMapper.selectOneByCondition(USER.NID.eq(loginDTO.getNid()));
-//            if(Objects.nonNull(user))
-//               loginLogService.recordLoginLog(user.getId(),loginStatus );
+            User user = userMapper.selectOneByCondition(USER.NID.eq(loginDTO.getNid()));
+            if (Objects.nonNull(user))
+                loginLogService.recordLoginLog(user.getId(), loginStatus);
             throw new AuthException(LoginStatus.fromCode(loginStatus));
         }
         AuthLoginUser loginUser = (AuthLoginUser) authentication.getPrincipal();
@@ -175,6 +185,15 @@ public class AuthServiceImpl implements AuthService {
     public boolean hasPermission(Long userId, String permission) {
         List<String> permissions = getUserPermissionsByUserId(userId);
         return permissions.contains(permission);
+    }
+
+    public AuthLoginUser createLoginUser(User user) {
+        List<Role> roleList = roleService.getRolesByUserId(user.getId());
+        List<String> roles = roleList.stream()
+                .map(Role::getName)
+                .toList();
+        List<String> permissions = permissionService.getPermissionsByUserId(user.getId());
+        return new AuthLoginUser(user, roles, permissions);
     }
 
     private Integer getLoginStatus(Exception e) {
