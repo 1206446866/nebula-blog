@@ -1,6 +1,6 @@
 package com.nebula.auth.service.impl;
 
-import com.nebula.auth.service.AuthService;
+import com.nebula.auth.AuthUserBuilder;
 import com.nebula.common.exception.code.AuthErrorCode;
 import com.nebula.user.entity.User;
 import com.nebula.user.mapper.UserMapper;
@@ -18,7 +18,7 @@ public class CustomUserDetailsService implements UserDetailsService {
 
     private final UserMapper userMapper;
 
-    private final AuthService authService;
+    private final AuthUserBuilder authUserBuilder;
 
     @Override
     public UserDetails loadUserByUsername(String nid) throws UsernameNotFoundException {
@@ -26,7 +26,7 @@ public class CustomUserDetailsService implements UserDetailsService {
         if (user == null) {
             throw new UsernameNotFoundException(AuthErrorCode.USER_NOT_FOUND.getMessage());
         }
-        return authService.createLoginUser(user);
+        return authUserBuilder.createLoginUser(user);
     }
 
 }

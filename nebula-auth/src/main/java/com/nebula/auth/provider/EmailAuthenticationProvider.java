@@ -1,7 +1,7 @@
 package com.nebula.auth.provider;
 
+import com.nebula.auth.AuthUserBuilder;
 import com.nebula.auth.security.AuthLoginUser;
-import com.nebula.auth.service.AuthService;
 import com.nebula.auth.token.EmailAuthenticationToken;
 import com.nebula.user.entity.User;
 import com.nebula.user.mapper.UserMapper;
@@ -22,7 +22,7 @@ public class EmailAuthenticationProvider implements AuthenticationProvider {
 
 
     private final UserMapper userMapper;
-    private final AuthService authService;
+    private final AuthUserBuilder authUserBuilder;
     private final PasswordEncoder passwordEncoder;
 
     @Override
@@ -42,7 +42,7 @@ public class EmailAuthenticationProvider implements AuthenticationProvider {
             throw new BadCredentialsException("邮箱或密码错误");
         }
 
-        AuthLoginUser loginUser = authService.createLoginUser(user);
+        AuthLoginUser loginUser = authUserBuilder.createLoginUser(user);
 
         return new EmailAuthenticationToken(loginUser, loginUser.getAuthorities());
     }

@@ -3,9 +3,7 @@ package com.nebula.auth.service;
 import com.nebula.auth.dto.ChangePasswordDTO;
 import com.nebula.auth.dto.LoginDTO;
 import com.nebula.auth.dto.RegisterRequestDTO;
-import com.nebula.auth.security.AuthLoginUser;
 import com.nebula.auth.vo.LoginVO;
-import com.nebula.user.entity.User;
 
 import java.util.List;
 
@@ -61,5 +59,4 @@ public interface AuthService {
     boolean hasPermission(Long userId, String permission);
 
 
-    AuthLoginUser createLoginUser(User user);
 }

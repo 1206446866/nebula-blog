@@ -15,12 +15,9 @@ import com.nebula.common.exception.AuthException;
 import com.nebula.common.security.LoginUser;
 import com.nebula.common.util.SecurityUtils;
 import com.nebula.role.entity.Permission;
-import com.nebula.role.entity.Role;
 import com.nebula.role.entity.RolePermission;
 import com.nebula.role.mapper.PermissionMapper;
 import com.nebula.role.mapper.RolePermissionMapper;
-import com.nebula.role.service.PermissionService;
-import com.nebula.role.service.RoleService;
 import com.nebula.user.entity.User;
 import com.nebula.user.entity.UserRole;
 import com.nebula.user.mapper.UserMapper;
@@ -61,10 +58,6 @@ public class AuthServiceImpl implements AuthService {
      */
     private final UserRoleMapper userRoleMapper;
 
-    /**
-     * 权限 Role
-     */
-    private final RoleService roleService;
 
     /**
      * 角色权限关联 RolePermissionMapper
@@ -77,8 +70,6 @@ public class AuthServiceImpl implements AuthService {
     private final PermissionMapper permissionMapper;
 
     private final LoginLogService loginLogService;
-
-    private final PermissionService  permissionService;
 
     private final AuthenticationManager authenticationManager;
     /**
@@ -185,15 +176,6 @@ public class AuthServiceImpl implements AuthService {
     public boolean hasPermission(Long userId, String permission) {
         List<String> permissions = getUserPermissionsByUserId(userId);
         return permissions.contains(permission);
-    }
-
-    public AuthLoginUser createLoginUser(User user) {
-        List<Role> roleList = roleService.getRolesByUserId(user.getId());
-        List<String> roles = roleList.stream()
-                .map(Role::getName)
-                .toList();
-        List<String> permissions = permissionService.getPermissionsByUserId(user.getId());
-        return new AuthLoginUser(user, roles, permissions);
     }
 
     private Integer getLoginStatus(Exception e) {
