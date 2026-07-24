@@ -66,7 +66,7 @@ public class ArticleServiceImpl extends ServiceImpl<ArticleMapper, Article> impl
         if (Objects.nonNull(orderBy)) {
             queryWrapper.orderBy(orderBy, asc);
         }
-        return pageAs(Page.of(dto.getCurrentPage(), dto.getSize()), queryWrapper, ArticleVO.class);
+        return pageAs(Page.of(dto.getCurrent(), dto.getSize()), queryWrapper, ArticleVO.class);
     }
 
 
@@ -161,8 +161,9 @@ public class ArticleServiceImpl extends ServiceImpl<ArticleMapper, Article> impl
 
     @Override
     public boolean changeArticleStatus(ChangeArticleStatusDto dto) {
-        Article.create().setId(dto.getId()).setStatus(dto.getStatus()).updateById();
-        return redisService.delete(RedisKey.ARTICLE_DETAIL + dto.getId());
+        boolean update = Article.create().setId(dto.getId()).setStatus(dto.getStatus()).updateById();
+        redisService.delete(RedisKey.ARTICLE_DETAIL + dto.getId());
+        return update;
     }
 
     @Override
@@ -182,7 +183,7 @@ public class ArticleServiceImpl extends ServiceImpl<ArticleMapper, Article> impl
                     .on(ARTICLE.ID.eq(ARTICLE_TAG.ARTICLE_ID))
                     .and(ARTICLE_TAG.TAG_ID.in(dto.getTagIds()));
         }
-        return pageAs(Page.of(dto.getCurrentPage(), dto.getSize()), query, ArticleVO.class);
+        return pageAs(Page.of(dto.getCurrent(), dto.getSize()), query, ArticleVO.class);
     }
 
     @Override

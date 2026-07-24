@@ -22,7 +22,7 @@ public class ArticlePageDTO {
     private List<Long> categoryIds;
 
     @Min(1)
-    private int currentPage = 1;
+    private int current = 1;
 
     @Min(1)
     @Max(100)

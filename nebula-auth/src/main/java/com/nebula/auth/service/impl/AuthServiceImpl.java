@@ -39,7 +39,6 @@ import java.util.stream.Collectors;
 import static com.nebula.role.entity.table.PermissionTableDef.PERMISSION;
 import static com.nebula.role.entity.table.RolePermissionTableDef.ROLE_PERMISSION;
 import static com.nebula.user.entity.table.UserRoleTableDef.USER_ROLE;
-import static com.nebula.user.entity.table.UserTableDef.USER;
 
 /**
  * 认证 Service 实现
@@ -114,11 +113,12 @@ public class AuthServiceImpl implements AuthService {
                     new UsernamePasswordAuthenticationToken(loginDTO.getNid(), loginDTO.getPassword())
             );
         } catch (AuthenticationException e) {
-            //保证登录记录一定是已存账号，不存在的账号不记录
-            User user = userMapper.selectOneByCondition(USER.NID.eq(loginDTO.getNid()));
             Integer loginStatus = getLoginStatus(e);
-            if(Objects.nonNull(user))
-               loginLogService.recordLoginLog(user.getId(),loginStatus );
+//            TODO 这里是记录
+            //保证登录记录一定是已存账号，不存在的账号不记录
+//            User user = userMapper.selectOneByCondition(USER.NID.eq(loginDTO.getNid()));
+//            if(Objects.nonNull(user))
+//               loginLogService.recordLoginLog(user.getId(),loginStatus );
             throw new AuthException(LoginStatus.fromCode(loginStatus));
         }
         AuthLoginUser loginUser = (AuthLoginUser) authentication.getPrincipal();
