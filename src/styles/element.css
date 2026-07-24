@@ -1,0 +1,16 @@
+.el-button--primary {
+  background: var(--nebula-gradient);
+  border: none;
+}
+
+.el-input__wrapper {
+  background: rgba(255,255,255,0.04);
+
+  box-shadow: none;
+
+  border: 1px solid rgba(255,255,255,0.08);
+}
+
+.el-input__inner {
+  color: white;
+}
