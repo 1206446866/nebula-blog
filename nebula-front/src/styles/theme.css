@@ -1,0 +1,29 @@
+:root {
+
+  /* 主色 */
+  --nebula-primary: #38bdf8;
+  --nebula-secondary: #818cf8;
+
+  /* 背景 */
+  --nebula-bg: #020617;
+  --nebula-bg-card: rgba(15, 23, 42, 0.65);
+
+  /* 字体 */
+  --nebula-text: rgba(255,255,255,0.92);
+  --nebula-text-secondary: rgba(255,255,255,0.65);
+
+  /* 边框 */
+  --nebula-border: rgba(255,255,255,0.08);
+
+  /* 阴影 */
+  --nebula-shadow:
+    0 8px 32px rgba(0,0,0,0.35);
+
+  /* 渐变 */
+  --nebula-gradient:
+    linear-gradient(
+      135deg,
+      #38bdf8,
+      #818cf8
+    );
+}
