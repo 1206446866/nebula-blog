@@ -1,6 +1,7 @@
 package com.nebula.api.vo.profile;
 
 import com.fasterxml.jackson.annotation.JsonFormat;
+import jakarta.annotation.Nonnull;
 import lombok.Data;
 import lombok.experimental.Accessors;
 
@@ -47,12 +48,12 @@ public class UserProfileInfoVO {
     /**
      * 电子邮箱
      */
-    private String email="未实现[TODO]Seraphiaile@gmail.com";
+    private String email;
 
     /**
      * 手机号
      */
-    private String phone="未实现[TODO]";
+    private String phone;
 
     /**
      * 创建时间
@@ -60,6 +61,7 @@ public class UserProfileInfoVO {
     @JsonFormat(pattern = "yyyy-MM-dd HH:mm", timezone = "Asia/Shanghai")
     private LocalDateTime createTime;
 
+    @Nonnull
     public static UserProfileInfoVO create() {
         return new UserProfileInfoVO();
     }
