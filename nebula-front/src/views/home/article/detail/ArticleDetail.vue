@@ -33,10 +33,10 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, onMounted } from 'vue'
+import { computed, onMounted, ref } from 'vue'
 import { useRoute } from 'vue-router'
-import { getArticleByIdApi, type ArticleVO } from '@/api/article'
-import { listCategoryApi, type CategoryVO } from '@/api/category'
+import { type ArticleVO, getArticleByIdApi } from '@/api/article'
+import { type CategoryVO, listCategoryApi } from '@/api/category'
 import { listTagApi, type TagVO } from '@/api/tag'
 import ArticleHero from './components/ArticleHero.vue'
 import ArticleContent from './components/ArticleContent.vue'
@@ -69,7 +69,7 @@ const fetchArticle = async () => {
   articleLoading.value = true
   try {
     const res = await getArticleByIdApi(articleId)
-    if (res.code !== 200){
+    if (res.code !== 200) {
       currentAuthor.value = undefined
       return
     }

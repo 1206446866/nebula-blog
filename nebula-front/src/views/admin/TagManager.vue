@@ -61,15 +61,15 @@
 </template>
 
 <script setup lang="ts">
-import { ref, reactive, onMounted, watch } from 'vue'
+import { onMounted, reactive, ref, watch } from 'vue'
 import { debounce } from 'lodash-es'
 import { ElMessage, ElMessageBox } from 'element-plus'
 
 import BaseTable from '@/components/basic/BaseTable.vue'
 import { useTable } from '@/composables/useTable'
 
-import type { TagVO, CreateTagDTO, UpdateTagDTO } from '@/api/tag'
-import { pageTagApi, createTagApi, updateTagApi, deleteTagApi } from '@/api/tag'
+import type { CreateTagDTO, TagVO, UpdateTagDTO } from '@/api/tag'
+import { createTagApi, deleteTagApi, pageTagApi, updateTagApi } from '@/api/tag'
 
 /**
  * 搜索

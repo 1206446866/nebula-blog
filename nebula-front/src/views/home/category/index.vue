@@ -33,14 +33,14 @@
 
 <script setup lang="ts">
 import { useArticleFilterStore } from '@/stores/articleFilter.ts'
+import { computed, onMounted, ref } from 'vue'
+import { useRouter } from 'vue-router'
+import { type CategoryVO, listCategoryApi } from '@/api/category'
+import { ElMessage } from 'element-plus'
 
 defineOptions({
   name: 'CategoryHome',
 })
-import { ref, computed, onMounted } from 'vue'
-import { useRouter } from 'vue-router'
-import { type CategoryVO, listCategoryApi } from '@/api/category'
-import { ElMessage } from 'element-plus'
 
 const router = useRouter()
 const keyword = ref('')

@@ -47,11 +47,11 @@ export const getPermissionPage = (params: PermissionPageDto) => {
   return request.get<Result<Page<PermissionVO>>>('/permissions/page', { params })
 }
 
-export const createPermissionApi = (params:CreatePermissionDto) => {
+export const createPermissionApi = (params: CreatePermissionDto) => {
   return request.post<boolean>('/permissions/create', params)
 }
 
-export const updatePermissionApi = (params:UpdatePermissionDto) => {
+export const updatePermissionApi = (params: UpdatePermissionDto) => {
   return request.put<boolean>('/permissions/update', params)
 }
 

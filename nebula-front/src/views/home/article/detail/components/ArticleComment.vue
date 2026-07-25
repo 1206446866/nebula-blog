@@ -20,11 +20,11 @@
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted } from 'vue'
+import { onMounted, ref } from 'vue'
 import { ElMessage } from 'element-plus'
 import CommentEditor from '@/views/home/article/components/CommentEditor.vue'
 import CommentList from '@/views/home/article/components/CommentList.vue'
-import { getCommentPageApi, deleteCommentByIdApi, type CommentVO } from '@/api/comment'
+import { type CommentVO, deleteCommentByIdApi, getCommentPageApi } from '@/api/comment'
 import { getUserByIdsApi, type UserVO } from '@/api/user.ts'
 
 const props = defineProps<{
@@ -49,12 +49,12 @@ const loadComments = async () => {
     page.value = res.data.pageNumber
     pageSize.value = res.data.pageSize
     total.value = res.data.totalRow
-    if(list.value.length===0)return
+    if (list.value.length === 0) return
     // 去重后的用户ID
     const userIds = [...new Set(list.value.map((item) => item.userId))]
     const users = await getUserByIdsApi(userIds)
     if (users.code === 200) {
-      userMap.value = new Map(users.data.map((u:UserVO) => [u.id, u]))
+      userMap.value = new Map(users.data.map((u: UserVO) => [u.id, u]))
     }
   } else {
     list.value = []

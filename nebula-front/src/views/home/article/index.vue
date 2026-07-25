@@ -7,16 +7,16 @@
 
 <script setup lang="ts">
 import { useArticleFilterStore } from '@/stores/articleFilter.ts'
-
-defineOptions({
-  name: 'ArticleHome',
-})
 import { onMounted, ref, watch } from 'vue'
 import ArticleHomeHero from '@/views/home/article/components/ArticleHomeHero.vue'
 import ArticleHomeFilter from '@/views/home/article/components/ArticleHomeFilter.vue'
 import ArticleHomeField from '@/views/home/article/components/ArticleHomeField.vue'
 import ArticlePagination from '@/views/home/article/components/ArticlePagination.vue'
 import { type ArticleVO, getPublishedArticlePageApi } from '@/api/article.ts'
+
+defineOptions({
+  name: 'ArticleHome',
+})
 const articles = ref<ArticleVO[]>([])
 const currentPage = ref(1)
 const pageSize = ref(10)

@@ -6,23 +6,22 @@ export interface RoleVO {
   id: number
   name: string
   description: string
-  createTime:string
+  createTime: string
 }
 
-export  interface RolePageDto {
+export interface RolePageDto {
   description?: string
   current: number
-  size:number
+  size: number
 }
-export  interface CreateRoleDto {
+export interface CreateRoleDto {
   name: string
   description: string
 }
-export  interface UpdateRoleDto {
+export interface UpdateRoleDto {
   name: string
   description: string
 }
-
 
 /**
  * 获取所有角色
@@ -42,14 +41,12 @@ export const getRolesByUserIdApi = (userId: number) => {
 export const getRolePageApi = (params: RolePageDto) => {
   return request.get<Result<Page<RoleVO>>>('/roles/page', { params })
 }
-export const createRole=(params: CreateRoleDto) => {
-  return request.post<Result<Boolean>>(`/roles/create`,  params )
+export const createRole = (params: CreateRoleDto) => {
+  return request.post<Result<Boolean>>(`/roles/create`, params)
 }
-export const updateRole=(params: UpdateRoleDto) => {
-  return request.put<Result<Boolean>>(`/roles/update`, params )
+export const updateRole = (params: UpdateRoleDto) => {
+  return request.put<Result<Boolean>>(`/roles/update`, params)
 }
-export const removeRole= (roleId: number) => {
+export const removeRole = (roleId: number) => {
   return request.delete<Result<Boolean>>(`/roles/remove/${roleId}`)
 }
-
-

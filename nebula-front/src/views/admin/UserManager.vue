@@ -96,18 +96,18 @@
 </template>
 
 <script setup lang="ts">
-import { ref, watch, onMounted, reactive } from 'vue'
+import { onMounted, reactive, ref, watch } from 'vue'
 import { debounce } from 'lodash-es'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import BaseTable from '@/components/basic/BaseTable.vue'
 import SafeButton from '@/components/basic/SafeButton.vue'
 import { useTable } from '@/composables/useTable'
 import {
-  getUsersApi,
   deleteUserByIdApi,
+  editUserApi,
+  getUsersApi,
   switchStatusByIdApi,
   type UserVO,
-  editUserApi,
 } from '@/api/user'
 import { getCurrentUserId } from '@/utils/auth'
 import { getAllRolesApi, getRolesByUserIdApi, type RoleVO } from '@/api/role.ts'

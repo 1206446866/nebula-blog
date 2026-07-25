@@ -25,7 +25,7 @@
     <!-- 下一篇 + 返回 -->
     <div class="right">
       <div class="nav-item" :class="{ disabled: !nextArticle }" @click="todo()">
-<!--           @click="goArticle(nextArticle?.id)-->
+        <!--           @click="goArticle(nextArticle?.id)-->
         <div class="label">下一篇</div>
         <div class="title">
           {{ nextArticle?.title || '没有了' }}
@@ -87,7 +87,7 @@ const like = async () => {
     userId,
   })
   if (res.code === 200) {
-    ElMessage.success(res.data?'点赞成功 ❤️':'取消点赞')
+    ElMessage.success(res.data ? '点赞成功 ❤️' : '取消点赞')
     articleState.value.liked = res.data
   } else {
     ElMessage.warning('点赞失败，似乎发生了错误')

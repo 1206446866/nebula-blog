@@ -1,16 +1,15 @@
 <script setup lang="ts">
 import { ElMessage } from 'element-plus'
-
-defineOptions({
-  name: 'LoginPage',
-})
-
 import { reactive, ref } from 'vue'
 import { useRouter } from 'vue-router'
 import NebulaCard from '@/components/NebulaCard.vue'
 import { loginApi } from '@/api/auth'
 import { useAuthStore } from '@/stores/auth'
 import { getCurrentRoleList } from '@/utils/auth.ts'
+
+defineOptions({
+  name: 'LoginPage',
+})
 
 const router = useRouter()
 
