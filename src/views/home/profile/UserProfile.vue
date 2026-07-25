@@ -8,9 +8,8 @@
 import ProfileHeader from '@/views/home/profile/ProfileHeader.vue'
 import ProfileInfo from '@/views/home/profile/ProfileInfo.vue'
 import ProfileDetail from '@/views/home/profile/ProfileDetail.vue'
-import { computed } from 'vue'
+import { computed, onMounted, ref } from 'vue'
 import { useRoute } from 'vue-router'
-import { ref, onMounted } from 'vue'
 import { getProfileApi, type UserProfileVO } from '@/api/profile'
 import { useAuthStore } from '@/stores/auth.ts'
 

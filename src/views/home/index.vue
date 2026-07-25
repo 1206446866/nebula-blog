@@ -1,8 +1,8 @@
 <template>
   <NebulaHero @github="goGithub" />
   <ArticleSection />
-  <TagSection/>
-  <CategorySection/>
+  <TagSection />
+  <CategorySection />
 </template>
 
 <script setup lang="ts">

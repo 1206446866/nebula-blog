@@ -110,6 +110,9 @@ import { useAuthStore } from '@/stores/auth.ts'
 import { ref } from 'vue'
 import { ElMessage } from 'element-plus'
 import { changePasswordApi } from '@/api/auth.ts'
+import router from '@/router'
+import type { UserProfileVO } from '@/api/profile.ts'
+
 defineOptions({
   name: 'ProfileInfo',
 })
@@ -154,8 +157,6 @@ const submitChangePassword = async () => {
     ElMessage.error(res.message)
   }
 }
-import router from '@/router'
-import type { UserProfileVO } from '@/api/profile.ts'
 
 const logout = () => {
   router.replace('/login')

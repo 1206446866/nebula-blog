@@ -72,11 +72,11 @@ import { ElMessage, ElMessageBox } from 'element-plus'
 import BaseTable from '@/components/basic/BaseTable.vue'
 
 import {
-  pageCategoryApi,
   type CategoryVO,
-  type CreateCategoryDTO,
   createCategoryApi,
+  type CreateCategoryDTO,
   deleteCategoryApi,
+  pageCategoryApi,
   updateCategoryApi,
 } from '@/api/category'
 import { useTable } from '@/composables/useTable.ts'
@@ -199,7 +199,7 @@ const handleEdit = async (row: CategoryVO) => {
     description: row.description,
   })
   if (res.code === 200) {
-    ElMessage.success("改动成功")
+    ElMessage.success('改动成功')
   }
 }
 

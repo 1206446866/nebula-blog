@@ -54,16 +54,17 @@
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted, watch } from 'vue'
+import { onMounted, ref, watch } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
 
 import BaseTable from '@/components/basic/BaseTable.vue'
 import SafeButton from '@/components/basic/SafeButton.vue'
 import { useTable } from '@/composables/useTable'
 
-import { getCommentPageApi, deleteCommentByIdApi, type CommentVO } from '@/api/comment'
+import { type CommentVO, deleteCommentByIdApi, getCommentPageApi } from '@/api/comment'
 import { debounce } from 'lodash-es'
 import { formatDate } from '@/utils/date.ts'
+
 const articleIdFilter = ref<number>()
 const contentFilter = ref('')
 const columns = [

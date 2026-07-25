@@ -61,5 +61,4 @@ const goBack = () => {
   gap: 12px;
   justify-content: center;
 }
-
 </style>

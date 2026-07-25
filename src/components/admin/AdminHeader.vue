@@ -32,7 +32,7 @@ const logout = () => {
 }
 
 const profile = () => {
-  router.push('/user/'+userStore.user.id)
+  router.push('/user/' + userStore.user.id)
 }
 </script>
 

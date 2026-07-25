@@ -1,5 +1,6 @@
 import { createRouter, createWebHistory, type RouteRecordRaw } from 'vue-router'
 import { Role } from '@/constants/role.ts'
+
 const staticRoutes: RouteRecordRaw[] = [
   /** * 登录页 */
   { path: '/login', component: () => import('@/views/login/index.vue') },

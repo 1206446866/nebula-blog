@@ -8,8 +8,7 @@
       <div class="info-card">
         <!-- 扫描光（独立层） -->
         <div class="scan-line">
-          <div class="scan-beam">
-          </div>
+          <div class="scan-beam"></div>
         </div>
 
         <!-- 内容层 -->
@@ -115,8 +114,8 @@ function createTagTexture(text: string) {
   if (lines.length === 1) {
     ctx.fillText(text, centerX, centerY)
   } else {
-    ctx.fillText(lines[0]??'', centerX, centerY - lineHeight / 2)
-    ctx.fillText(lines[1]??'', centerX, centerY + lineHeight / 2)
+    ctx.fillText(lines[0] ?? '', centerX, centerY - lineHeight / 2)
+    ctx.fillText(lines[1] ?? '', centerX, centerY + lineHeight / 2)
   }
 
   return new THREE.CanvasTexture(canvas)

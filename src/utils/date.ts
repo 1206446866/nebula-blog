@@ -34,17 +34,9 @@ export function formatRelativeDay(dateTime: string | Date): string {
   const now = new Date()
 
   // 清除时分秒，只比较日期
-  const today = new Date(
-    now.getFullYear(),
-    now.getMonth(),
-    now.getDate()
-  )
+  const today = new Date(now.getFullYear(), now.getMonth(), now.getDate())
 
-  const target = new Date(
-    date.getFullYear(),
-    date.getMonth(),
-    date.getDate()
-  )
+  const target = new Date(date.getFullYear(), date.getMonth(), date.getDate())
 
   const diffTime = today.getTime() - target.getTime()
 
