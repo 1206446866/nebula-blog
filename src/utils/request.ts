@@ -3,7 +3,6 @@ import axios, { type AxiosInstance } from 'axios'
 import { ElMessage } from 'element-plus'
 import router from '@/router'
 import { useAuthStore } from '../stores/auth.ts'
-import { useLoadingStore } from '@/stores/loading.ts'
 
 const service: AxiosInstance = axios.create({
   baseURL: '/api',
@@ -25,8 +24,6 @@ declare module 'axios' {
  */
 service.interceptors.request.use((config) => {
   const userStore = useAuthStore()
-  const loadingStore = useLoadingStore()
-  loadingStore.start()
   const token = userStore.getToken()
   if (token) {
     config.headers = config.headers || {}
@@ -40,8 +37,6 @@ service.interceptors.request.use((config) => {
  */
 service.interceptors.response.use(
   (response) => {
-    const loadingStore = useLoadingStore()
-    loadingStore.end()
     const { code, message } = response.data
     if (code !== 200) {
       ElMessage.error(message || '请求失败')
@@ -51,8 +46,6 @@ service.interceptors.response.use(
   },
 
   (error) => {
-    const loadingStore = useLoadingStore()
-    loadingStore.end()
     const status = error.response?.status
     /**
      * 登录过期

@@ -10,7 +10,3 @@ export function getTokenPayload() {
 export function getCurrentUserId() {
   return getTokenPayload()?.sub || -1
 }
-
-export function getCurrentRoleList() {
-  return useAuthStore().roles
-}

@@ -64,7 +64,8 @@ const goProfile = () => {
 }
 
 const logout = () => {
-  localStorage.clear()
+  const authStore = useAuthStore()
+  authStore.logout()
   router.push('/login')
 }
 
