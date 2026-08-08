@@ -1,161 +1,154 @@
 <script setup lang="ts">
-import { ElMessage } from 'element-plus'
-import { reactive, ref } from 'vue'
-import { useRouter } from 'vue-router'
-import NebulaCard from '@/components/NebulaCard.vue'
-import { loginApi } from '@/api/auth'
-import { useAuthStore } from '@/stores/auth'
-import { getCurrentRoleList } from '@/utils/auth.ts'
+import { computed, reactive, ref } from 'vue'
+import LoginForm from './components/LoginForm.vue'
+import RegisterSelect from './components/RegisterSelect.vue'
+import EmailRegisterForm from './components/EmailRegisterForm.vue'
+import PhoneRegisterForm from './components/PhoneRegisterForm.vue'
+import StarBackground from '@/components/StarBackground.vue'
 
 defineOptions({
-  name: 'LoginPage',
+  name: 'AuthIndex',
 })
 
-const router = useRouter()
+type Mode = 'login' | 'register-select' | 'email-register' | 'phone-register'
+const emailCaptchaExpireTime = ref(0)
+const mode = ref<Mode>('login')
+const direction = ref<'next' | 'prev'>('next')
+const componentMap = {
+  login: LoginForm,
 
-const userStore = useAuthStore()
+  'register-select': RegisterSelect,
 
-const loading = ref(false)
+  'email-register': EmailRegisterForm,
 
-const form = reactive({
-  nid: '',
+  'phone-register': PhoneRegisterForm,
+}
+const registerForm = reactive({
+  email: '',
   password: '',
+  code: '',
+})
+const registerProps = computed(() => {
+  if (mode.value !== 'email-register') {
+    return {}
+  }
+
+  return {
+    registerForm,
+    emailCaptchaExpireTime,
+  }
+})
+const updateRegisterForm = (value: Partial<typeof registerForm>) => {
+  Object.assign(registerForm, value)
+}
+const currentComponent = computed(() => {
+  return componentMap[mode.value]
 })
 
-const handleLogin = async () => {
-  const res = await loginApi(form)
-  if (res.code !== 200 || !res.data) {
-    ElMessage.error(res.message || '登录失败')
-    return
-  }
-  userStore.setAuth(res.data)
-  // TODO print
-  console.log(res.data)
-  if (getCurrentRoleList().includes('ADMIN')) {
-    router.push('/admin')
-  } else {
-    router.push('/')
-  }
+const changeMode = (value: Mode) => {
+  const order: Mode[] = ['login', 'register-select', 'email-register', 'phone-register']
+
+  const currentIndex = order.indexOf(mode.value)
+
+  const targetIndex = order.indexOf(value)
+
+  direction.value = targetIndex > currentIndex ? 'next' : 'prev'
+
+  mode.value = value
 }
 </script>
 
 <template>
-  <div class="login-container">
-    <div class="background-glow glow-1"></div>
-    <div class="background-glow glow-2"></div>
-
-    <NebulaCard class="login-card">
-      <div class="login-header">
-        <h1>Nebula</h1>
-
-        <p>Next Generation Tech Platform</p>
-      </div>
-
-      <el-form :model="form" @submit.prevent>
-        <el-form-item>
-          <el-input v-model="form.nid" size="large" placeholder="账号（NID）" />
-        </el-form-item>
-
-        <el-form-item>
-          <el-input
-            v-model="form.password"
-            size="large"
-            type="password"
-            placeholder="Password"
-            show-password
-          />
-        </el-form-item>
-
-        <el-button
-          class="login-button"
-          type="primary"
-          size="large"
-          :loading="loading"
-          @click="handleLogin"
-        >
-          登录
-        </el-button>
-      </el-form>
-    </NebulaCard>
+  <div class="auth-container">
+    <StarBackground />
+    <div class="glass-card">
+      <Transition :name="direction === 'next' ? 'slide-next' : 'slide-prev'" mode="out-in">
+        <component
+          :is="currentComponent"
+          v-bind="registerProps"
+          :register-form="registerForm"
+          @update:register-form="updateRegisterForm"
+          :email-captcha-expire-time="emailCaptchaExpireTime"
+          @update:email-captcha-expire-time="emailCaptchaExpireTime = $event"
+          @register="changeMode('register-select')"
+          @email-register="changeMode('email-register')"
+          @phone-register="changeMode('phone-register')"
+          @login="changeMode('login')"
+          @back="changeMode('register-select')"
+        />
+      </Transition>
+    </div>
   </div>
 </template>
 
 <style scoped>
-.login-container {
-  position: relative;
-
+.auth-container {
   min-height: 100vh;
 
   display: flex;
+
   justify-content: center;
+
   align-items: center;
 
   overflow: hidden;
 
+  position: relative;
+
   background: radial-gradient(circle at top, #1e293b 0%, #020617 60%);
 }
 
-.login-card {
+.glass-card {
   width: 420px;
 
-  padding: 48px;
+  padding: 45px;
 
-  position: relative;
-  z-index: 2;
+  background: transparent;
+
+  border: 2px solid rgba(255, 255, 255, 0.35);
+
+  border-radius: 20px;
+
+  backdrop-filter: blur(20px);
+
+  -webkit-backdrop-filter: blur(20px);
+
+  box-shadow: 0 0 30px rgba(0, 0, 0, 0.5);
+
+  overflow: hidden;
+
+  transition:
+    width 0.2s ease,
+    height 0.2s ease;
 }
 
-.login-header {
-  text-align: center;
-
-  margin-bottom: 40px;
+.slide-next-enter-active,
+.slide-next-leave-active {
+  transition: 0.1s ease;
 }
 
-.login-header h1 {
-  font-size: 56px;
-  font-weight: 800;
-
-  margin-bottom: 12px;
-
-  background: var(--nebula-gradient);
-
-  -webkit-background-clip: text;
-  -webkit-text-fill-color: transparent;
+.slide-next-enter-from {
+  opacity: 0;
+  transform: translateX(40px);
 }
 
-.login-header p {
-  color: var(--nebula-text-secondary);
+.slide-next-leave-to {
+  opacity: 0;
+  transform: translateX(-40px);
 }
 
-.login-button {
-  width: 100%;
-
-  margin-top: 12px;
+.slide-prev-enter-active,
+.slide-prev-leave-active {
+  transition: 0.1s ease;
 }
 
-.background-glow {
-  position: absolute;
-
-  width: 500px;
-  height: 500px;
-
-  border-radius: 50%;
-
-  filter: blur(120px);
-
-  opacity: 0.25;
+.slide-prev-enter-from {
+  opacity: 0;
+  transform: translateX(-40px);
 }
 
-.glow-1 {
-  background: #38bdf8;
-
-  top: -120px;
-  left: -120px;
-}
-
-.glow-2 {
-  background: #818cf8;
-
-  bottom: -120px;
-  right: -120px;
+.slide-prev-leave-to {
+  opacity: 0;
+  transform: translateX(40px);
 }
 </style>

@@ -3,7 +3,7 @@ import router from './index'
 import { useAuthStore } from '../stores/auth'
 
 // 白名单页面无需登录
-const whiteList = ['/login']
+const whiteList = ['/login', '/test', '/register']
 
 router.beforeEach((to) => {
   const userStore = useAuthStore()

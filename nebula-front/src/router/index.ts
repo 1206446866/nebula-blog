@@ -5,10 +5,14 @@ const staticRoutes: RouteRecordRaw[] = [
   /** * 登录页 */
   { path: '/login', component: () => import('@/views/login/index.vue') },
   {
+    path: '/register',
+    component: () => import('@/views/login/components/RegisterConfirm.vue'),
+  },
+  {
     path: '/test',
-    component: () => import('@/views/Test.vue'),
+    component: () => import('@/views/login/Test.vue'),
     meta: {
-      title: '角色管理',
+      title: '测试页面',
     },
   },
   /** * AdminLayout */
@@ -82,7 +86,7 @@ const staticRoutes: RouteRecordRaw[] = [
       {
         path: 'article/:id',
         name: 'ArticleDetail',
-        component: () => import('../views/home/article/detail/ArticleDetail.vue'),
+        component: () => import('@/views/home/article/detail/ArticleDetail.vue'),
         meta: { title: '文章详情' },
       },
       {
@@ -92,7 +96,7 @@ const staticRoutes: RouteRecordRaw[] = [
       },
       {
         path: 'tag',
-        component: () => import('../views/home/tag/index.vue'),
+        component: () => import('@/views/home/tag/index.vue'),
         meta: { title: '标签主页' },
       },
       {

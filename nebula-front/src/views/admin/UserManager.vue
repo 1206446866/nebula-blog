@@ -122,7 +122,7 @@ const editForm = reactive<UserVO>({
   username: '',
   roleIds: [],
   status: 0,
-  nid: '',
+  account: '',
 })
 const columns = [
   {
