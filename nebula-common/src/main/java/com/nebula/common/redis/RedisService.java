@@ -91,4 +91,15 @@ public class RedisService {
         }
     }
 
+    /**
+     * 获取过期时间（秒）
+     */
+    public Long getExpire(String key) {
+        try {
+            return redisTemplate.getExpire(key, TimeUnit.SECONDS);
+        } catch (Exception e) {
+            log.warn("Redis获取过期时间失败,key={}", key, e);
+            return -3L;
+        }
+    }
 }

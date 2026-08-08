@@ -92,32 +92,26 @@
         <dependency>
             <groupId>com.nebula</groupId>
             <artifactId>nebula-common</artifactId>
-            <version>1.0.0</version>
         </dependency>
         <dependency>
             <groupId>com.nebula</groupId>
             <artifactId>nebula-api</artifactId>
-            <version>1.0.0</version>
         </dependency>
         <dependency>
             <groupId>com.nebula</groupId>
             <artifactId>nebula-auth</artifactId>
-            <version>1.0.0</version>
         </dependency>
         <dependency>
             <groupId>com.nebula</groupId>
             <artifactId>nebula-user</artifactId>
-            <version>1.0.0</version>
         </dependency>
         <dependency>
             <groupId>com.nebula</groupId>
             <artifactId>nebula-article</artifactId>
-            <version>1.0.0</version>
         </dependency>
         <dependency>
             <groupId>com.nebula</groupId>
             <artifactId>nebula-comment</artifactId>
-            <version>1.0.0</version>
         </dependency>
         <dependency>
             <groupId>com.nebula</groupId>
@@ -127,12 +121,10 @@
         <dependency>
             <groupId>com.nebula</groupId>
             <artifactId>nebula-tag</artifactId>
-            <version>1.0.0</version>
         </dependency>
         <dependency>
             <groupId>com.nebula</groupId>
             <artifactId>nebula-role</artifactId>
-            <version>1.0.0</version>
         </dependency>
 
         <dependency>

@@ -117,6 +117,12 @@
 
             <dependency>
                 <groupId>com.nebula</groupId>
+                <artifactId>nebula-role</artifactId>
+                <version>${project.version}</version>
+            </dependency>
+
+            <dependency>
+                <groupId>com.nebula</groupId>
                 <artifactId>nebula-article</artifactId>
                 <version>${project.version}</version>
             </dependency>

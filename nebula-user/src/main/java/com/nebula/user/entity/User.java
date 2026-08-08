@@ -56,9 +56,7 @@ public class User extends Model<User> {
     @Column(isLogicDelete = true, comment = "逻辑删除 0未删除 1已删除")
     private Integer deleted;
 
-
     private String email;
-
 
     private String phone;
 

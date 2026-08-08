@@ -1,8 +1,9 @@
 package com.nebula.auth.service;
 
 import com.nebula.auth.dto.ChangePasswordDTO;
+import com.nebula.auth.dto.EmailVerifyDTO;
 import com.nebula.auth.dto.LoginDTO;
-import com.nebula.auth.dto.RegisterRequestDTO;
+import com.nebula.auth.dto.RegisterDTO;
 import com.nebula.auth.vo.LoginVO;
 
 import java.util.List;
@@ -18,18 +19,23 @@ public interface AuthService {
      */
     LoginVO login(LoginDTO loginDTO);
 
+    Long sendEmailCaptcha(String email);
+
+    String verifyEmailCaptcha(EmailVerifyDTO dto);
+
     /**
      * 注册用户
      *
      * @param dto 注册信息
      * @return 操作是否成功
      */
-    Boolean register(RegisterRequestDTO dto);
+    Boolean register(RegisterDTO dto);
 
     /**
      * 修改用户密码（用户自己操作）
      *
-     * @param dto@return 操作是否成功
+     * @param dto
+     * @return 操作是否成功
      */
     Boolean changePassword(ChangePasswordDTO dto);
 

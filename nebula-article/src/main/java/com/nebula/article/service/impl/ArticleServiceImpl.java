@@ -21,7 +21,7 @@ import com.nebula.article.service.ArticleService;
 import com.nebula.article.service.ArticleTagService;
 import com.nebula.article.vo.ArticleVO;
 import com.nebula.common.constant.ArticleStatus;
-import com.nebula.common.constant.RedisKey;
+import com.nebula.common.constant.redisKey.ArticleRedisKey;
 import com.nebula.common.exception.BusinessException;
 import com.nebula.common.redis.RedisService;
 import com.nebula.common.util.SecurityUtils;
@@ -41,8 +41,8 @@ import static com.nebula.article.entity.table.ArticleCategoryTableDef.ARTICLE_CA
 import static com.nebula.article.entity.table.ArticleLikeTableDef.ARTICLE_LIKE;
 import static com.nebula.article.entity.table.ArticleTableDef.ARTICLE;
 import static com.nebula.article.entity.table.ArticleTagTableDef.ARTICLE_TAG;
-import static com.nebula.common.constant.RedisKey.ARTICLE_DETAIL;
-import static com.nebula.common.constant.RedisKey.ARTICLE_VIEW;
+import static com.nebula.common.constant.redisKey.ArticleRedisKey.ARTICLE_DETAIL;
+import static com.nebula.common.constant.redisKey.ArticleRedisKey.ARTICLE_VIEW;
 import static com.nebula.common.exception.code.ArticleErrorCode.*;
 
 @Service
@@ -148,7 +148,7 @@ public class ArticleServiceImpl extends ServiceImpl<ArticleMapper, Article> impl
     @Override
     public boolean updateArticle(UpdateArticleDto dto) {
         checkOwnerOrAdmin(dto.getId());
-        redisService.delete(RedisKey.ARTICLE_DETAIL + dto.getId());
+        redisService.delete(ArticleRedisKey.ARTICLE_DETAIL + dto.getId());
         boolean res = updateById(Article.create()
                 .setId(dto.getId())
                 .setTitle(dto.getTitle())
@@ -162,7 +162,7 @@ public class ArticleServiceImpl extends ServiceImpl<ArticleMapper, Article> impl
     @Override
     public boolean changeArticleStatus(ChangeArticleStatusDto dto) {
         boolean update = Article.create().setId(dto.getId()).setStatus(dto.getStatus()).updateById();
-        redisService.delete(RedisKey.ARTICLE_DETAIL + dto.getId());
+        redisService.delete(ArticleRedisKey.ARTICLE_DETAIL + dto.getId());
         return update;
     }
 
@@ -248,7 +248,7 @@ public class ArticleServiceImpl extends ServiceImpl<ArticleMapper, Article> impl
     public Boolean delete(Long id) {
         checkOwnerOrAdmin(id);
         Article.create().setId(id).removeById();
-        return redisService.delete(RedisKey.ARTICLE_DETAIL + id);
+        return redisService.delete(ArticleRedisKey.ARTICLE_DETAIL + id);
     }
 
     private void checkOwnerOrAdmin(Long articleId) {

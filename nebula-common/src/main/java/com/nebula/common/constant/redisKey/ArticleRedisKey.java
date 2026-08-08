@@ -1,8 +1,9 @@
-package com.nebula.common.constant;
+package com.nebula.common.constant.redisKey;
 
-public class RedisKey {
+public class ArticleRedisKey {
 
     public static final String ARTICLE_DETAIL = "article:detail:";
 
     public static final String ARTICLE_VIEW = "article:view:";
+
 }

@@ -5,6 +5,13 @@ spring:
   application:
     name: nebula-start
 
+  #    时间格式化
+  jackson:
+    date-format: yyyy-MM-dd HH:mm:ss
+    time-zone: Asia/Shanghai
+    serialization:
+      write-dates-as-timestamps: false
+
   datasource:
     url: JDBC:mysql://localhost:3306/nebula_blog?useUnicode=true&characterEncoding=UTF-8&serverTimezone=Asia/Shanghai
     username: root
@@ -23,13 +30,25 @@ spring:
       database: 0
       timeout: 10s
 
-mybatis-flex:
+  mail:
+    host: smtp.qq.com
+    port: 465
+    username: ${MAIL_USERNAME}
+    password: ${MAIL_PASSWORD}
+    default-encoding: UTF-8
+    properties:
+      mail:
+        debug: true
+        smtp:
+          ssl:
+            enable: true
 
+mybatis-flex:
 #  configuration:
 #    log-impl: org.apache.ibatis.logging.stdout.StdOutImpl
 
   global-config:
-    print-banner: false
+    print-banner: true
 
 jwt:
 #  secret：用作 HS256 签名密钥，必须保证长度足够（>=32字节），否则会报错。
@@ -43,3 +62,4 @@ file:
 #logging:
 #  level:
 #    org.springframework.security: DEBUG
+

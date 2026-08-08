@@ -13,8 +13,8 @@ public class LoginDTO {
     /**
      * 账号
      */
-    @NotBlank(message = "NID不能为空")
-    private String nid;
+    @NotBlank(message = "NID/邮箱不能为空")
+    private String account;
 
     /**
      * 密码

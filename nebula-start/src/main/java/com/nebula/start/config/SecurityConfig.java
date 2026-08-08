@@ -44,7 +44,10 @@ public class SecurityConfig {
                 // 接口权限配置
                 .authorizeHttpRequests(auth -> auth
                         // 登录接口放行
-                        .requestMatchers("/auth/login").permitAll()
+                        .requestMatchers("/auth/login",
+                                "/auth/register",
+                                "/auth/email/captcha",
+                                "/auth/email/verify").permitAll()
                         // 静态资源放行
                         .requestMatchers("/upload/**").permitAll()
                         //spring doc放行
