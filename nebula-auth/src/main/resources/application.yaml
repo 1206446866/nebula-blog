@@ -2,13 +2,18 @@ server:
   port: 8080
 
 spring:
+  config:
+    import:
+      - optional:configtree:./.secrets/
+      - optional:configtree:./nebula-start/.secrets/
+      - optional:configtree:../nebula-start/.secrets/
   application:
     name: nebula-auth
 
   datasource:
     url: JDBC:mysql://localhost:3306/nebula_blog?useUnicode=true&characterEncoding=UTF-8&serverTimezone=Asia/Shanghai
-    username: root
-    password: 123456
+    username: ${NEBULA_DB_USERNAME}
+    password: ${NEBULA_DB_PASSWORD}
     driver-class-name: com.mysql.cj.jdbc.Driver
 
   data:

@@ -25,7 +25,7 @@ public class JwtAuthenticationEntryPoint implements AuthenticationEntryPoint {
 
         response.setStatus(HttpServletResponse.SC_UNAUTHORIZED);
 
-        Result<Void> result = Result.error(401, "未登录或Token已过期");
+        Result<Void> result = Result.error(401, "未登录或登录状态已失效，请重新登录");
 
         String json = new ObjectMapper().writeValueAsString(result);
 

@@ -1,7 +1,12 @@
 server:
   port: 8080
+  forward-headers-strategy: none
 
 spring:
+  config:
+    import:
+      - optional:configtree:./.secrets/
+      - optional:configtree:./nebula-start/.secrets/
   application:
     name: nebula-start
 
@@ -14,8 +19,8 @@ spring:
 
   datasource:
     url: JDBC:mysql://localhost:3306/nebula_blog?useUnicode=true&characterEncoding=UTF-8&serverTimezone=Asia/Shanghai
-    username: root
-    password: 123456
+    username: ${NEBULA_DB_USERNAME}
+    password: ${NEBULA_DB_PASSWORD}
     driver-class-name: com.mysql.cj.jdbc.Driver
 
     Hikari:
@@ -38,7 +43,7 @@ spring:
     default-encoding: UTF-8
     properties:
       mail:
-        debug: true
+        debug: false
         smtp:
           ssl:
             enable: true
@@ -51,8 +56,8 @@ mybatis-flex:
     print-banner: true
 
 jwt:
-#  secret：用作 HS256 签名密钥，必须保证长度足够（>=32字节），否则会报错。
-  secret: nebula-blog-auth-secret-key-nebula-blog-auth-secret-key
+  # Base64 of at least 32 random bytes; no shared/default signing key.
+  secret: ${NEBULA_JWT_SECRET:}
 #  expire：token 过期时间，单位毫秒，这里 604800000ms = 7天。
   expire: 604800000
 

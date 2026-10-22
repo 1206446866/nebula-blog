@@ -7,6 +7,7 @@ import com.nebula.user.entity.User;
 import com.nebula.user.mapper.UserMapper;
 import lombok.RequiredArgsConstructor;
 import org.springframework.security.authentication.AuthenticationProvider;
+import org.springframework.security.authentication.AccountStatusUserDetailsChecker;
 import org.springframework.security.authentication.BadCredentialsException;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.crypto.password.PasswordEncoder;
@@ -24,6 +25,7 @@ public class EmailAuthenticationProvider implements AuthenticationProvider {
     private final UserMapper userMapper;
     private final AuthUserBuilder authUserBuilder;
     private final PasswordEncoder passwordEncoder;
+    private final AccountStatusUserDetailsChecker accountStatusChecker = new AccountStatusUserDetailsChecker();
 
     @Override
     public Authentication authenticate(Authentication authentication) {
@@ -43,6 +45,7 @@ public class EmailAuthenticationProvider implements AuthenticationProvider {
         }
 
         AuthLoginUser loginUser = authUserBuilder.createLoginUser(user);
+        accountStatusChecker.check(loginUser);
 
         return new EmailAuthenticationToken(loginUser, loginUser.getAuthorities());
     }

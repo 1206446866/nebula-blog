@@ -7,6 +7,8 @@ import com.nebula.comment.service.CommentService;
 import com.nebula.comment.vo.CommentVO;
 import com.nebula.common.result.Result;
 import jakarta.validation.Valid;
+import jakarta.validation.constraints.Max;
+import jakarta.validation.constraints.Min;
 import lombok.RequiredArgsConstructor;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.validation.annotation.Validated;
@@ -21,13 +23,16 @@ public class CommentController {
     private final CommentService commentService;
 
     @GetMapping
-    public Result<Page<CommentVO>> pageComments(@RequestParam(required = false) Long articleId, @RequestParam(required = false) String content,@RequestParam(defaultValue = "1") Integer currentPage, @RequestParam(defaultValue = "10") Integer size) {
+    public Result<Page<CommentVO>> pageComments(@RequestParam(required = false) @Min(1) Long articleId,
+                                              @RequestParam(required = false) String content,
+                                              @RequestParam(defaultValue = "1") @Min(1) Integer currentPage,
+                                              @RequestParam(defaultValue = "10") @Min(1) @Max(100) Integer size) {
         return Result.success(commentService.pageComments(articleId,content,currentPage, size));
     }
 
     @PreAuthorize("hasAuthority('comment:create')")
     @PutMapping("/release")
-    public Result<Boolean> releaseComment(@RequestBody ReleaseCommentDto dto) {
+    public Result<Boolean> releaseComment(@RequestBody @Valid ReleaseCommentDto dto) {
         return Result.success(commentService.releaseComment(dto));
     }
 

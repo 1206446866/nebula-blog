@@ -1,6 +1,8 @@
 package com.nebula.common.util;
 
 import jakarta.servlet.http.HttpServletRequest;
+import java.net.InetAddress;
+import java.net.UnknownHostException;
 
 public class RequestUtils {
     private RequestUtils() {
@@ -10,32 +12,20 @@ public class RequestUtils {
      * 获取客户端IP
      */
     public static String getIp(HttpServletRequest request) {
-
-        String ip = request.getHeader("X-Forwarded-For");
-        if (isInvalid(ip)) {
-            ip = request.getHeader("Proxy-Client-IP");
-        }
-        if (isInvalid(ip)) {
-            ip = request.getHeader("WL-Proxy-Client-IP");
-        }
-        if (isInvalid(ip)) {
-            ip = request.getHeader("HTTP_CLIENT_IP");
-        }
-        if (isInvalid(ip)) {
-            ip = request.getHeader("HTTP_X_FORWARDED_FOR");
-        }
-        if (isInvalid(ip)) {
-            ip = request.getRemoteAddr();
-        }
-
-        if (ip != null && ip.contains(",")) {
-            ip = ip.split(",")[0].trim();
-        }
-
-        return ip;
+        String remote = normalizeIp(request.getRemoteAddr());
+        return remote == null ? "Unknown" : remote;
     }
 
-    private static boolean isInvalid(String ip) {
-        return ip == null || ip.isEmpty() || "unknown".equalsIgnoreCase(ip);
+    static String normalizeIp(String value) {
+        if (value == null || value.length() > 64) return null;
+        String ip = value.strip();
+        // Numeric literals only: never resolve client-supplied hostnames through DNS.
+        if (!(ip.matches("(?:[0-9]{1,3}\\.){3}[0-9]{1,3}")
+                || (ip.contains(":") && ip.matches("[0-9a-fA-F:.]+")))) return null;
+        try {
+            return InetAddress.getByName(ip).getHostAddress();
+        } catch (UnknownHostException e) {
+            return null;
+        }
     }
 }

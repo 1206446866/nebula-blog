@@ -5,6 +5,7 @@ import com.nebula.common.security.LoginUser;
 import lombok.RequiredArgsConstructor;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.context.SecurityContextHolder;
+import org.springframework.security.access.AccessDeniedException;
 import org.springframework.stereotype.Component;
 
 import java.util.Objects;
@@ -76,6 +77,12 @@ public class SecurityUtils {
 
     public static boolean isSuperAdmin() {
         return hasRole(RoleEnum.SUPER_ADMIN.getCode());
+    }
+
+    public static void requireSuperAdmin() {
+        if (!isSuperAdmin()) {
+            throw new AccessDeniedException("仅超级管理员可以执行此操作");
+        }
     }
 
     public static boolean isSelf(Long userId) {

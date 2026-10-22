@@ -19,6 +19,9 @@ public interface AuthService {
      */
     LoginVO login(LoginDTO loginDTO);
 
+    /** Revoke only the bearer session used for this request. */
+    void logout(String token);
+
     Long sendEmailCaptcha(String email);
 
     String verifyEmailCaptcha(EmailVerifyDTO dto);
@@ -45,7 +48,7 @@ public interface AuthService {
      * @param userId 用户ID
      * @return 操作是否成功
      */
-    Boolean resetPassword(Long userId);
+    Boolean resetPassword(Long userId, com.nebula.auth.dto.ResetPasswordDTO dto);
 
     /**
      * 查询用户拥有的权限标识

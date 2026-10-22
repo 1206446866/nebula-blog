@@ -17,6 +17,7 @@ public class ChangeArticleStatusDto {
      * 文章ID
      */
     @NotNull(message = "文章ID不能为空")
+    @Min(value = 1, message = "文章ID非法")
     private Long id;
 
     /**

@@ -14,9 +14,11 @@ public abstract class BaseException extends RuntimeException {
      * 错误码
      */
     private final Integer code;
+    private final int httpStatus;
 
     public BaseException(ErrorCode errorCode) {
         super(errorCode.getMessage());
         this.code = errorCode.getCode();
+        this.httpStatus = errorCode.getHttpStatus();
     }
 }

@@ -11,6 +11,7 @@ import com.nebula.role.vo.RoleVO;
 import lombok.RequiredArgsConstructor;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
+import jakarta.validation.Valid;
 
 import java.util.List;
 
@@ -34,9 +35,9 @@ public class RoleController {
     /**
      * 获取角色分页
      */
-    @PreAuthorize("hasAuthority('user:list')")
+    @PreAuthorize("@securityUtils.hasPermission('user:list')")
     @GetMapping("/page")
-    public Result<Page<RoleVO>> getPageRoles(RolePageDto dto) {
+    public Result<Page<RoleVO>> getPageRoles(@Valid RolePageDto dto) {
         return Result.success(roleService.pageRoles(dto));
     }
 
@@ -52,14 +53,14 @@ public class RoleController {
 
     @PreAuthorize("@securityUtils.isSuperAdmin()")
     @PostMapping("/create")
-    public Result<Boolean> createRole(@RequestBody CreateRoleDto  dto) {
+    public Result<Boolean> createRole(@RequestBody @Valid CreateRoleDto dto) {
         return  Result.success(roleService.createRole(dto));
     }
 
     @PreAuthorize("@securityUtils.isSuperAdmin()")
     @PutMapping("/update")
-    public Result<Boolean> updateRole(@RequestBody UpdateRoleDto dto) {
-        return Result.success(Role.create().setId(dto.getId()).setName(dto.getName()).setDescription(dto.getDescription()).updateById());
+    public Result<Boolean> updateRole(@RequestBody @Valid UpdateRoleDto dto) {
+        return Result.success(roleService.updateRole(dto));
     }
 
     /**

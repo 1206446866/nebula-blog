@@ -1,7 +1,13 @@
 package com.nebula.auth.filter;
 
 import com.nebula.auth.security.AuthLoginUser;
+import com.nebula.auth.security.TokenSessionUnavailableException;
+import com.fasterxml.jackson.databind.ObjectMapper;
+import com.nebula.common.result.Result;
+import io.jsonwebtoken.Claims;
+import io.jsonwebtoken.JwtException;
 import com.nebula.auth.util.JwtUtil;
+import com.nebula.common.constant.UserStatus;
 import com.nebula.role.service.PermissionService;
 import com.nebula.role.service.RoleService;
 import com.nebula.user.entity.User;
@@ -51,25 +57,42 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
         }
         // 提取Token
         String token = authHeader.substring(7);
-        // 校验Token
-        if (!jwtUtil.validateToken(token)) {
+        Claims claims;
+        Long userId;
+        try {
+            claims = jwtUtil.parseToken(token);
+            userId = Long.parseLong(claims.getSubject());
+            if (userId <= 0) throw new IllegalArgumentException("Invalid subject");
+        } catch (JwtException | IllegalArgumentException e) {
             filterChain.doFilter(request, response);
             return;
         }
 
-        // 获取用户ID
-        Long userId = jwtUtil.getUserId(token);
-
         // 查询用户
         User user = userMapper.selectOneByCondition(USER.ID.eq(userId));
 
-        if (user == null) {
+        if (user == null || !UserStatus.NORMAL.matches(user.getStatus())
+                || Integer.valueOf(1).equals(user.getDeleted())) {
+            filterChain.doFilter(request, response);
+            return;
+        }
+
+        boolean active;
+        try {
+            active = jwtUtil.isSessionActive(claims, user);
+        } catch (TokenSessionUnavailableException e) {
+            response.setStatus(HttpServletResponse.SC_SERVICE_UNAVAILABLE);
+            response.setContentType("application/json;charset=UTF-8");
+            response.getWriter().write(new ObjectMapper().writeValueAsString(Result.error(503, e.getMessage())));
+            return;
+        }
+        if (!active) {
             filterChain.doFilter(request, response);
             return;
         }
 
         // 查询用户权限
-        List<String> roles = roleService.getRolesByUserId(userId).stream().map(role -> "ROLE_"+role.getName()).toList();
+        List<String> roles = roleService.getRolesByUserId(userId).stream().map(role -> role.getName()).toList();
          // 查询用户权限
         List<String> permissions = permissionService.getPermissionsByUserId(userId);
         // 构建登录用户

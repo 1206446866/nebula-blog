@@ -4,6 +4,7 @@ import com.mybatisflex.core.paginate.Page;
 import com.mybatisflex.core.service.IService;
 import com.nebula.role.dto.CreateRoleDto;
 import com.nebula.role.dto.RolePageDto;
+import com.nebula.role.dto.UpdateRoleDto;
 import com.nebula.role.entity.Role;
 import com.nebula.role.vo.RoleVO;
 
@@ -36,6 +37,8 @@ public interface RoleService extends IService<Role> {
     Boolean removeRole( Long roleId);
 
     Boolean createRole(CreateRoleDto dto);
+
+    Boolean updateRole(UpdateRoleDto dto);
 
     List<String> getDescriptions(Long userId);
 }

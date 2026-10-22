@@ -1,6 +1,7 @@
 package com.nebula.auth.security;
 
 import com.nebula.common.constant.UserStatus;
+import com.nebula.common.constant.RoleEnum;
 import com.nebula.common.security.LoginUser;
 import com.nebula.user.entity.User;
 import lombok.Data;
@@ -8,7 +9,7 @@ import lombok.NoArgsConstructor;
 import org.springframework.security.core.GrantedAuthority;
 import org.springframework.security.core.authority.SimpleGrantedAuthority;
 
-import java.util.ArrayList;
+import java.util.LinkedHashSet;
 import java.util.Collection;
 import java.util.List;
 
@@ -42,16 +43,23 @@ public class AuthLoginUser implements LoginUser {
 
     @Override
     public Collection<? extends GrantedAuthority> getAuthorities() {
-        List<GrantedAuthority> authorities = new ArrayList<>();
-        if (roles == null || roles.isEmpty()) {
-            return List.of();
+        var authorities = new LinkedHashSet<String>();
+        if (roles != null) {
+            roles.stream().filter(role -> role != null && !role.isBlank())
+                    .map(role -> role.startsWith("ROLE_") ? role : "ROLE_" + role)
+                    .forEach(authorities::add);
         }
-        if (permissions == null || permissions.isEmpty()) {
-            return List.of();
+        if (authorities.contains("ROLE_" + RoleEnum.SUPER_ADMIN.getCode())) {
+            authorities.add("ROLE_" + RoleEnum.ADMIN.getCode());
         }
-        authorities.addAll(roles.stream().map(SimpleGrantedAuthority::new).toList());
-        authorities.addAll(permissions.stream().map(SimpleGrantedAuthority::new).toList());
-        return authorities;
+        if (authorities.contains("ROLE_" + RoleEnum.ADMIN.getCode())) {
+            authorities.add("ROLE_" + RoleEnum.USER.getCode());
+        }
+        if (permissions != null) {
+            permissions.stream().filter(permission -> permission != null && !permission.isBlank())
+                    .forEach(authorities::add);
+        }
+        return authorities.stream().map(SimpleGrantedAuthority::new).toList();
     }
 
     @Override
@@ -66,7 +74,7 @@ public class AuthLoginUser implements LoginUser {
 
     @Override
     public boolean isEnabled() {
-        return UserStatus.NORMAL.matches(user.getStatus());
+        return !Integer.valueOf(1).equals(user.getDeleted()) && UserStatus.NORMAL.matches(user.getStatus());
     }
 
     @Override
@@ -76,8 +84,7 @@ public class AuthLoginUser implements LoginUser {
 
     @Override
     public boolean isAccountNonLocked() {
-        return true;
-//        return UserStatus.LOCKED.notMatches(user.getStatus());
+        return !UserStatus.LOCKED.matches(user.getStatus());
     }
 
     public static AuthLoginUser create() {

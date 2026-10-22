@@ -2,6 +2,8 @@ package com.nebula.article.dto;
 
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
+import jakarta.validation.constraints.Positive;
+import jakarta.validation.constraints.Size;
 import lombok.Data;
 import lombok.experimental.Accessors;
 
@@ -20,6 +22,7 @@ public class UpdateArticleDto {
      * 文章ID
      */
     @NotNull(message = "文章ID不能为空")
+    @Positive
     private Long id;
 
     /**
@@ -35,7 +38,9 @@ public class UpdateArticleDto {
     private String content;
 
     @NotNull(message = "必须选择一个分类")
+    @Positive
     private Long categoryId;
 
-    private List<Long> tagIds;
+    @Size(max = 100)
+    private List<@NotNull @Positive Long> tagIds;
 }

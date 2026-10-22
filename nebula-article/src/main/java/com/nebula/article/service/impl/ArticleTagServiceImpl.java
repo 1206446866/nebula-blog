@@ -7,6 +7,7 @@ import com.mybatisflex.spring.service.impl.ServiceImpl;
 import com.nebula.article.entity.ArticleTag;
 import com.nebula.article.mapper.ArticleTagMapper;
 import com.nebula.article.service.ArticleTagService;
+import com.nebula.article.service.ArticleCatalogReferences;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -24,9 +25,12 @@ import static com.nebula.article.entity.table.ArticleTagTableDef.ARTICLE_TAG;
 @RequiredArgsConstructor
 public class ArticleTagServiceImpl extends ServiceImpl<ArticleTagMapper, ArticleTag> implements ArticleTagService {
 
+    private final ArticleCatalogReferences references;
+
     @Override
     @Transactional(rollbackFor = Exception.class)
     public boolean bindTags(Long articleId, List<Long> tagIds) {
+        tagIds = references.lockTags(tagIds);
         // 标签重建
         // 1 删除旧关系
         removeTags(articleId);

@@ -53,10 +53,24 @@ public enum ArticleErrorCode implements ErrorCode {
     /**
      * 文章标签绑定失败
      */
-    ARTICLE_TAG_BIND_FAILED(40409, "文章标签绑定失败");
+    ARTICLE_TAG_BIND_FAILED(40409, "文章标签绑定失败"),
+
+    ARTICLE_LIKE_FAILED(40901, "点赞状态更新失败，请重试"),
+    ARTICLE_STATUS_INVALID(40024, "文章状态非法");
 
 
     private final Integer code;
 
     private final String message;
+
+    @Override
+    public int getHttpStatus() {
+        return switch (this) {
+            case ARTICLE_NOT_FOUND, ARTICLE_NOT_PUBLISHED -> 404;
+            case ARTICLE_ACCESS_DENIED -> 403;
+            case ARTICLE_LIKE_FAILED -> 409;
+            case ARTICLE_STATUS_INVALID -> 400;
+            default -> 500;
+        };
+    }
 }

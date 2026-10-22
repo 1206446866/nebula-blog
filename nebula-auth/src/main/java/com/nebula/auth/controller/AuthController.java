@@ -3,10 +3,12 @@ package com.nebula.auth.controller;
 import com.nebula.auth.dto.*;
 import com.nebula.auth.service.AuthService;
 import com.nebula.auth.vo.LoginVO;
-import com.nebula.common.mail.service.MailService;
+import com.nebula.auth.service.AuthAbuseProtection;
 import com.nebula.common.result.Result;
 import io.swagger.v3.oas.annotations.Operation;
 import jakarta.validation.Valid;
+import jakarta.validation.constraints.Min;
+import jakarta.servlet.http.HttpServletRequest;
 import lombok.RequiredArgsConstructor;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
@@ -22,23 +24,34 @@ import java.util.List;
 public class AuthController {
 
     private final AuthService authService;
-    private final MailService mailService;
+    private final AuthAbuseProtection abuseProtection;
     /**
      * 用户登录
      */
     @Operation(summary = "用户登录", security = {})
     @PostMapping("/login")
-    public Result<LoginVO> login(@Valid @RequestBody LoginDTO loginDTO) {
+    public Result<LoginVO> login(@Valid @RequestBody LoginDTO loginDTO, HttpServletRequest request) {
+        abuseProtection.requireLoginIp(request);
         return Result.success(authService.login(loginDTO));
     }
 
+    @Operation(summary = "退出当前登录会话")
+    @PreAuthorize("isAuthenticated()")
+    @PostMapping("/logout")
+    public Result<Boolean> logout(@RequestHeader("Authorization") String authorization) {
+        authService.logout(authorization.substring(7));
+        return Result.success(true);
+    }
+
     @PostMapping("/email/captcha")
-    public Result<Long> sendEmailCaptcha(@Valid @RequestBody EmailCaptchaDTO dto) {
+    public Result<Long> sendEmailCaptcha(@Valid @RequestBody EmailCaptchaDTO dto, HttpServletRequest request) {
+        abuseProtection.requireEmailIp(request);
         return Result.success(authService.sendEmailCaptcha(dto.getEmail().trim()),"验证码已发送至"+dto.getEmail()+"若没有收到请注意是否被归为垃圾邮件");
     }
 
     @PostMapping("/email/verify")
-    public Result<String> emailVerify(@Valid @RequestBody EmailVerifyDTO dto){
+    public Result<String> emailVerify(@Valid @RequestBody EmailVerifyDTO dto, HttpServletRequest request){
+        abuseProtection.requireVerifyIp(request);
         return Result.success(authService.verifyEmailCaptcha(dto),"确认邮件已发送至"+dto.getEmail()+"若没有收到请注意是否被归为垃圾邮件");
     }
 
@@ -53,7 +66,7 @@ public class AuthController {
     /**
      * 修改密码（用户自己操作）
      */
-    @PreAuthorize("hasAuthority('user:update')")
+    @PreAuthorize("isAuthenticated()")
     @PostMapping("/change-password")
     public Result<Boolean> changePassword(@RequestBody @Valid ChangePasswordDTO dto) {
         return Result.success(authService.changePassword(dto));
@@ -62,16 +75,10 @@ public class AuthController {
     /**
      * 管理员重置用户密码
      */
-    @PreAuthorize("hasAuthority('user:update')")
+    @PreAuthorize("hasRole('ADMIN') && @securityUtils.hasPermission('user:update')")
     @PostMapping("/reset-password/{userId}")
-    public String resetPassword(@PathVariable Long userId) {
-        boolean success = authService.resetPassword(userId);
-        mailService.sendText(
-                "brs1206446866@gmail.com",
-                "Nebula测试邮件",
-                "邮件发送成功"
-        );
-        return success ? Result.success("重置成功").getMessage() : Result.error("重置失败").getMessage();
+    public Result<Boolean> resetPassword(@PathVariable @Min(1) Long userId, @Valid @RequestBody ResetPasswordDTO dto) {
+        return Result.success(authService.resetPassword(userId, dto));
     }
 
     /**

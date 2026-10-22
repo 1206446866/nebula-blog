@@ -33,9 +33,7 @@ public class ApiController {
      */
     @GetMapping("/profile/{id}")
     public Result<UserProfileVO> getProfile(@PathVariable("id") @Min(value = 1, message = "非法的用户ID") Long id, @Valid ProfileQueryDto dto) {
-        long l = System.nanoTime();
         UserProfileVO profile = userProfileFacade.getProfile(id, dto);
-        System.out.println((System.nanoTime() - l)+"ms--------------------------------------------------------------------------");
         return Result.success(profile);
     }
 

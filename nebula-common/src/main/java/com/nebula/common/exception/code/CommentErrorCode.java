@@ -30,8 +30,19 @@ public enum CommentErrorCode implements ErrorCode {
     /**
      * 评论删除失败
      */
-    COMMENT_DELETE_FAILED(5005, "评论删除失败");
+    COMMENT_DELETE_FAILED(5005, "评论删除失败"),
+    COMMENT_LIKE_FAILED(5006, "评论点赞状态更新失败，请重试");
 
     private final Integer code;
     private final String message;
+
+    @Override
+    public int getHttpStatus() {
+        return switch (this) {
+            case COMMENT_NOT_FOUND -> 404;
+            case COMMENT_ACCESS_DENIED -> 403;
+            case COMMENT_LIKE_FAILED -> 409;
+            default -> 500;
+        };
+    }
 }

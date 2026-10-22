@@ -9,6 +9,9 @@ public  final class AuthRedisKey {
 
     public static final String EMAIL_CAPTCHA_CD =
             "auth:email:captcha:cd:";
+    public static final String EMAIL_CAPTCHA_ATTEMPTS = "auth:email:captcha:attempts:";
+    public static final String EMAIL_CAPTCHA_OWNER = "auth:email:captcha:owner:";
+    public static final String EMAIL_SEND_WINDOW = "auth:email:send:window:";
 
     /**
      * 注册临时凭证

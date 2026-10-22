@@ -36,9 +36,9 @@ public class PermissionController {
         return Result.success(permissionService.getPermissionByRoleId(roleId));
     }
 
-    @PreAuthorize("@securityUtils.hasPermission('user:create')")
+    @PreAuthorize("@securityUtils.isSuperAdmin()")
     @PostMapping("/save")
-    public Result<Boolean> saveRolePermissions(@RequestBody SaveRolePermissionsDto dto) {
+    public Result<Boolean> saveRolePermissions(@RequestBody @Valid SaveRolePermissionsDto dto) {
         return Result.success(permissionService.assignPermissionsToRole(dto));
     }
 
@@ -48,19 +48,19 @@ public class PermissionController {
         return Result.success(permissionService.getPermissionPage(dto));
     }
 
-    @PreAuthorize("@securityUtils.hasPermission('user:create')")
+    @PreAuthorize("@securityUtils.isSuperAdmin()")
     @PostMapping("/create")
     public Result<Boolean> createPermission(@Valid @RequestBody CreatePermissionDto dto) {
         return Result.success(permissionService.createPermission(dto));
     }
 
-    @PreAuthorize("@securityUtils.hasPermission('user:update')")
+    @PreAuthorize("@securityUtils.isSuperAdmin()")
     @PutMapping("/update")
     public Result<Boolean> updatePermission(@Valid @RequestBody UpdatePermissionDto dto) {
         return Result.success(permissionService.updatePermission(dto));
     }
 
-    @PreAuthorize("@securityUtils.hasPermission('user:delete')")
+    @PreAuthorize("@securityUtils.isSuperAdmin()")
     @DeleteMapping("/remove/{permissionId}")
     public Result<Boolean> removePermission(@PathVariable Long permissionId) {
         return Result.success(permissionService.removePermission(permissionId));

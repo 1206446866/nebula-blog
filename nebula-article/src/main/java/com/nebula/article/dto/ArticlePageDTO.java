@@ -2,6 +2,9 @@ package com.nebula.article.dto;
 
 import jakarta.validation.constraints.Max;
 import jakarta.validation.constraints.Min;
+import jakarta.validation.constraints.NotNull;
+import jakarta.validation.constraints.Positive;
+import jakarta.validation.constraints.Size;
 import lombok.Data;
 import lombok.experimental.Accessors;
 
@@ -17,9 +20,11 @@ public class ArticlePageDTO {
 
     private String author;
 
-    private List<Long> tagIds;
+    @Size(max = 100)
+    private List<@NotNull @Positive Long> tagIds;
 
-    private List<Long> categoryIds;
+    @Size(max = 100)
+    private List<@NotNull @Positive Long> categoryIds;
 
     @Min(1)
     private int current = 1;

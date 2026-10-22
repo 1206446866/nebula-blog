@@ -34,3 +34,7 @@ build/
 
 # upload files
 /upload/
+
+# Local credentials (never package or commit)
+.secrets/
+.admin-secrets/

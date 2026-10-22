@@ -3,7 +3,6 @@ package com.nebula.comment.service.impl;
 import com.mybatisflex.core.paginate.Page;
 import com.mybatisflex.core.query.QueryMethods;
 import com.mybatisflex.core.query.QueryWrapper;
-import com.mybatisflex.core.update.UpdateChain;
 import com.mybatisflex.core.util.StringUtil;
 import com.mybatisflex.spring.service.impl.ServiceImpl;
 import com.nebula.comment.dto.ArticleCommentCountDTO;
@@ -15,12 +14,13 @@ import com.nebula.comment.mapper.CommentLikeMapper;
 import com.nebula.comment.mapper.CommentMapper;
 import com.nebula.comment.service.CommentService;
 import com.nebula.comment.vo.CommentVO;
+import com.nebula.article.service.ArticleReadAccess;
 import com.nebula.common.constant.RoleEnum;
 import com.nebula.common.exception.BusinessException;
 import com.nebula.common.exception.code.CommentErrorCode;
 import com.nebula.common.util.SecurityUtils;
 import lombok.RequiredArgsConstructor;
-import org.springframework.dao.DuplicateKeyException;
+import org.springframework.security.access.AccessDeniedException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -39,9 +39,13 @@ import static com.nebula.user.entity.table.UserTableDef.USER;
 public class CommentServiceImpl extends ServiceImpl<CommentMapper, Comment> implements CommentService {
 
     private final CommentLikeMapper commentLikeMapper;
+    private final ArticleReadAccess articleReadAccess;
 
     @Override
     public Page<CommentVO> pageComments(Long articleId, String content, int page, int size) {
+        if (articleId != null) articleReadAccess.requireReadableArticle(articleId);
+        var viewer = SecurityUtils.getLoginUser();
+        Long viewerId = viewer == null || viewer.getUserId() == null ? -1L : viewer.getUserId();
         QueryWrapper queryWrapper = QueryWrapper.create()
                 .select(COMMENT.ID,
                         COMMENT.USER_ID,
@@ -58,15 +62,17 @@ public class CommentServiceImpl extends ServiceImpl<CommentMapper, Comment> impl
                 .on(COMMENT.USER_ID.eq(USER.ID))
                 .leftJoin(COMMENT_LIKE)
                 .on(COMMENT_LIKE.COMMENT_ID.eq(COMMENT.ID)
-                        .and(COMMENT_LIKE.USER_ID.eq(SecurityUtils.getUserId())))
+                        .and(COMMENT_LIKE.USER_ID.eq(viewerId)))
                 .where(COMMENT.ARTICLE_ID.eq(articleId, Objects::nonNull))
                 .and(COMMENT.CONTENT.like(content, StringUtil::hasText))
-                .orderBy(COMMENT.CREATE_TIME.desc());
+                .and(COMMENT.ARTICLE_ID.in(articleReadAccess.readableArticleIds()))
+                .orderBy(COMMENT.CREATE_TIME.desc(), COMMENT.ID.desc());
         return getMapper().paginateAs(page, size, queryWrapper, CommentVO.class);
     }
 
     @Override
     public Boolean releaseComment(ReleaseCommentDto comment) {
+        articleReadAccess.requireReadableArticle(comment.getArticleId());
         return save(Comment.create().setUserId(SecurityUtils.getUserId()).setArticleId(comment.getArticleId()).setContent(comment.getContent()));
     }
 
@@ -78,6 +84,7 @@ public class CommentServiceImpl extends ServiceImpl<CommentMapper, Comment> impl
                     CommentErrorCode.COMMENT_NOT_FOUND
             );
         }
+        articleReadAccess.requireReadableArticle(comment.getArticleId());
         checkOwnerOrAdmin(comment.getUserId());
         return removeById(id);
     }
@@ -89,7 +96,13 @@ public class CommentServiceImpl extends ServiceImpl<CommentMapper, Comment> impl
 
     @Override
     public Page<Comment> getCommentPageByUserId(Long userId, int currentPage, int size) {
-        return page(Page.of(currentPage, size), QueryWrapper.create().where(COMMENT.USER_ID.eq(userId)));
+        return page(Page.of(currentPage, size), visibleProfileComments(userId)
+                .orderBy(COMMENT.CREATE_TIME.desc(), COMMENT.ID.desc()));
+    }
+
+    private QueryWrapper visibleProfileComments(Long userId) {
+        return QueryWrapper.create().where(COMMENT.USER_ID.eq(userId))
+                .and(COMMENT.ARTICLE_ID.in(articleReadAccess.publishedArticleIds()));
     }
 
     @Override
@@ -97,7 +110,9 @@ public class CommentServiceImpl extends ServiceImpl<CommentMapper, Comment> impl
         if (articleIds == null || articleIds.isEmpty()) {
             return new HashMap<>();
         }
-        QueryWrapper queryWrapper = QueryWrapper.create().select(COMMENT.ARTICLE_ID, QueryMethods.count(COMMENT.ID).as("commentCount")).from(COMMENT).where(COMMENT.ARTICLE_ID.in(articleIds)).groupBy(COMMENT.ARTICLE_ID);
+        QueryWrapper queryWrapper = QueryWrapper.create().select(COMMENT.ARTICLE_ID, QueryMethods.count(COMMENT.ID).as("commentCount"))
+                .from(COMMENT).where(COMMENT.ARTICLE_ID.in(articleIds))
+                .and(COMMENT.ARTICLE_ID.in(articleReadAccess.readableArticleIds())).groupBy(COMMENT.ARTICLE_ID);
         List<ArticleCommentCountDTO> count = getMapper().selectListByQueryAs(queryWrapper, ArticleCommentCountDTO.class);
         return count.stream().collect(Collectors.toMap(ArticleCommentCountDTO::getArticleId, ArticleCommentCountDTO::getCommentCount));
     }
@@ -105,27 +120,29 @@ public class CommentServiceImpl extends ServiceImpl<CommentMapper, Comment> impl
     @Override
     @Transactional(rollbackFor = Exception.class)
     public Boolean like(CommentLikeDto dto) {
-        checkOwnerOrAdmin(dto.getUserId());
-        // 1. 插入关系表（防重复点赞）
-        CommentLike entity = CommentLike.create().setCommentId(dto.getCommentId()).setUserId(dto.getUserId());
-        try {
-            commentLikeMapper.insert(entity);
-            UpdateChain.of(Comment.class)
-                    .setRaw(COMMENT.LIKE_COUNT, COMMENT.LIKE_COUNT.add(1))
-                    .where(COMMENT.ID.eq(entity.getCommentId())).update();
-            return true;
-        } catch (DuplicateKeyException e) {
-            commentLikeMapper.deleteByCondition(COMMENT_LIKE.COMMENT_ID.eq(dto.getCommentId()).and(COMMENT_LIKE.USER_ID.eq(dto.getUserId())));
-            UpdateChain.of(Comment.class)
-                    .setRaw(COMMENT.LIKE_COUNT, COMMENT.LIKE_COUNT.subtract(1))
-                    .where(COMMENT.ID.eq(entity.getCommentId())).update();
-            return false;
+        var actor = SecurityUtils.getLoginUser();
+        if (actor == null || actor.getUserId() == null) throw new AccessDeniedException("请先登录");
+        if (dto == null || dto.getCommentId() == null || dto.getCommentId() < 1) {
+            throw new BusinessException(CommentErrorCode.COMMENT_NOT_FOUND);
         }
+        Comment comment = mapper.selectOneByQuery(QueryWrapper.create().where(COMMENT.ID.eq(dto.getCommentId())).forUpdate());
+        if (comment == null) throw new BusinessException(CommentErrorCode.COMMENT_NOT_FOUND);
+        articleReadAccess.requireReadableArticle(comment.getArticleId());
+        var condition = COMMENT_LIKE.COMMENT_ID.eq(dto.getCommentId()).and(COMMENT_LIKE.USER_ID.eq(actor.getUserId()));
+        boolean liked = commentLikeMapper.selectOneByCondition(condition) == null;
+        int affected = liked ? commentLikeMapper.insert(CommentLike.create().setCommentId(dto.getCommentId()).setUserId(actor.getUserId()))
+                : commentLikeMapper.deleteByCondition(condition);
+        if (affected != 1) throw new BusinessException(CommentErrorCode.COMMENT_LIKE_FAILED);
+        long count = commentLikeMapper.selectCountByCondition(COMMENT_LIKE.COMMENT_ID.eq(dto.getCommentId()));
+        if (mapper.update(Comment.create().setId(dto.getCommentId()).setLikeCount(count)) != 1) {
+            throw new BusinessException(CommentErrorCode.COMMENT_LIKE_FAILED);
+        }
+        return liked;
     }
 
     @Override
     public Long getLikeAllCount(Long userId) {
-        Long total = getMapper().selectObjectByQueryAs(QueryWrapper.create().select(QueryMethods.sum(COMMENT.LIKE_COUNT)).where(COMMENT.USER_ID.eq(userId)), Long.class);
+        Long total = getMapper().selectObjectByQueryAs(visibleProfileComments(userId).select(QueryMethods.sum(COMMENT.LIKE_COUNT)), Long.class);
         return total == null ? 0L : total;
     }
 

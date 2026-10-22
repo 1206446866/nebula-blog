@@ -11,6 +11,8 @@ import com.nebula.auth.service.LoginLogService;
 import com.nebula.comment.entity.Comment;
 import com.nebula.comment.service.CommentService;
 import com.nebula.common.constant.ArticleStatus;
+import com.nebula.common.exception.BusinessException;
+import com.nebula.common.security.LoginUser;
 import com.nebula.common.util.SecurityUtils;
 import com.nebula.role.service.RoleService;
 import com.nebula.user.entity.User;
@@ -23,11 +25,13 @@ import java.util.Map;
 import java.util.Objects;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.Executor;
+import java.util.function.IntFunction;
 import java.util.stream.Collectors;
+
+import static com.nebula.common.exception.code.AuthErrorCode.USER_NOT_FOUND;
 
 @Service
 public class UserProfileFacade {
-
     private final UserService userService;
     private final RoleService roleService;
     private final ArticleService articleService;
@@ -35,13 +39,10 @@ public class UserProfileFacade {
     private final LoginLogService loginLogService;
     private final Executor profileExecutor;
 
-    public UserProfileFacade(
-            UserService userService,
-            RoleService roleService,
-            ArticleService articleService,
-            CommentService commentService, LoginLogService loginLogService,
-            @Qualifier("profileExecutor") Executor profileExecutor) {
-
+    public UserProfileFacade(UserService userService, RoleService roleService,
+                             ArticleService articleService, CommentService commentService,
+                             LoginLogService loginLogService,
+                             @Qualifier("profileExecutor") Executor profileExecutor) {
         this.userService = userService;
         this.roleService = roleService;
         this.articleService = articleService;
@@ -50,151 +51,81 @@ public class UserProfileFacade {
         this.profileExecutor = profileExecutor;
     }
 
-    /**
-     * 获取用户主页信息
-     * <p>
-     * 包含用户基础信息、文章统计、评论统计、
-     * 总浏览量以及最近发布的文章列表。
-     *
-     * @return 用户主页信息
-     */
     public UserProfileVO getProfile(Long userId, ProfileQueryDto dto) {
-        UserProfileVO userProfileVO = new UserProfileVO();
-        CompletableFuture<User> userFuture =
-                CompletableFuture.supplyAsync(
-                        () -> userService.getUserById(userId),
-                        profileExecutor);
-        CompletableFuture<List<String>> roleDescriptionsFuture =
-                CompletableFuture.supplyAsync(
-                        () -> roleService.getDescriptions(userId),
-                        profileExecutor);
+        User user = userService.getUserById(userId);
+        if (user == null) {
+            throw new BusinessException(USER_NOT_FOUND);
+        }
+        // Capture ownership on the request thread; worker threads do not inherit authentication.
+        LoginUser viewer = SecurityUtils.getLoginUser();
+        boolean isSelf = viewer != null && Objects.equals(userId, viewer.getUserId());
 
-        CompletableFuture<Long> articleCountFuture =
-                CompletableFuture.supplyAsync(
-                        () -> articleService.getAllCount(userId),
-                        profileExecutor);
+        var rolesFuture = CompletableFuture.supplyAsync(() -> roleService.getDescriptions(userId), profileExecutor);
+        var viewsFuture = CompletableFuture.supplyAsync(() -> articleService.getViewAllCount(userId), profileExecutor);
+        var articleLikesFuture = CompletableFuture.supplyAsync(() -> articleService.getLikeAllCount(userId), profileExecutor);
+        var commentLikesFuture = CompletableFuture.supplyAsync(() -> commentService.getLikeAllCount(userId), profileExecutor);
+        var publicFuture = CompletableFuture.supplyAsync(() -> loadPage(dto.getPublicArticlePage(),
+                page -> articleService.pageArticleProfile(userId, ArticleStatus.PUBLISHED.getCode(), page, dto.getPublicArticleSize())), profileExecutor);
+        var commentsFuture = CompletableFuture.supplyAsync(() -> loadPage(dto.getCommentPage(),
+                page -> commentService.getCommentPageByUserId(userId, page, dto.getCommentSize())), profileExecutor);
+        CompletableFuture<Page<Article>> draftsFuture = isSelf
+                ? CompletableFuture.supplyAsync(() -> loadPage(dto.getDraftArticlePage(),
+                    page -> articleService.pageArticleProfile(userId, ArticleStatus.DRAFT.getCode(), page, dto.getDraftArticleSize())), profileExecutor)
+                : CompletableFuture.completedFuture(Page.of(1, dto.getDraftArticleSize(), 0));
+        CompletableFuture<List<LoginLog>> logsFuture = isSelf
+                ? CompletableFuture.supplyAsync(() -> loginLogService.getLoginLog(userId), profileExecutor)
+                : CompletableFuture.completedFuture(List.of());
 
-        CompletableFuture<Long> commentCountFuture =
-                CompletableFuture.supplyAsync(
-                        () -> commentService.getAllCount(userId),
-                        profileExecutor);
+        CompletableFuture.allOf(rolesFuture, viewsFuture, articleLikesFuture, commentLikesFuture,
+                publicFuture, commentsFuture, draftsFuture, logsFuture).join();
 
-        CompletableFuture<Long> viewCountFuture =
-                CompletableFuture.supplyAsync(
-                        () -> articleService.getViewAllCount(userId),
-                        profileExecutor);
-
-        CompletableFuture<Long> articleLikeCountFuture =
-                CompletableFuture.supplyAsync(
-                        () -> articleService.getLikeAllCount(userId),
-                        profileExecutor);
-
-        CompletableFuture<Long> commentLikeCountFuture =
-                CompletableFuture.supplyAsync(
-                        () -> commentService.getLikeAllCount(userId),
-                        profileExecutor);
-
-        CompletableFuture<Page<Article>> publicPageFuture =
-                CompletableFuture.supplyAsync(
-                        () -> articleService.pageArticleProfile(
-                                userId,
-                                ArticleStatus.PUBLISHED.getCode(),
-                                dto.getPublicArticlePage(),
-                                dto.getPublicArticleSize()),
-                        profileExecutor);
-
-        CompletableFuture<Page<Article>> draftPageFuture =
-                CompletableFuture.supplyAsync(
-                        () -> articleService.pageArticleProfile(
-                                userId,
-                                ArticleStatus.DRAFT.getCode(),
-                                dto.getDraftArticlePage(),
-                                dto.getDraftArticleSize()),
-                        profileExecutor);
-
-        CompletableFuture<Page<Comment>> commentPageFuture =
-                CompletableFuture.supplyAsync(
-                        () -> commentService.getCommentPageByUserId(
-                                userId,
-                                dto.getCommentPage(),
-                                dto.getCommentSize()),
-                        profileExecutor);
-
-        CompletableFuture<List<LoginLog>> loginLogFuture =
-                CompletableFuture.supplyAsync(
-                        () -> loginLogService.getLoginLog(userId),
-                        profileExecutor);
-        CompletableFuture.allOf(
-                userFuture,
-                roleDescriptionsFuture,
-                articleCountFuture,
-                commentCountFuture,
-                viewCountFuture,
-                articleLikeCountFuture,
-                commentLikeCountFuture,
-                publicPageFuture,
-                draftPageFuture,
-                commentPageFuture,
-                loginLogFuture
-        ).join();
-
-        User user = userFuture.join();
-
-        List<String> roleDescriptions = roleDescriptionsFuture.join();
-
-        Long articleCount = articleCountFuture.join();
-
-        Long commentCount = commentCountFuture.join();
-
-        Long articleViewAllCount = viewCountFuture.join();
-
-        Long articleLikeAllCount = articleLikeCountFuture.join();
-
-        Long commentLikeAllCount = commentLikeCountFuture.join();
-
-        Page<Article> publicArticlePage = publicPageFuture.join();
-
-        Page<Article> draftArticlePage = draftPageFuture.join();
-
-        Page<Comment> commentPage = commentPageFuture.join();
-
-        List<LoginLog> loginLogsList = loginLogFuture.join();
-        if (Objects.equals(user.getId(), SecurityUtils.getUserId())) {
-            List<UserProfileLoginLogVO> loginLogVOS = loginLogsList.stream().map(item -> BeanUtil.copyProperties(item, UserProfileLoginLogVO.class)).toList();
-            userProfileVO.setLoginLogs(loginLogVOS);
+        Page<Article> publicPage = publicFuture.join();
+        Page<Comment> commentPage = commentsFuture.join();
+        UserProfileInfoVO info = BeanUtil.copyProperties(user, UserProfileInfoVO.class);
+        info.setRoles(rolesFuture.join());
+        if (!isSelf) {
+            info.setEmail(null).setPhone(null);
         }
 
-        UserProfileInfoVO userProfileInfoVO = BeanUtil.copyProperties(user, UserProfileInfoVO.class);
-        userProfileInfoVO.setRoles(roleDescriptions);
+        Map<Long, Long> commentCounts = commentService.getCountByArticleIds(
+                publicPage.getRecords().stream().map(Article::getId).toList());
+        Page<UserProfileArticleVO> publicArticles = publicPage.map(article -> toArticleVO(article)
+                .setComments(commentCounts.getOrDefault(article.getId(), 0L)));
+        Page<UserProfileArticleVO> draftArticles = isSelf ? draftsFuture.join().map(this::toArticleVO) : null;
 
-        UserProfileStatisticsVO userProfileStatisticsVO = UserProfileStatisticsVO.create().setArticleCount(articleCount).setCommentCount(commentCount)
-                .setTotalViewCount(articleViewAllCount).setLikeCount(articleLikeAllCount + commentLikeAllCount);
-
-        Map<Long, Long> countByArticleIds = commentService.getCountByArticleIds(publicArticlePage.getRecords().stream().map(Article::getId).toList());
-        Page<UserProfileArticleVO> publicArticles = publicArticlePage.map(article -> {
-            UserProfileArticleVO vo = BeanUtil.copyProperties(article, UserProfileArticleVO.class);
-            String content = article.getContent();
-            vo.setContent(content != null && content.length() > 150 ? content.substring(0, 150) + "..." : content)
-                    .setComments(countByArticleIds.getOrDefault(article.getId(), 0L));
-            return vo;
-        });
-
-        Page<UserProfileArticleVO> draftArticles = draftArticlePage.map(article -> {
-            UserProfileArticleVO vo = BeanUtil.copyProperties(article, UserProfileArticleVO.class);
-            String content = article.getContent();
-            vo.setContent(content != null && content.length() > 150 ? content.substring(0, 150) + "..." : content);
-            return vo;
-        });
-
-        List<Article> articleTitles = articleService.getArticleTitlesByCommentIds(commentPage.getRecords().stream().map(Comment::getArticleId).distinct().toList());
-        Map<Long, String> titleMap = articleTitles.stream().collect(Collectors.toMap(Article::getId, Article::getTitle));
-//        转换VO并把对应标题写入
+        List<Long> commentedArticleIds = commentPage.getRecords().stream().map(Comment::getArticleId).distinct().toList();
+        Map<Long, String> titles = commentedArticleIds.isEmpty() ? Map.of()
+                : articleService.getArticleTitlesByCommentIds(commentedArticleIds).stream()
+                    .collect(Collectors.toMap(Article::getId, Article::getTitle));
         Page<UserProfileCommentVO> comments = commentPage.map(comment -> {
             UserProfileCommentVO vo = BeanUtil.copyProperties(comment, UserProfileCommentVO.class);
-            vo.setArticleTitle(titleMap.get(comment.getArticleId()));
+            vo.setArticleTitle(titles.get(comment.getArticleId()));
             return vo;
         });
-        return userProfileVO.setUserProfileInfoVO(userProfileInfoVO).setStatisticsVO(userProfileStatisticsVO).setPublicArticles(publicArticles).setDraftArticles(draftArticles).setComments(comments);
+
+        UserProfileStatisticsVO statistics = UserProfileStatisticsVO.create()
+                .setArticleCount(publicPage.getTotalRow()).setCommentCount(commentPage.getTotalRow())
+                .setTotalViewCount(viewsFuture.join()).setLikeCount(articleLikesFuture.join() + commentLikesFuture.join());
+        return UserProfileVO.create().setUserProfileInfoVO(info).setStatisticsVO(statistics)
+                .setPublicArticles(publicArticles).setComments(comments).setDraftArticles(draftArticles)
+                .setLoginLogs(logsFuture.join().stream()
+                        .map(log -> BeanUtil.copyProperties(log, UserProfileLoginLogVO.class)).toList());
     }
 
+    private UserProfileArticleVO toArticleVO(Article article) {
+        UserProfileArticleVO vo = BeanUtil.copyProperties(article, UserProfileArticleVO.class);
+        String content = article.getContent();
+        vo.setContent(content != null && content.length() > 150 ? content.substring(0, 150) + "..." : content);
+        return vo;
+    }
+
+    private <T> Page<T> loadPage(int requestedPage, IntFunction<Page<T>> loader) {
+        Page<T> page = loader.apply(requestedPage);
+        if (page.getTotalRow() == 0) {
+            page.setPageNumber(1);
+        } else if (page.getPageNumber() > page.getTotalPage()) {
+            page = loader.apply((int) page.getTotalPage());
+        }
+        return page;
+    }
 }

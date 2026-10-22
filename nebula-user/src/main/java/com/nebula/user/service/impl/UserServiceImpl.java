@@ -7,9 +7,14 @@ import com.mybatisflex.core.query.QueryWrapper;
 import com.mybatisflex.core.util.StringUtil;
 import com.mybatisflex.spring.service.impl.ServiceImpl;
 import com.nebula.common.constant.NumberConstant;
+import com.nebula.common.constant.UserStatus;
+import com.nebula.common.constant.RoleEnum;
+import com.nebula.common.security.RoleCatalog;
 import com.nebula.common.exception.BusinessException;
 import com.nebula.common.exception.code.UserErrorCode;
 import com.nebula.common.util.SecurityUtils;
+import com.nebula.common.util.PageLimits;
+import com.nebula.user.dto.CancelAccountDTO;
 import com.nebula.user.dto.EditUserDTO;
 import com.nebula.user.dto.UpdateNameDTO;
 import com.nebula.user.entity.User;
@@ -22,6 +27,8 @@ import jakarta.annotation.Nonnull;
 import lombok.RequiredArgsConstructor;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
+import org.springframework.security.crypto.password.PasswordEncoder;
+import org.springframework.security.access.AccessDeniedException;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.multipart.MultipartFile;
 
@@ -36,12 +43,16 @@ import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
 import java.util.Collections;
 import java.util.List;
+import java.util.LinkedHashSet;
 import java.util.Map;
 import java.util.UUID;
 import java.util.stream.Collectors;
 
 import static com.nebula.common.exception.code.UserErrorCode.USER_ACCESS_DENIED;
 import static com.nebula.common.exception.code.UserErrorCode.USER_SELF_OPERATION_DENIED;
+import static com.nebula.common.exception.code.AuthErrorCode.PASSWORD_ERROR;
+import static com.nebula.common.exception.code.RoleErrorCode.INVALID_ROLE_ASSIGNMENT;
+import static com.nebula.common.exception.code.RoleErrorCode.LAST_SUPER_ADMIN_PROTECTED;
 import static com.nebula.user.entity.table.UserRoleTableDef.USER_ROLE;
 import static com.nebula.user.entity.table.UserTableDef.USER;
 
@@ -53,62 +64,120 @@ public class UserServiceImpl extends ServiceImpl<UserMapper, User> implements Us
     private String uploadDir;
 
     private final UserRoleMapper userRoleMapper;
+    private final PasswordEncoder passwordEncoder;
+    private final RoleCatalog roleCatalog;
 
     @Override
     public Page<UserVO> pageUsers(String role, String username, int page, int size) {
+        PageLimits.requireValid(page, size);
         QueryWrapper query = new QueryWrapper().where(USER.USERNAME.like(username, StringUtil::hasText)).orderBy(USER.ID.asc());
-        // 如果传了 role，需要 join user_role + role
         if (StringUtil.hasText(role)) {
-            query.innerJoin(USER_ROLE).on(USER.ID.eq(USER_ROLE.USER_ID));
+            var roleIds = roleCatalog.findRoleIds(role.strip());
+            if (roleIds.isEmpty()) return Page.of(page, size, 0);
+            query.and(USER.ID.in(QueryWrapper.create().select(USER_ROLE.USER_ID).from(USER_ROLE)
+                    .where(USER_ROLE.ROLE_ID.in(roleIds))));
         }
         Page<User> userPage = page(Page.of(page, size), query);
         List<Long> userIds = userPage.getRecords().stream().map(User::getId).toList();
 
-        List<UserRole> userRoles = userRoleMapper.selectListByCondition(USER_ROLE.USER_ID.in(userIds));
+        List<UserRole> userRoles = userIds.isEmpty() ? List.of()
+                : userRoleMapper.selectListByCondition(USER_ROLE.USER_ID.in(userIds));
         Map<Long, List<Long>> roleMap = userRoles.stream().collect(Collectors.groupingBy(UserRole::getUserId, Collectors.mapping(UserRole::getRoleId, Collectors.toList())));
         List<UserVO> voList = userPage.getRecords().stream().map(u -> {
             UserVO vo = BeanUtil.copyProperties(u, UserVO.class);
             vo.setRoleIds(roleMap.getOrDefault(u.getId(), List.of()));
             return vo;
         }).toList();
-        Page<UserVO> userVOPage = new Page<>();
+        Page<UserVO> userVOPage = Page.of(userPage.getPageNumber(), userPage.getPageSize(), userPage.getTotalRow());
         userVOPage.setRecords(voList);
-        userVOPage.setTotalPage(userPage.getTotalPage());
         return userVOPage;
     }
 
 
     @Override
+    @Transactional(rollbackFor = Exception.class)
     public Boolean switchStatusById(Long userId, Integer status) {
+        if (java.util.Arrays.stream(UserStatus.values()).noneMatch(value -> value.matches(status))) {
+            throw new BusinessException(UserErrorCode.USER_STATUS_INVALID);
+        }
         checkSelfOrAdmin(userId);
+        protectSuperAdminTarget(userId);
+        if (!UserStatus.NORMAL.matches(status) && hasSuperAdminRole(userId)) {
+            ensureAnotherActiveSuperAdmin(userId);
+        }
         return updateById(User.create().setId(userId).setStatus(status));
     }
 
     @Transactional(rollbackFor = Exception.class)
     @Override
     public boolean editUser(EditUserDTO dto) {
+        SecurityUtils.requireSuperAdmin();
         if (SecurityUtils.isSelf(dto.getId())) {
             throw new BusinessException(USER_SELF_OPERATION_DENIED);
         }
-        if (!SecurityUtils.isSuperAdmin()){
-            throw new BusinessException(USER_ACCESS_DENIED);
-        }
-        updateById(User.create().setId(dto.getId()).setUsername(dto.getUsername()));
-        // 先删除已有角色
-        userRoleMapper.deleteByCondition(USER_ROLE.USER_ID.eq(dto.getId()));
         if (CollUtil.isEmpty(dto.getRoleIds())) {
             throw new BusinessException(UserErrorCode.USER_ROLE_EMPTY);
         }
+        var roleIds = new LinkedHashSet<>(dto.getRoleIds());
+        if (roleIds.contains(null) || !roleCatalog.allRolesExist(roleIds)) {
+            throw new BusinessException(INVALID_ROLE_ASSIGNMENT);
+        }
+        if (getById(dto.getId()) == null) throw new BusinessException(UserErrorCode.USER_NOT_FOUND);
+        if (hasSuperAdminRole(dto.getId()) && !roleIds.contains(RoleEnum.SUPER_ADMIN.getRoleId())) {
+            ensureAnotherActiveSuperAdmin(dto.getId());
+        }
+        if (!updateById(User.create().setId(dto.getId()).setUsername(dto.getUsername()))) {
+            throw new BusinessException(UserErrorCode.USER_UPDATE_FAILED);
+        }
+        userRoleMapper.deleteByCondition(USER_ROLE.USER_ID.eq(dto.getId()));
         // 再批量插入新角色
-        List<UserRole> userRoles = dto.getRoleIds().stream().map(item -> UserRole.create().setUserId(dto.getId()).setRoleId(item)).toList();
+        List<UserRole> userRoles = roleIds.stream().map(item -> UserRole.create().setUserId(dto.getId()).setRoleId(item)).toList();
         userRoleMapper.insertBatchSelective(userRoles);
         return true;
     }
 
     @Override
+    @Transactional(rollbackFor = Exception.class)
     public Boolean deleteUserById(Long id) {
         checkSelfOrAdmin(id);
+        protectSuperAdminTarget(id);
+        if (hasSuperAdminRole(id)) ensureAnotherActiveSuperAdmin(id);
         return removeById(id);
+    }
+
+    @Override
+    @Transactional(rollbackFor = Exception.class)
+    public Boolean cancelCurrentAccount(CancelAccountDTO dto) {
+        var viewer = SecurityUtils.getLoginUser();
+        if (viewer == null) {
+            throw new BusinessException(USER_ACCESS_DENIED);
+        }
+        if (!Boolean.TRUE.equals(dto.getConfirmed())) {
+            throw new BusinessException(UserErrorCode.ACCOUNT_CANCELLATION_UNCONFIRMED);
+        }
+        User currentUser = mapper.selectOneById(viewer.getUserId());
+        if (currentUser == null) {
+            throw new BusinessException(UserErrorCode.USER_NOT_FOUND);
+        }
+        if (!UserStatus.NORMAL.matches(currentUser.getStatus())) {
+            throw new BusinessException(UserErrorCode.USER_DISABLED);
+        }
+        if (dto.getPassword() == null || dto.getPassword().isBlank()
+                || !passwordEncoder.matches(dto.getPassword(), currentUser.getPassword())) {
+            throw new BusinessException(PASSWORD_ERROR);
+        }
+        if (hasSuperAdminRole(viewer.getUserId())) ensureAnotherActiveSuperAdmin(viewer.getUserId());
+        // MyBatis-Flex applies User.deleted logical deletion. Match the verified
+        // password too, so a concurrent password change cannot bypass this check.
+        int affected = mapper.deleteByQuery(QueryWrapper.create()
+                .where(USER.ID.eq(viewer.getUserId()))
+                .and(USER.PASSWORD.eq(currentUser.getPassword()))
+                .and(USER.STATUS.eq(UserStatus.NORMAL.getCode())));
+        if (affected != 1) {
+            throw new BusinessException(UserErrorCode.USER_DELETE_FAILED);
+        }
+        userRoleMapper.deleteByCondition(USER_ROLE.USER_ID.eq(viewer.getUserId()));
+        return true;
     }
 
     /**
@@ -146,21 +215,21 @@ public class UserServiceImpl extends ServiceImpl<UserMapper, User> implements Us
         String contentType = file.getContentType();
         // 基于HTTP声明的类型做快速过滤
         if (contentType == null || !contentType.startsWith("image/")) {
-            throw new RuntimeException("只能上传图片");
+            throw new BusinessException(UserErrorCode.AVATAR_TYPE_INVALID);
         }
         if (file.getSize() > NumberConstant.MAX_AVATAR_SIZE) {
-            throw new RuntimeException("图片不能超过10MB");
+            throw new BusinessException(UserErrorCode.AVATAR_TOO_LARGE);
         }
         User user = getById(userId);
         if (user == null) {
-            throw new RuntimeException("用户不存在");
+            throw new BusinessException(UserErrorCode.USER_NOT_FOUND);
         }
         String oldAvatar = user.getAvatar();
         File target = new File(folder, fileName);
         // 图片内容校验（防止伪造图片文件）
         BufferedImage image = ImageIO.read(new ByteArrayInputStream(bytes));
         if (image == null) {
-            throw new RuntimeException("图片内容非法");
+            throw new BusinessException(UserErrorCode.AVATAR_CONTENT_INVALID);
         }
         try {
             Files.copy(new ByteArrayInputStream(bytes), target.toPath(), StandardCopyOption.REPLACE_EXISTING);
@@ -212,22 +281,22 @@ public class UserServiceImpl extends ServiceImpl<UserMapper, User> implements Us
     @Nonnull
     private static String validateAndGetSuffix(MultipartFile file) {
         if (file == null || file.isEmpty()) {
-            throw new RuntimeException("请选择文件");
+            throw new BusinessException(UserErrorCode.AVATAR_FILE_REQUIRED);
         }
         String originalFilename = file.getOriginalFilename();
         if (originalFilename == null) {
-            throw new RuntimeException("文件名不能为空");
+            throw new BusinessException(UserErrorCode.AVATAR_FILE_REQUIRED);
         }
 
         int index = originalFilename.lastIndexOf('.');
 
         if (index < 0) {
-            throw new RuntimeException("文件格式错误");
+            throw new BusinessException(UserErrorCode.AVATAR_TYPE_INVALID);
         }
 
         String suffix = originalFilename.substring(index+1).toLowerCase();
         if (!suffix.matches("jpg|jpeg|png|gif|webp")) {
-            throw new RuntimeException("不支持的图片格式");
+            throw new BusinessException(UserErrorCode.AVATAR_TYPE_INVALID);
         }
         return "."+suffix;
     }
@@ -254,6 +323,33 @@ public class UserServiceImpl extends ServiceImpl<UserMapper, User> implements Us
     private void checkSelfOrAdmin(Long userId) {
         if (!SecurityUtils.isAdmin() && !SecurityUtils.isSelf(userId)) {
             throw new BusinessException(USER_ACCESS_DENIED);
+        }
+    }
+
+    private boolean hasSuperAdminRole(Long userId) {
+        return userRoleMapper.selectCountByCondition(USER_ROLE.USER_ID.eq(userId)
+                .and(USER_ROLE.ROLE_ID.eq(RoleEnum.SUPER_ADMIN.getRoleId()))) > 0;
+    }
+
+    private void protectSuperAdminTarget(Long userId) {
+        if (hasSuperAdminRole(userId) && !SecurityUtils.isSuperAdmin()) {
+            throw new AccessDeniedException("仅超级管理员可以管理超级管理员账号");
+        }
+    }
+
+    private void ensureAnotherActiveSuperAdmin(Long userId) {
+        // Serialize removals of active super administrators so concurrent requests
+        // cannot both remove the last remaining administrators.
+        var rootBindings = userRoleMapper.selectListByQuery(QueryWrapper.create()
+                .where(USER_ROLE.ROLE_ID.eq(RoleEnum.SUPER_ADMIN.getRoleId()))
+                .orderBy(USER_ROLE.USER_ID.asc()).forUpdate());
+        var rootUserIds = rootBindings.stream().map(UserRole::getUserId).distinct().toList();
+        if (rootUserIds.isEmpty()) throw new BusinessException(LAST_SUPER_ADMIN_PROTECTED);
+        var activeSuperAdmins = mapper.selectListByQuery(QueryWrapper.create()
+                .where(USER.ID.in(rootUserIds))
+                .and(USER.STATUS.eq(UserStatus.NORMAL.getCode())).orderBy(USER.ID.asc()).forUpdate());
+        if (activeSuperAdmins.stream().noneMatch(user -> !user.getId().equals(userId))) {
+            throw new BusinessException(LAST_SUPER_ADMIN_PROTECTED);
         }
     }
 }

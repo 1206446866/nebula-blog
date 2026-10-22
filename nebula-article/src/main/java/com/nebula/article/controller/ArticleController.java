@@ -28,7 +28,7 @@ public class ArticleController {
      */
     @PreAuthorize("@securityUtils.hasPermission('article:list')")
     @GetMapping
-    public Result<Page<ArticleVO>> page(ArticlePageDTO  articlePageDTO) {
+    public Result<Page<ArticleVO>> page(@Valid ArticlePageDTO articlePageDTO) {
         return Result.success(articleService.pageArticles(articlePageDTO, null, true));
     }
 
@@ -74,7 +74,7 @@ public class ArticleController {
      *
      * @param id 文章ID
      */
-    @PreAuthorize("hasAuthority('article:delete') && hasRole('ADMIN')")
+    @PreAuthorize("hasAuthority('article:delete')")
     @DeleteMapping("/{id}")
     public Result<Boolean> delete(@PathVariable @Min(value = 1, message = "文章ID非法") Long id) {
         return Result.success(articleService.delete(id));
@@ -86,7 +86,7 @@ public class ArticleController {
      * @param dto 修改文章状态请求参数
      * @return 是否修改成功
      */
-    @PreAuthorize("hasAuthority('user:update') && hasRole('ADMIN')")
+    @PreAuthorize("@securityUtils.hasPermission('article:update') && hasRole('ADMIN')")
     @PutMapping("/status")
     public Result<Boolean> changeStatus(@RequestBody @Valid ChangeArticleStatusDto dto) {
         return Result.success(articleService.changeArticleStatus(dto));
@@ -98,12 +98,12 @@ public class ArticleController {
      */
     @PreAuthorize("hasAuthority('article:list')")
     @GetMapping("/published")
-    public Result<Page<ArticleVO>> pagePublished(ArticlePageDTO dto) {
+    public Result<Page<ArticleVO>> pagePublished(@Valid ArticlePageDTO dto) {
         return Result.success(articleService.pagePublishedArticles(dto));
     }
 
     @PutMapping("/like")
-    @PreAuthorize("hasAuthority('article:list')")
+    @PreAuthorize("isAuthenticated()")
     public Result<Boolean> like(@RequestBody @Valid ArticleLikeDto articleLikeDto) {
         return Result.success(articleService.like(articleLikeDto));
     }

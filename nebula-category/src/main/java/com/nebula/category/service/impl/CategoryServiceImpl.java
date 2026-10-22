@@ -3,6 +3,7 @@ package com.nebula.category.service.impl;
 import cn.hutool.core.bean.BeanUtil;
 import com.mybatisflex.core.paginate.Page;
 import com.mybatisflex.core.query.QueryWrapper;
+import com.mybatisflex.core.row.Db;
 import com.mybatisflex.core.util.StringUtil;
 import com.mybatisflex.spring.service.impl.ServiceImpl;
 import com.nebula.category.dto.CreateCategoryDTO;
@@ -11,7 +12,10 @@ import com.nebula.category.entity.Category;
 import com.nebula.category.mapper.CategoryMapper;
 import com.nebula.category.service.CategoryService;
 import com.nebula.category.vo.CategoryVO;
+import com.nebula.common.exception.BusinessException;
+import com.nebula.common.exception.code.ManagementErrorCode;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.util.List;
 import java.util.Objects;
@@ -46,7 +50,15 @@ public class CategoryServiceImpl extends ServiceImpl<CategoryMapper, Category> i
     }
 
     @Override
+    @Transactional(rollbackFor = Exception.class)
     public boolean deleteCategory(Long id) {
+        var category = mapper.selectOneByQuery(QueryWrapper.create().where(CATEGORY.ID.eq(id)).forUpdate());
+        if (category == null) return false;
+        if (Db.selectOneBySql("SELECT ac.article_id FROM article_category ac JOIN article a ON a.id=ac.article_id "
+                + "WHERE ac.category_id=? AND a.deleted=0 LIMIT 1", id) != null) {
+            throw new BusinessException(ManagementErrorCode.CATEGORY_IN_USE);
+        }
+        Db.deleteBySql("DELETE FROM article_category WHERE category_id=?", id);
         return removeById(id);
     }
 

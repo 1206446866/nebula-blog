@@ -2,6 +2,7 @@ package com.nebula.user.service;
 
 import com.mybatisflex.core.paginate.Page;
 import com.mybatisflex.core.service.IService;
+import com.nebula.user.dto.CancelAccountDTO;
 import com.nebula.user.dto.EditUserDTO;
 import com.nebula.user.dto.UpdateNameDTO;
 import com.nebula.user.entity.User;
@@ -42,6 +43,9 @@ public interface UserService extends IService<User> {
      * @return 操作是否成功
      */
     Boolean deleteUserById(Long id);
+
+    /** 校验当前密码后逻辑删除本人账号，保留已发布内容。 */
+    Boolean cancelCurrentAccount(CancelAccountDTO dto);
 
 
 
