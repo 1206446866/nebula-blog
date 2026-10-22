@@ -2,7 +2,12 @@
   <div class="profile-wrapper">
     <div class="profile-header">
       <!-- 头像 -->
-      <a :href="avatarUrl" target="_blank" class="avatar-link">
+      <a
+        :href="avatarUrl || undefined"
+        target="_blank"
+        rel="noopener noreferrer"
+        class="avatar-link"
+      >
         <el-avatar :size="90" :src="avatarUrl">
           {{ avatarText }}
         </el-avatar>
@@ -21,7 +26,15 @@
         <div class="top-line">
           <div class="name">
             <span v-if="!editing">{{ username }}</span>
-            <input v-else v-model="tempUsername" class="name-input" />
+            <input
+              v-else
+              v-model="tempUsername"
+              class="name-input"
+              maxlength="20"
+              aria-label="新昵称"
+              @keydown.enter.prevent="changeName"
+              @keydown.esc="cancelEdit"
+            />
           </div>
 
           <div class="nid">{{ profile?.userProfileInfoVO.nid }}</div>
@@ -63,7 +76,7 @@
 </template>
 
 <script setup lang="ts">
-import { computed, ref } from 'vue'
+import { computed, ref, watch } from 'vue'
 import type { UserProfileVO } from '@/api/profile.ts'
 import { UserStatus } from '@/enum/userStatus.js'
 import { useUploadAvatar } from '@/composables/useUploadAvatar'
@@ -95,7 +108,7 @@ const statusColor = computed(() => {
 const avatarUrl = computed(() => {
   const avatar = props.profile?.userProfileInfoVO.avatar
   if (!avatar) return ''
-  return `http://localhost:8080/upload/avatar/${avatar}`
+  return `/upload/avatar/${encodeURIComponent(avatar)}`
 })
 const { uploadAvatar, uploading } = useUploadAvatar()
 const userStore = useAuthStore()
@@ -103,18 +116,29 @@ const fileInput = ref<HTMLInputElement>()
 const editing = ref(false)
 const tempUsername = ref('')
 const nameLoading = ref(false)
+watch(
+  () => props.profile?.userProfileInfoVO.id,
+  () => {
+    cancelEdit()
+  },
+)
 const updateAvatar = () => {
   fileInput.value?.click()
 }
 const handleFileChange = async (e: Event) => {
   const file = (e.target as HTMLInputElement).files?.[0]
   if (!file) return
-  const avatar = await uploadAvatar(file)
-  if (avatar) {
-    emit('refresh')
+  try {
+    const avatar = await uploadAvatar(file)
+    if (avatar) {
+      emit('refresh')
+    }
+  } catch {
+    ElMessage.error('头像上传失败，请重试')
+  } finally {
+    // Clear the picker even after failure so the same file can be selected again.
+    ;(e.target as HTMLInputElement).value = ''
   }
-  // 清空，方便再次选择同一个文件
-  ;(e.target as HTMLInputElement).value = ''
 }
 const startEdit = () => {
   tempUsername.value = username.value
@@ -125,21 +149,28 @@ const cancelEdit = () => {
   tempUsername.value = ''
 }
 const changeName = async () => {
-  if (!tempUsername.value.trim()) return
+  if (nameLoading.value) return
+  const nextName = tempUsername.value.trim()
+  if (nextName.length < 3 || nextName.length > 20) {
+    ElMessage.warning('昵称长度应为3到20个字符')
+    return
+  }
   nameLoading.value = true
   try {
-    const res = await updateSelfNameApi(tempUsername.value)
+    const res = await updateSelfNameApi(nextName)
 
     if (res.code === 200 && res.data) {
       ElMessage.success('修改成功')
 
       userStore.setUser({
         ...userStore.user,
-        username: tempUsername.value,
+        username: nextName,
       })
       editing.value = false
       emit('refresh')
     }
+  } catch {
+    // Business errors are already displayed by the request interceptor.
   } finally {
     nameLoading.value = false
   }
@@ -271,5 +302,65 @@ const changeName = async () => {
 .btn:hover {
   background: rgba(56, 189, 248, 0.18);
   transform: translateY(-1px);
+}
+.name-input {
+  width: min(240px, 100%);
+  padding: 5px 9px;
+  border: 1px solid #38bdf850;
+  border-radius: 7px;
+  background: #02061780;
+  color: #e2e8f0;
+  font: inherit;
+  font-size: 18px;
+  outline-color: #7dd3fc;
+}
+.info {
+  min-width: 0;
+}
+.top-line,
+.roles {
+  flex-wrap: wrap;
+}
+.name {
+  overflow-wrap: anywhere;
+}
+@media (max-width: 1050px) {
+  .profile-header {
+    width: 90%;
+  }
+}
+@media (max-width: 760px) {
+  .profile-wrapper {
+    padding-top: 28px;
+  }
+  .profile-header {
+    width: calc(100% - 32px);
+    padding: 20px;
+    gap: 16px;
+    align-items: flex-start;
+  }
+  .avatar-link {
+    flex-shrink: 0;
+  }
+  .top-line {
+    gap: 7px 10px;
+  }
+  .name {
+    font-size: 20px;
+  }
+  .actions {
+    flex-wrap: wrap;
+    gap: 10px;
+  }
+  .btn {
+    margin-left: 0;
+    padding: 6px 10px;
+    font-size: 12px;
+  }
+}
+@media (max-width: 430px) {
+  .profile-header {
+    flex-direction: column;
+  }
 }
 </style>

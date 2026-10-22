@@ -39,7 +39,9 @@
         </template>
 
         <template #actions="{ row }">
-          <el-button size="small" type="primary" @click="openEdit(row)">编辑</el-button>
+          <el-button size="small" type="primary" @click="openEdit(row)">
+            {{ row.status === 1 ? '编辑' : '编辑草稿' }}
+          </el-button>
           <SafeButton
             size="small"
             :type="row.status === 1 ? 'warning' : 'success'"
@@ -55,6 +57,9 @@
 
       <!-- 新增/编辑 Dialog -->
       <el-dialog v-model="dialogVisible" :title="dialogTitle" width="700px">
+        <p v-if="articleForm.status === 0" class="draft-hint">
+          保存后仍为未发布草稿，可继续编辑；准备好后，在列表中点击“发布”。
+        </p>
         <el-form :model="articleForm">
           <el-form-item label="标题">
             <el-input v-model="articleForm.title" />
@@ -92,14 +97,16 @@
           <el-form-item label="内容">
             <div class="editor-container">
               <el-input v-model="articleForm.content" type="textarea" :rows="20" />
-              <div class="markdown-body preview" v-html="md.render(articleForm.content)" />
+              <div class="markdown-body preview" v-html="renderMarkdown(articleForm.content)" />
             </div>
           </el-form-item>
         </el-form>
 
         <template #footer>
           <el-button @click="dialogVisible = false">取消</el-button>
-          <SafeButton type="primary" :onClick="saveArticle">保存</SafeButton>
+          <SafeButton type="primary" :onClick="saveArticle">
+            {{ articleForm.status === 0 ? '保存草稿' : '保存修改' }}
+          </SafeButton>
         </template>
       </el-dialog>
     </div>
@@ -109,10 +116,12 @@
 <script setup lang="ts">
 import { onMounted, reactive, ref, watch } from 'vue'
 import { debounce } from 'lodash-es'
-import MarkdownIt from 'markdown-it'
+import { renderMarkdown } from '@/utils/markdown'
+import '@/styles/markdown.css'
 import SafeButton from '@/components/basic/SafeButton.vue'
 import BaseTable from '@/components/basic/BaseTable.vue'
 import { useTable } from '@/composables/useTable'
+import { formatDateTime } from '@/utils/date'
 import {
   type ArticleVO,
   changeArticleStatusApi,
@@ -126,7 +135,6 @@ import { ElMessage, ElMessageBox } from 'element-plus'
 import { listTagApi, type TagVO } from '@/api/tag.ts'
 import { type CategoryVO, listCategoryApi } from '@/api/category.ts'
 
-const md = new MarkdownIt()
 const titleFilter = ref('')
 const dialogVisible = ref(false)
 const dialogTitle = ref('')
@@ -161,7 +169,12 @@ const columns = [
   { label: '标题', prop: 'title' },
   { label: '作者', prop: 'author', width: 140 },
   { label: '状态', slot: 'status', width: 120 },
-  { label: '创建时间', prop: 'createTime', width: 180 },
+  {
+    label: '创建时间',
+    prop: 'createTime',
+    width: 180,
+    formatter: (row: ArticleVO) => formatDateTime(row.createTime) || '—',
+  },
   { label: '操作', slot: 'actions', width: 220 },
 ]
 
@@ -201,21 +214,22 @@ const onSizeChange = (newSize: number) => {
 
 // 新增 / 编辑
 const openCreate = () => {
-  dialogTitle.value = '新增文章'
+  dialogTitle.value = '新增草稿'
   Object.assign(articleForm, {
     id: undefined,
     title: '',
     content: '',
     categoryId: undefined,
     tagIds: [],
+    status: 0,
   })
   dialogVisible.value = true
 }
 
 const openEdit = async (row: ArticleVO) => {
-  dialogTitle.value = '编辑文章'
   const res = await getArticleByIdApi(row.id)
   if (res.code === 200 && res.data) {
+    dialogTitle.value = res.data.status === 1 ? '编辑文章' : '编辑草稿'
     Object.assign(articleForm, res.data)
     dialogVisible.value = true
   }
@@ -256,7 +270,7 @@ const saveArticle = async () => {
   }
 
   if (res.code === 200 && res.data) {
-    ElMessage.success('保存成功')
+    ElMessage.success(articleForm.status === 0 ? '草稿已保存，尚未发布' : '修改已保存')
     dialogVisible.value = false
     await fetchArticles({ title: titleFilter.value, current: current.value, size: size.value })
   } else {
@@ -266,11 +280,20 @@ const saveArticle = async () => {
 
 // 删除文章
 const deleteArticle = async (row: ArticleVO) => {
-  await ElMessageBox.confirm(`确定删除文章【${row.title}】吗？`, '删除确认', { type: 'warning' })
+  const confirmed = await ElMessageBox.confirm(
+    `确定删除${row.status === 1 ? '文章' : '草稿'}【${row.title}】吗？`,
+    '删除确认',
+    { type: 'warning' },
+  ).then(
+    () => true,
+    () => false,
+  )
+  if (!confirmed) return
   const res = await deleteArticleApi(row.id!)
   if (res.code === 200 && res.data) {
     ElMessage.success('删除成功')
-    await fetchArticles({ title: titleFilter.value, current: current.value, size: size.value })
+    const page = articles.value.length === 1 ? Math.max(1, current.value - 1) : current.value
+    await fetchArticles({ title: titleFilter.value, current: page, size: size.value })
   } else {
     ElMessage.error(res.msg || '删除失败')
   }
@@ -327,6 +350,13 @@ onMounted(async () => {
   margin-top: 4px;
 }
 
+.draft-hint {
+  margin: 0 0 20px;
+  color: #94a3b8;
+  font-size: 13px;
+  line-height: 1.6;
+}
+
 .filter-form {
   display: flex;
   justify-content: center;
@@ -352,5 +382,6 @@ onMounted(async () => {
 
 .editor-container > * {
   flex: 1;
+  min-width: 0;
 }
 </style>

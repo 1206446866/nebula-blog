@@ -76,7 +76,7 @@ const fetchArticle = async () => {
     article.value = res.data
     const author = await getUserById(res.data.userId)
     if (author.code === 200) {
-      currentAuthor.value = author.data
+      currentAuthor.value = author.data ?? undefined
     }
   } finally {
     articleLoading.value = false

@@ -67,6 +67,7 @@ import { ElMessage, ElMessageBox } from 'element-plus'
 
 import BaseTable from '@/components/basic/BaseTable.vue'
 import { useTable } from '@/composables/useTable'
+import { formatDateTime } from '@/utils/date'
 
 import type { CreateTagDTO, TagVO, UpdateTagDTO } from '@/api/tag'
 import { createTagApi, deleteTagApi, pageTagApi, updateTagApi } from '@/api/tag'
@@ -111,7 +112,12 @@ const columns = [
   { label: 'ID', prop: 'id', width: 80 },
   { label: '名称', prop: 'name' },
   { label: '描述', prop: 'description' },
-  { label: '创建时间', prop: 'createTime', width: 180 },
+  {
+    label: '创建时间',
+    prop: 'createTime',
+    width: 180,
+    formatter: (row: TagVO) => formatDateTime(row.createTime) || '—',
+  },
   { label: '操作', slot: 'actions', width: 160 },
 ]
 

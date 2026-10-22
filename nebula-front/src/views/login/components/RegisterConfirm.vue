@@ -1,8 +1,7 @@
 <script setup lang="ts">
 import { onMounted, ref } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
-import { registerApi } from '@/api/auth.js'
-import type { Result } from '@/types/result.ts'
+import { registerApi } from '@/api/auth.ts'
 
 const route = useRoute()
 const router = useRouter()
@@ -14,25 +13,26 @@ const status = ref<Status>('loading')
 const message = ref('正在确认注册信息...')
 
 const handleRegister = async () => {
-  const token = route.query.token as string
+  const token = route.query.token
 
-  if (!token) {
+  if (typeof token !== 'string' || !/^[a-f0-9]{32}$/.test(token)) {
     status.value = 'error'
     message.value = '注册链接无效'
     return
   }
 
   try {
-    await registerApi({
+    const result = await registerApi({
       token,
     })
+    if (result.data !== true) throw new Error('注册未完成，请稍后重试')
 
     status.value = 'success'
-    message.value = '账号注册成功'
+    message.value = '邮箱已绑定，请使用注册邮箱和密码登录'
   } catch (err: unknown) {
-    const error = err as Result<boolean>
+    const error = err as { message?: string; response?: { data?: { message?: string } } }
     status.value = 'error'
-    message.value = error.message || '注册失败'
+    message.value = error.response?.data?.message || error.message || '注册失败，请稍后重试'
   }
 }
 
@@ -64,7 +64,7 @@ onMounted(() => {
         <h2>注册失败</h2>
         <p>{{ message }}</p>
 
-        <el-button type="primary" @click="goLogin"> 返回注册 </el-button>
+        <el-button type="primary" @click="goLogin"> 返回登录 </el-button>
       </template>
     </div>
   </div>

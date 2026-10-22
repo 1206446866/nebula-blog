@@ -2,6 +2,8 @@
 import { onMounted, onUnmounted, reactive, ref, watch } from 'vue'
 import { sendEmailCaptchaApi, verifyEmailCaptchaApi } from '@/api/auth.ts'
 import { ElMessage } from 'element-plus'
+import { isAxiosError } from 'axios'
+import { getRetryAfterSeconds } from '@/utils/http-error'
 
 defineOptions({
   name: 'EmailRegisterForm',
@@ -31,6 +33,7 @@ const form = reactive({
 const countdown = ref(0)
 let timer: number | undefined
 const sending = ref(false)
+const registering = ref(false)
 const sendCaptcha = async () => {
   if (!form.email) {
     ElMessage.warning('请输入邮箱')
@@ -51,19 +54,30 @@ const sendCaptcha = async () => {
       ElMessage.info(res.message || '验证码发送失败')
       return
     }
-    ElMessage.success(res.message||'再等'+res.data+'s才可发送下一次验证码')
+    ElMessage.success(res.message || '再等' + res.data + 's才可发送下一次验证码')
 
     const expireTime = Date.now() + res.data * 1000
 
     emit('update:email-captcha-expire-time', expireTime)
 
     startCountdown(expireTime)
+  } catch (error) {
+    if (isAxiosError(error) && error.response?.status === 429) {
+      const retry = getRetryAfterSeconds(error.response.headers['retry-after'])
+      if (retry > 0) {
+        const expireTime = Date.now() + retry * 1000
+        emit('update:email-captcha-expire-time', expireTime)
+        startCountdown(expireTime)
+      }
+    }
+    // The request interceptor displays the failure without logging submitted credentials.
   } finally {
     sending.value = false
   }
 }
 
 const register = async () => {
+  if (registering.value) return
   if (!form.email) {
     ElMessage.warning('请输入邮箱')
     return
@@ -79,6 +93,7 @@ const register = async () => {
     return
   }
 
+  registering.value = true
   try {
     const res = await verifyEmailCaptchaApi({
       email: form.email,
@@ -87,8 +102,10 @@ const register = async () => {
     })
 
     ElMessage.success(res.message || '验证成功，请查看邮箱确认邮件')
-  } catch (e) {
-    console.error(e)
+  } catch {
+    // The request interceptor displays the failure without logging submitted credentials.
+  } finally {
+    registering.value = false
   }
 }
 
@@ -168,7 +185,13 @@ watch(
       </el-button>
     </div>
 
-    <el-button class="submit-button" type="primary" size="large" @click="register">
+    <el-button
+      class="submit-button"
+      type="primary"
+      size="large"
+      :loading="registering"
+      @click="register"
+    >
       注册
     </el-button>
 

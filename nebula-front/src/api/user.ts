@@ -26,7 +26,7 @@ export interface UserVO {
   avatar: string
   roleIds: number[]
   status?: number
-  createTime: String
+  createTime: string
 }
 
 /**
@@ -79,8 +79,17 @@ export const updateSelfNameApi = (username: string) => {
   })
 }
 
+export interface CancelAccountDTO {
+  password: string
+  confirmed: boolean
+}
+
+export const cancelSelfAccountApi = (data: CancelAccountDTO) => {
+  return request.delete<Result<boolean>>('/users/self', { data })
+}
+
 export function getUserById(userId: number) {
-  return request.get<Result<UserVO>>(`/users/${userId}`)
+  return request.get<Result<UserVO | null>>(`/users/${userId}`)
 }
 
 export const getUserByIdsApi = (ids: number[]) => {

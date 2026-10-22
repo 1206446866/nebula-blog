@@ -32,19 +32,21 @@
         @page-change="onPageChange"
         @size-change="onSizeChange"
       >
-        <!-- 创建时间 -->
-        <template #createTime="{ row }">
-          {{ row.createTime }}
-        </template>
-
         <!-- 操作 -->
         <template #actions="{ row }">
           <!-- 🔥 新增 -->
-          <el-button size="small" type="warning" @click="openPermission(row)"> 分配权限 </el-button>
+          <el-button size="small" type="warning" @click="openPermission(row)">{{
+            row.name === 'SUPER_ADMIN' ? '查看权限' : '分配权限'
+          }}</el-button>
 
           <el-button size="small" type="primary" @click="openEdit(row)"> 编辑 </el-button>
 
-          <SafeButton size="small" type="danger" :onClick="() => deleteRole(row)">
+          <SafeButton
+            size="small"
+            type="danger"
+            :disabled="[1, 2, 3].includes(row.id)"
+            :onClick="() => deleteRole(row)"
+          >
             删除
           </SafeButton>
         </template>
@@ -55,7 +57,10 @@
     <el-dialog v-model="dialogVisible" :title="form.id ? '编辑角色' : '新增角色'" width="400px">
       <el-form :model="form">
         <el-form-item label="角色名称">
-          <el-input v-model="form.name" />
+          <el-input
+            v-model="form.name"
+            :disabled="form.id !== undefined && [1, 2, 3].includes(form.id)"
+          />
         </el-form-item>
 
         <el-form-item label="描述">
@@ -81,6 +86,7 @@ import { ElMessage, ElMessageBox } from 'element-plus'
 import BaseTable from '@/components/basic/BaseTable.vue'
 import SafeButton from '@/components/basic/SafeButton.vue'
 import { useTable } from '@/composables/useTable'
+import { formatDateTime } from '@/utils/date'
 import {
   createRole,
   type CreateRoleDto,
@@ -110,7 +116,12 @@ const columns = [
   { label: 'ID', prop: 'id', width: 80 },
   { label: '角色名称', prop: 'name' },
   { label: '描述', prop: 'description' },
-  { label: '创建时间', slot: 'createTime', width: 180 },
+  {
+    label: '创建时间',
+    prop: 'createTime',
+    width: 180,
+    formatter: (row: RoleVO) => formatDateTime(row.createTime) || '—',
+  },
   { label: '操作', slot: 'actions', width: 300 },
 ]
 

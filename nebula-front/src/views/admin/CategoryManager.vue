@@ -70,6 +70,7 @@
 import { onMounted, ref, watch } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import BaseTable from '@/components/basic/BaseTable.vue'
+import { formatDateTime } from '@/utils/date'
 
 import {
   type CategoryVO,
@@ -101,6 +102,7 @@ const columns = [
     prop: 'createTime',
     label: '创建时间',
     width: 200,
+    formatter: (row: CategoryVO) => formatDateTime(row.createTime) || '—',
   },
   {
     label: '操作',

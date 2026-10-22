@@ -9,11 +9,11 @@
       <div class="top">
         <div class="left">
           <el-avatar size="small" class="avatar" :src="avatarUrl(userMap.get(item.userId)?.avatar)">
-            {{ userMap.get(item.userId)?.username.charAt(0) }}
+            {{ userMap.get(item.userId)?.username?.charAt(0) || '注' }}
           </el-avatar>
 
           <span class="name">
-            {{ userMap.get(item.userId)?.username }}
+            {{ userMap.get(item.userId)?.username || '已注销用户' }}
           </span>
         </div>
 
@@ -86,7 +86,6 @@ const likeComment = async (comment: CommentVO) => {
 
   const res = await likeCommentApi({
     commentId: comment.id,
-    userId,
   })
 
   if (res.code === 200) {

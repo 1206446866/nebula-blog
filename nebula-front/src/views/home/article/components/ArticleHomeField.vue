@@ -47,7 +47,7 @@
 <script setup lang="ts">
 import type { ArticleVO } from '@/api/article.js'
 import { useRouter } from 'vue-router'
-import { formatDate } from '@/utils/date.js'
+import { formatDate } from '@/utils/date'
 
 defineProps<{
   articles: ArticleVO[]

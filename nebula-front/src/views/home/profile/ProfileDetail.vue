@@ -1,172 +1,197 @@
-<template>
-  <div class="profile-detail">
-    <!-- 登录记录 -->
-    <div class="glass-card login-card">
-      <h3 class="card-title">登录记录</h3>
-
-      <div class="timeline">
-        <div v-for="record in loginRecords" :key="record.id" class="timeline-item">
-          <div class="dot" />
-
-          <div class="timeline-content">
-            <div class="timeline-time">
-              {{ formatRelativeDay(record.createTime) }}
-            </div>
-
-            <div class="timeline-desc">{{ record.device }} · {{ record.browser }}</div>
-          </div>
-        </div>
-      </div>
-    </div>
-
-    <!-- 内容中心 -->
-    <div class="glass-card content-card">
-      <div class="tab-header">
-        <div
-          class="tab-item"
-          :class="{ active: activeTab === 'article' }"
-          @click="activeTab = 'article'"
-        >
-          我的文章 ({{ props.profile?.publicArticles.totalRow }})
-        </div>
-
-        <div
-          class="tab-item"
-          :class="{ active: activeTab === 'comment' }"
-          @click="activeTab = 'comment'"
-        >
-          我的评论 ({{ props.profile?.comments.totalRow }})
-        </div>
-
-        <div
-          class="tab-item"
-          :class="{ active: activeTab === 'draft' }"
-          v-if="isSelf"
-          @click="activeTab = 'draft'"
-        >
-          我的草稿 ({{ props.profile?.draftArticles.totalRow }})
-        </div>
-      </div>
-
-      <!-- 文章 -->
-      <div v-if="activeTab === 'article'" class="content-list">
-        <div v-for="article in articles" :key="article.id" class="content-item">
-          <div class="title">
-            {{ article.title }}
-          </div>
-
-          <div class="summary">
-            {{ article.content }}
-          </div>
-
-          <div class="meta">
-            <span>{{ formatDateTime(article.createTime) }}</span>
-            <span>👁 {{ article.viewCount }}</span>
-            <span>
-              <ion-icon :name="'heart-outline'"></ion-icon>
-              {{ article.likeCount }}</span
-            >
-            <span>💬 {{ article.comments }}</span>
-          </div>
-        </div>
-        <ArticlePagination
-          :current-page="props.profile?.publicArticles?.pageNumber ?? 1"
-          :page-size="5"
-          :total="props.profile?.publicArticles?.totalRow ?? 1"
-          @update:current-page="changePage('article', $event)"
-        />
-      </div>
-
-      <!-- 评论 -->
-      <div v-else-if="activeTab === 'comment'" class="content-list">
-        <div v-for="comment in comments" :key="comment.id" class="content-item">
-          <div class="comment-header">
-            <div class="title">评论于：《{{ comment.articleTitle }}》</div>
-
-            <div class="comment-time">
-              {{ formatDateTime(comment.createTime) }}
-            </div>
-          </div>
-
-          <div class="comment-content">
-            {{ comment.content }}
-          </div>
-
-          <div class="meta">
-            <ion-icon :name="'heart-outline'"></ion-icon> {{ comment.likeCount }}
-          </div>
-        </div>
-        <ArticlePagination
-          :current-page="props.profile?.comments?.pageNumber ?? 1"
-          :page-size="5"
-          :total="props.profile?.comments?.totalRow ?? 1"
-          @update:current-page="changePage('comment', $event)"
-        />
-      </div>
-
-      <!-- 草稿 -->
-      <div v-else class="content-list">
-        <div v-for="draft in drafts" :key="draft.id" class="content-item">
-          <div class="title">
-            {{ draft.title }}
-          </div>
-
-          <div class="summary">
-            {{ draft.content }}
-          </div>
-
-          <div class="meta">
-            <span>创建于：{{ formatDateTime(draft.createTime) }}</span>
-          </div>
-        </div>
-        <ArticlePagination
-          :current-page="props.profile?.draftArticles?.pageNumber ?? 1"
-          :page-size="5"
-          :total="props.profile?.draftArticles?.totalRow ?? 1"
-          @update:current-page="changePage('draft', $event)"
-        />
-      </div>
-    </div>
-  </div>
-</template>
-
 <script setup lang="ts">
-import { computed, ref } from 'vue'
+import { computed, ref, useId, watch } from 'vue'
+import { RouterLink } from 'vue-router'
 import type { UserProfileVO } from '@/api/profile.ts'
 import { formatDateTime, formatRelativeDay } from '@/utils/date.ts'
-import ArticlePagination from '@/views/home/article/components/ArticlePagination.vue'
+import ProfilePagination from './ProfilePagination.vue'
 
-defineOptions({
-  name: 'ProfileDetail',
-})
-const props = defineProps<{
-  profile: UserProfileVO | null
-  isSelf: boolean
-}>()
-const emit = defineEmits<{
-  (e: 'page-change', type: TabType, page: number): void
-}>()
-function changePage(type: 'article' | 'comment' | 'draft', page: number) {
-  emit('page-change', type, page)
-}
+defineOptions({ name: 'ProfileDetail' })
 type TabType = 'article' | 'comment' | 'draft'
+const props = defineProps<{ profile: UserProfileVO | null; isSelf: boolean; loading: boolean }>()
+const emit = defineEmits<{ 'page-change': [type: TabType, page: number] }>()
 const activeTab = ref<TabType>('article')
-
-const loginRecords = computed(() => props.profile?.loginLogs ?? [])
-
+const tabId = useId()
+const tabs = computed(() => [
+  {
+    id: 'article' as const,
+    label: props.isSelf ? '我的文章' : 'TA的文章',
+    count: props.profile?.publicArticles?.totalRow ?? 0,
+  },
+  {
+    id: 'comment' as const,
+    label: props.isSelf ? '我的评论' : 'TA的评论',
+    count: props.profile?.comments?.totalRow ?? 0,
+  },
+  ...(props.isSelf
+    ? [
+        {
+          id: 'draft' as const,
+          label: '我的草稿',
+          count: props.profile?.draftArticles?.totalRow ?? 0,
+        },
+      ]
+    : []),
+])
+const activePage = computed(() =>
+  activeTab.value === 'article'
+    ? props.profile?.publicArticles
+    : activeTab.value === 'comment'
+      ? props.profile?.comments
+      : props.profile?.draftArticles,
+)
 const articles = computed(() => props.profile?.publicArticles?.records ?? [])
-
 const comments = computed(() => props.profile?.comments?.records ?? [])
-
 const drafts = computed(() => props.profile?.draftArticles?.records ?? [])
+const loginRecords = computed(() => (props.isSelf ? (props.profile?.loginLogs ?? []) : []))
+const emptyText = computed(
+  () =>
+    ({ article: '还没有发布文章', comment: '还没有公开评论', draft: '还没有保存草稿' })[
+      activeTab.value
+    ],
+)
+watch(
+  () => props.profile?.userProfileInfoVO.id,
+  () => {
+    activeTab.value = 'article'
+  },
+)
+watch(
+  () => props.isSelf,
+  (isSelf) => {
+    if (!isSelf && activeTab.value === 'draft') activeTab.value = 'article'
+  },
+)
+function changePage(page: number) {
+  emit('page-change', activeTab.value, page)
+}
+function handleTabKey(event: KeyboardEvent, index: number) {
+  let target: number
+  if (event.key === 'ArrowRight') target = (index + 1) % tabs.value.length
+  else if (event.key === 'ArrowLeft') target = (index - 1 + tabs.value.length) % tabs.value.length
+  else if (event.key === 'Home') target = 0
+  else if (event.key === 'End') target = tabs.value.length - 1
+  else return
+  event.preventDefault()
+  activeTab.value = tabs.value[target]!.id
+  const buttons = (
+    event.currentTarget as HTMLElement
+  ).parentElement?.querySelectorAll<HTMLButtonElement>('[role="tab"]')
+  buttons?.[target]?.focus()
+}
 </script>
 
+<template>
+  <div class="profile-detail" :class="{ 'is-public': !isSelf }">
+    <aside v-if="isSelf" class="glass-card login-card" aria-label="最近登录记录">
+      <h3 class="card-title">登录记录<span class="private-label">仅自己可见</span></h3>
+      <div v-if="loginRecords.length" class="timeline">
+        <div v-for="record in loginRecords" :key="record.id" class="timeline-item">
+          <div class="dot" :class="{ 'failed-login': record.status !== 1 }" />
+          <div class="timeline-content">
+            <div class="timeline-time">{{ formatRelativeDay(record.createTime) }}</div>
+            <div class="timeline-desc">
+              {{ record.device || '未知设备' }} · {{ record.browser || '未知浏览器'
+              }}<span v-if="record.status !== 1" class="login-failure">登录未成功</span>
+            </div>
+          </div>
+        </div>
+      </div>
+      <p v-else class="empty-login">暂无登录记录</p>
+    </aside>
+
+    <section class="glass-card content-card" :aria-busy="loading" aria-label="用户内容">
+      <div class="tab-header" role="tablist" aria-label="用户内容类型">
+        <button
+          v-for="(tab, index) in tabs"
+          :id="`${tabId}-${tab.id}`"
+          :key="tab.id"
+          type="button"
+          class="tab-item"
+          :class="{ active: activeTab === tab.id }"
+          role="tab"
+          :aria-selected="activeTab === tab.id"
+          :aria-controls="`${tabId}-panel`"
+          :tabindex="activeTab === tab.id ? 0 : -1"
+          @click="activeTab = tab.id"
+          @keydown="handleTabKey($event, index)"
+        >
+          {{ tab.label }}<span class="tab-count">{{ tab.count }}</span>
+        </button>
+      </div>
+      <div
+        :id="`${tabId}-panel`"
+        class="content-list"
+        role="tabpanel"
+        :aria-labelledby="`${tabId}-${activeTab}`"
+      >
+        <template v-if="activeTab === 'article'">
+          <article v-for="article in articles" :key="article.id" class="content-item">
+            <RouterLink class="title content-link" :to="`/article/${article.id}`">{{
+              article.title
+            }}</RouterLink>
+            <p class="summary">{{ article.content || '暂无摘要' }}</p>
+            <div class="meta">
+              <span>{{ formatDateTime(article.createTime) }}</span
+              ><span aria-label="浏览量">◉ {{ article.viewCount ?? 0 }}</span
+              ><span aria-label="点赞数">♡ {{ article.likeCount ?? 0 }}</span
+              ><span aria-label="评论数">💬 {{ article.comments ?? 0 }}</span>
+            </div>
+          </article>
+        </template>
+        <template v-else-if="activeTab === 'comment'">
+          <article v-for="comment in comments" :key="comment.id" class="content-item">
+            <div class="comment-header">
+              <RouterLink
+                v-if="comment.articleTitle"
+                class="title content-link"
+                :to="`/article/${comment.articleId}`"
+                >评论于：《{{ comment.articleTitle }}》</RouterLink
+              ><span v-else class="title">文章已删除或不可访问</span
+              ><time class="comment-time">{{ formatDateTime(comment.createTime) }}</time>
+            </div>
+            <p class="comment-content">{{ comment.content }}</p>
+            <div class="meta">
+              <span aria-label="点赞数">♡ {{ comment.likeCount ?? 0 }}</span>
+            </div>
+          </article>
+        </template>
+        <template v-else-if="isSelf">
+          <article v-for="draft in drafts" :key="draft.id" class="content-item">
+            <h3 class="title">{{ draft.title }}</h3>
+            <p class="summary">{{ draft.content || '暂无摘要' }}</p>
+            <div class="meta">
+              <span>创建于：{{ formatDateTime(draft.createTime) }}</span
+              ><span class="draft-badge">未发布</span>
+            </div>
+          </article>
+        </template>
+        <div v-if="!activePage?.records.length" class="content-empty">
+          <svg viewBox="0 0 40 40" fill="none" aria-hidden="true">
+            <path d="M10 6h14l7 7v21H10Z" />
+            <path d="M24 6v8h7M15 21h11m-11 6h7" />
+          </svg>
+          <p>{{ emptyText }}</p>
+          <span>有新的内容时，会在这里与你相遇。</span>
+        </div>
+      </div>
+      <ProfilePagination
+        :key="activeTab"
+        :current-page="activePage?.pageNumber ?? 1"
+        :page-size="activePage?.pageSize ?? 5"
+        :total="activePage?.totalRow ?? 0"
+        :loading="loading"
+        @update:current-page="changePage"
+      />
+    </section>
+  </div>
+</template>
 <style scoped>
 .profile-detail {
   width: 80%;
   margin: 24px auto 40px;
   display: grid;
-  grid-template-columns: 280px 1fr;
+  grid-template-columns: 250px minmax(0, 1fr);
+  align-items: start;
   gap: 20px;
 }
 
@@ -179,6 +204,9 @@ const drafts = computed(() => props.profile?.draftArticles?.records ?? [])
 }
 
 .card-title {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
   margin-bottom: 20px;
   font-size: 18px;
   font-weight: 600;
@@ -190,6 +218,10 @@ const drafts = computed(() => props.profile?.draftArticles?.records ?? [])
   display: flex;
   flex-direction: column;
   gap: 20px;
+  max-height: 540px;
+  overflow-y: auto;
+  scrollbar-width: thin;
+  scrollbar-color: #334155 transparent;
 }
 
 .timeline-item {
@@ -225,6 +257,14 @@ const drafts = computed(() => props.profile?.draftArticles?.records ?? [])
 }
 
 .tab-item {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  border: 1px solid transparent;
+  background: transparent;
+  color: #94a3b8;
+  font: inherit;
+  font-size: 13px;
   padding: 10px 18px;
   border-radius: 12px;
   cursor: pointer;
@@ -237,6 +277,8 @@ const drafts = computed(() => props.profile?.draftArticles?.records ?? [])
 
 .tab-item.active {
   background: rgba(56, 189, 248, 0.15);
+  border-color: #38bdf830;
+  color: #bae6fd;
 }
 
 /* 内容 */
@@ -272,6 +314,11 @@ const drafts = computed(() => props.profile?.draftArticles?.records ?? [])
   margin-top: 10px;
   color: #cbd5e1;
   line-height: 1.7;
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 3;
+  overflow: hidden;
+  overflow-wrap: anywhere;
 }
 
 .meta {
@@ -280,6 +327,7 @@ const drafts = computed(() => props.profile?.draftArticles?.records ?? [])
   gap: 16px;
   color: #94a3b8;
   font-size: 13px;
+  flex-wrap: wrap;
 }
 
 .comment-header {
@@ -302,5 +350,144 @@ const drafts = computed(() => props.profile?.draftArticles?.records ?? [])
 .comment-content {
   margin-top: 12px;
   line-height: 1.7;
+  overflow-wrap: anywhere;
+}
+.profile-detail.is-public {
+  grid-template-columns: minmax(0, 1fr);
+}
+.content-card {
+  min-width: 0;
+}
+.private-label {
+  margin-left: 8px;
+  font-size: 10px;
+  font-weight: 400;
+  color: #64748b;
+  white-space: nowrap;
+}
+.failed-login {
+  background: #d5a66c;
+}
+.login-failure {
+  display: block;
+  margin-top: 4px;
+  color: #bd9c76;
+  font-size: 11px;
+}
+.empty-login {
+  color: #64748b;
+  font-size: 13px;
+}
+.tab-count {
+  color: #71859f;
+  font-size: 11px;
+  font-variant-numeric: tabular-nums;
+}
+.tab-item.active .tab-count {
+  color: #7dd3fc;
+}
+.content-link {
+  display: block;
+  color: #e2e8f0;
+  transition: color 0.2s;
+}
+.content-link:hover {
+  color: #7dd3fc;
+}
+.content-empty {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  min-height: 240px;
+  color: #94a3b8;
+}
+.content-empty svg {
+  width: 38px;
+  height: 38px;
+  stroke: #526a85;
+  stroke-width: 1.2;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+.content-empty p {
+  font-size: 14px;
+  color: #a4b6ce;
+}
+.content-empty > span {
+  font-size: 12px;
+  color: #61748e;
+}
+.draft-badge {
+  color: #b5a8dc;
+}
+button:focus-visible,
+a:focus-visible {
+  outline: 2px solid #7dd3fc;
+  outline-offset: 4px;
+}
+@media (max-width: 1050px) {
+  .profile-detail {
+    width: 90%;
+    grid-template-columns: 220px minmax(0, 1fr);
+  }
+  .glass-card {
+    padding: 20px;
+  }
+  .tab-item {
+    padding: 10px 12px;
+  }
+  .tab-header {
+    gap: 6px;
+  }
+  .private-label {
+    font-size: 9px;
+  }
+}
+@media (max-width: 760px) {
+  .profile-detail {
+    width: calc(100% - 32px);
+    grid-template-columns: minmax(0, 1fr);
+    gap: 16px;
+  }
+  .content-card {
+    order: 0;
+  }
+  .login-card {
+    order: 1;
+  }
+  .glass-card {
+    padding: 18px;
+    border-radius: 16px;
+  }
+  .timeline {
+    max-height: 250px;
+  }
+  .tab-header {
+    gap: 4px;
+  }
+  .tab-item {
+    padding: 9px 10px;
+    font-size: 12px;
+  }
+  .content-item {
+    padding: 15px;
+  }
+  .meta {
+    gap: 8px 14px;
+    font-size: 11px;
+  }
+  .comment-header {
+    align-items: flex-start;
+    flex-direction: column;
+    gap: 6px;
+  }
+  .comment-header .title {
+    max-width: 100%;
+  }
+  .comment-time {
+    font-size: 11px;
+  }
 }
 </style>

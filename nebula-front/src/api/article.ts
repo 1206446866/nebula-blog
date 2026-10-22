@@ -58,7 +58,6 @@ export interface ChangeArticleStatusDto {
 
 export interface ArticleLikeDto {
   articleId: number
-  userId: number
 }
 
 export const getArticlePageApi = (params: ArticlePageDTO) => {

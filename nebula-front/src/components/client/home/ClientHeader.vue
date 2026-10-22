@@ -26,7 +26,9 @@
 
         <div v-if="menuVisible" class="dropdown">
           <div class="item" @click="goProfile">个人主页</div>
-          <div class="item" @click="logout">退出登录</div>
+          <div class="item" @click="logout">
+            {{ authStore.loggingOut ? '正在退出…' : '退出登录' }}
+          </div>
         </div>
       </template>
     </div>
@@ -34,7 +36,7 @@
 </template>
 
 <script setup lang="ts">
-import { computed, onMounted, ref } from 'vue'
+import { computed, onBeforeUnmount, onMounted, ref } from 'vue'
 import { useRouter } from 'vue-router'
 import { getCurrentUserId } from '@/utils/auth'
 import { useAuthStore } from '@/stores/auth.ts'
@@ -63,10 +65,8 @@ const goProfile = () => {
   menuVisible.value = false
 }
 
-const logout = () => {
-  const authStore = useAuthStore()
-  authStore.logout()
-  router.push('/login')
+const logout = async () => {
+  if (await authStore.logout()) await router.replace('/login')
 }
 
 /** 点击外部关闭 */
@@ -78,6 +78,9 @@ const handleClickOutside = (e: MouseEvent) => {
 
 onMounted(() => {
   document.addEventListener('click', handleClickOutside)
+})
+onBeforeUnmount(() => {
+  document.removeEventListener('click', handleClickOutside)
 })
 </script>
 
@@ -178,5 +181,36 @@ onMounted(() => {
 
 .item:hover {
   background: rgba(56, 189, 248, 0.1);
+}
+
+@media (max-width: 650px) {
+  .client-header {
+    padding: 0 16px;
+    gap: 12px;
+  }
+  .left {
+    min-width: 0;
+    gap: 14px;
+  }
+  .logo {
+    font-size: 18px;
+  }
+  .nav {
+    gap: 2px;
+  }
+  .nav .item {
+    padding: 8px;
+    white-space: nowrap;
+  }
+  .right {
+    flex-shrink: 0;
+  }
+  .user span {
+    display: none;
+  }
+  .btn {
+    padding: 6px 8px;
+    white-space: nowrap;
+  }
 }
 </style>

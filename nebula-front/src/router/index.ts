@@ -33,7 +33,7 @@ const staticRoutes: RouteRecordRaw[] = [
         component: () => import('@/views/admin/RoleManager.vue'),
         meta: {
           title: '角色管理',
-          // roles: [Role.SUPER_ADMIN],
+          roles: [Role.SUPER_ADMIN],
         },
       },
       {
@@ -42,7 +42,7 @@ const staticRoutes: RouteRecordRaw[] = [
         component: () => import('@/views/admin/PermissionManager.vue'),
         meta: {
           title: '权限管理',
-          // roles: [Role.SUPER_ADMIN],
+          roles: [Role.SUPER_ADMIN],
         },
       },
       {

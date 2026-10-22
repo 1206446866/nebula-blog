@@ -9,7 +9,7 @@
       <!-- 查询区域 -->
       <el-form inline class="filter-form">
         <el-form-item>
-          <el-input v-model="roleFilter" placeholder="输入权限筛选" clearable />
+          <el-input v-model="roleFilter" placeholder="按角色ID、编码或名称筛选" clearable />
         </el-form-item>
         <el-form-item>
           <el-input v-model="userNameFilter" placeholder="输入用户名筛选" clearable />
@@ -48,8 +48,18 @@
         <template #actions="{ row }">
           <span v-if="row.id === Number(getCurrentUserId())" type="info"> / </span>
 
+          <span v-else-if="row.roleIds?.includes(1) && !isSuperAdmin" class="protected-account"
+            >受保护的超级管理员</span
+          >
+
           <template v-else>
-            <el-button size="small" type="primary" @click="editUser(row)"> 编辑 </el-button>
+            <el-button v-if="isSuperAdmin" size="small" type="primary" @click="editUser(row)">
+              编辑
+            </el-button>
+
+            <el-button v-if="canResetPassword(row)" size="small" @click="openPasswordReset(row)">
+              重置密码
+            </el-button>
 
             <SafeButton
               size="small"
@@ -68,8 +78,9 @@
     </div>
 
     <!-- 编辑用户 -->
-    <el-dialog v-model="dialogVisible" title="编辑用户" width="400px">
+    <el-dialog v-model="dialogVisible" title="编辑用户" width="min(400px, calc(100vw - 32px))">
       <el-form :model="editForm">
+        <p class="role-hint">超级管理员拥有全部权限。为管理员选择“超级管理员”角色即可提升权限。</p>
         <el-form-item label="用户名">
           <el-input v-model="editForm.username" />
         </el-form-item>
@@ -92,12 +103,67 @@
         <SafeButton type="primary" :onClick="saveEdit"> 保存 </SafeButton>
       </template>
     </el-dialog>
+
+    <el-dialog
+      v-model="passwordResetVisible"
+      title="重置用户密码"
+      width="min(440px, calc(100vw - 32px))"
+      :close-on-click-modal="!passwordResetting"
+      :close-on-press-escape="!passwordResetting"
+      :show-close="!passwordResetting"
+      @closed="clearPasswordReset"
+    >
+      <p class="role-hint">
+        正在为「{{
+          passwordResetTarget?.username
+        }}」设置新密码。提交后该用户原有登录会话将失效，请通过安全渠道告知新密码。
+      </p>
+      <el-form label-position="top" @submit.prevent="submitPasswordReset">
+        <el-form-item label="你的当前密码">
+          <el-input
+            v-model="passwordResetForm.operatorPassword"
+            type="password"
+            show-password
+            autocomplete="current-password"
+            :disabled="passwordResetting"
+          />
+        </el-form-item>
+        <el-form-item label="用户的新密码">
+          <el-input
+            v-model="passwordResetForm.newPassword"
+            type="password"
+            show-password
+            autocomplete="new-password"
+            placeholder="8至64个字符"
+            :disabled="passwordResetting"
+          />
+        </el-form-item>
+        <el-form-item label="确认新密码">
+          <el-input
+            v-model="passwordResetForm.confirmPassword"
+            type="password"
+            show-password
+            autocomplete="new-password"
+            :disabled="passwordResetting"
+          />
+        </el-form-item>
+      </el-form>
+      <template #footer>
+        <el-button :disabled="passwordResetting" @click="passwordResetVisible = false"
+          >取消</el-button
+        >
+        <el-button type="primary" :loading="passwordResetting" @click="submitPasswordReset"
+          >确认重置</el-button
+        >
+      </template>
+    </el-dialog>
   </div>
 </template>
 
 <script setup lang="ts">
-import { onMounted, reactive, ref, watch } from 'vue'
+import { computed, onMounted, reactive, ref, watch } from 'vue'
 import { debounce } from 'lodash-es'
+import { formatDateTime } from '@/utils/date'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import BaseTable from '@/components/basic/BaseTable.vue'
 import SafeButton from '@/components/basic/SafeButton.vue'
@@ -108,21 +174,89 @@ import {
   getUsersApi,
   switchStatusByIdApi,
   type UserVO,
+  type EditUserDTO,
 } from '@/api/user'
 import { getCurrentUserId } from '@/utils/auth'
 import { getAllRolesApi, getRolesByUserIdApi, type RoleVO } from '@/api/role.ts'
+import { useAuthStore } from '@/stores/auth'
+import { Role } from '@/constants/role'
+import { resetUserPasswordApi } from '@/api/auth'
+
+const authStore = useAuthStore()
+const isSuperAdmin = computed(() => authStore.hasRole(Role.SUPER_ADMIN))
+const originalRoleIds = ref<number[]>([])
+const passwordResetVisible = ref(false)
+const passwordResetting = ref(false)
+const passwordResetTarget = ref<UserVO | null>(null)
+const passwordResetForm = reactive({ operatorPassword: '', newPassword: '', confirmPassword: '' })
+const canResetPassword = (row: UserVO) =>
+  row.id !== Number(getCurrentUserId()) &&
+  authStore.hasRole(Role.ADMIN) &&
+  authStore.hasPermission('user:update') &&
+  (isSuperAdmin.value ||
+    !row.roleIds?.some(
+      (id) =>
+        id === 1 ||
+        id === 2 ||
+        ['ADMIN', 'ROLE_ADMIN', 'SUPER_ADMIN', 'ROLE_SUPER_ADMIN'].includes(
+          roleOptions.value.find((role) => role.id === id)?.name || '',
+        ),
+    ))
+const clearPasswordReset = () => {
+  passwordResetForm.operatorPassword = ''
+  passwordResetForm.newPassword = ''
+  passwordResetForm.confirmPassword = ''
+  passwordResetTarget.value = null
+}
+const openPasswordReset = (row: UserVO) => {
+  if (!canResetPassword(row) || passwordResetting.value) return
+  clearPasswordReset()
+  passwordResetTarget.value = row
+  passwordResetVisible.value = true
+}
+const submitPasswordReset = async () => {
+  if (passwordResetting.value || !passwordResetTarget.value) return
+  if (!passwordResetForm.operatorPassword.trim()) {
+    ElMessage.warning('请输入你的当前密码')
+    return
+  }
+  const password = passwordResetForm.newPassword
+  if (
+    password.length < 8 ||
+    password.length > 64 ||
+    new TextEncoder().encode(password).length > 72
+  ) {
+    ElMessage.warning('新密码需为8至64个字符且不超过72字节')
+    return
+  }
+  if (password !== passwordResetForm.confirmPassword) {
+    ElMessage.warning('两次新密码不一致')
+    return
+  }
+  passwordResetting.value = true
+  try {
+    const result = await resetUserPasswordApi(passwordResetTarget.value.id, {
+      ...passwordResetForm,
+    })
+    if (result.data === true) {
+      passwordResetVisible.value = false
+      clearPasswordReset()
+      ElMessage.success('密码已重置，该用户原有登录会话已失效')
+    }
+  } catch {
+    // The request interceptor displays safe server feedback.
+  } finally {
+    passwordResetting.value = false
+  }
+}
 
 const roleFilter = ref('')
 const userNameFilter = ref('')
 const dialogVisible = ref(false)
-const editForm = reactive<UserVO>({
-  avatar: '',
-  createTime: '',
+const editForm = reactive<EditUserDTO>({
   id: 0,
   username: '',
   roleIds: [],
-  status: 0,
-  account: '',
 })
 const columns = [
   {
@@ -148,6 +282,7 @@ const columns = [
     label: '创建时间',
     prop: 'createTime',
     width: 180,
+    formatter: (row: UserVO) => formatDateTime(row.createTime) || '—',
   },
   {
     label: '操作',
@@ -200,17 +335,33 @@ const switchStatus = async (row: UserVO) => {
 }
 
 const editUser = async (row: UserVO) => {
-  Object.assign(editForm, row)
+  if (!isSuperAdmin.value) return
   const res = await getRolesByUserIdApi(row.id)
   if (res.code === 200 && res.data) {
+    editForm.id = row.id
+    editForm.username = row.username
     editForm.roleIds = res.data.map((item) => item.id)
+    originalRoleIds.value = [...editForm.roleIds]
   } else {
     ElMessage.error('拉取角色信息失败')
+    return
   }
   dialogVisible.value = true
 }
 
 const saveEdit = async () => {
+  if (!isSuperAdmin.value) return
+  if (editForm.roleIds.includes(1) && !originalRoleIds.value.includes(1)) {
+    const confirmed = await ElMessageBox.confirm(
+      `将【${editForm.username}】提升为超级管理员后，该账号将拥有全部管理权限。是否继续？`,
+      '提升超级管理员',
+      { type: 'warning', confirmButtonText: '确认提升', cancelButtonText: '取消' },
+    ).then(
+      () => true,
+      () => false,
+    )
+    if (!confirmed) return
+  }
   const res = await editUserApi({
     id: editForm.id!,
     username: editForm.username!,
@@ -219,7 +370,7 @@ const saveEdit = async () => {
   if (res.code === 200 && res.data) {
     ElMessage.success('修改成功')
     dialogVisible.value = false
-    await fetchUsers()
+    await fetchUsers(roleFilter.value, userNameFilter.value, current.value, size.value)
   } else {
     ElMessage.error(res.message || '修改失败')
   }
@@ -247,6 +398,16 @@ onMounted(async () => {
 </script>
 
 <style scoped>
+.role-hint {
+  margin: 0 0 18px;
+  color: #94a3b8;
+  font-size: 13px;
+  line-height: 1.6;
+}
+.protected-account {
+  color: #a5b4fc;
+  font-size: 12px;
+}
 .page {
   display: flex;
   flex-direction: column;

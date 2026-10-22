@@ -8,7 +8,8 @@ dayjs.extend(relativeTime)
  */
 export const formatDateTime = (time?: string | Date) => {
   if (!time) return ''
-  return dayjs(time).format('YYYY-MM-DD HH:mm:ss')
+  const date = dayjs(time)
+  return date.isValid() ? date.format('YYYY-MM-DD HH:mm:ss') : ''
 }
 
 /**
@@ -16,7 +17,8 @@ export const formatDateTime = (time?: string | Date) => {
  */
 export const formatDate = (time?: string | Date) => {
   if (!time) return ''
-  return dayjs(time).format('YYYY-MM-DD')
+  const date = dayjs(time)
+  return date.isValid() ? date.format('YYYY-MM-DD') : ''
 }
 
 /**
