@@ -1,5 +1,18 @@
 <template>
-  <el-dialog v-model="visible" title="权限分配" width="700px" class="perm-dialog">
+  <el-dialog
+    v-model="visible"
+    title="权限分配"
+    width="min(700px, calc(100vw - 32px))"
+    class="perm-dialog"
+  >
+    <el-alert
+      v-if="isSuperAdminRole"
+      title="超级管理员自动拥有全部权限，无需单独分配。"
+      type="info"
+      :closable="false"
+      show-icon
+      class="root-notice"
+    />
     <!-- 角色信息 -->
     <el-card class="info-card">
       <div class="title">角色信息</div>
@@ -21,8 +34,12 @@
 
     <!-- 权限面板 -->
     <el-card class="perm-card">
-      <div class="title">{{ currentModuleName }} 权限</div>
-      <el-checkbox-group v-model="checkedMap[currentModule]" class="perm-group">
+      <div class="title">{{ currentModuleName }}</div>
+      <el-checkbox-group
+        v-model="checkedMap[currentModule]"
+        class="perm-group"
+        :disabled="isSuperAdminRole || submitting"
+      >
         <el-checkbox v-for="p in currentPermissions" :key="p.id" :value="p.id" class="perm-item">
           {{ p.description }}
         </el-checkbox>
@@ -31,7 +48,9 @@
 
     <template #footer>
       <el-button @click="visible = false">取消</el-button>
-      <el-button type="primary" @click="submit">保存</el-button>
+      <el-button v-if="!isSuperAdminRole" type="primary" :loading="submitting" @click="submit"
+        >保存</el-button
+      >
     </template>
   </el-dialog>
 </template>
@@ -47,8 +66,11 @@ import {
   saveRolePermissionsApi,
 } from '@/api/permission.ts'
 import { ElMessage } from 'element-plus'
+import { Role } from '@/constants/role'
 
 const visible = ref(false)
+const submitting = ref(false)
+const isSuperAdminRole = computed(() => role.value.name === Role.SUPER_ADMIN)
 
 const role = ref<RoleVO>({
   id: 0,
@@ -90,7 +112,7 @@ const open = async (roleData: RoleVO) => {
     getRolePermissionsApi(roleData.id),
   ])
   grouped.value = all?.data ?? {}
-  const baseMap = buildCheckedMap(rolePerms.data)
+  const baseMap = buildCheckedMap(isSuperAdminRole.value ? grouped.value : rolePerms.data)
   checkedMap.value = Object.fromEntries(
     Object.keys(grouped.value).map((k) => [k, baseMap[k] || []]),
   )
@@ -99,13 +121,19 @@ const open = async (roleData: RoleVO) => {
 }
 /** submit */
 const submit = async () => {
-  const all = [...new Set(Object.values(checkedMap.value).flat())]
-  await saveRolePermissionsApi({
-    roleId: role.value.id,
-    permissionIds: all,
-  })
-  ElMessage.success('授权成功')
-  visible.value = false
+  if (isSuperAdminRole.value || submitting.value) return
+  submitting.value = true
+  try {
+    const all = [...new Set(Object.values(checkedMap.value).flat())]
+    await saveRolePermissionsApi({
+      roleId: role.value.id,
+      permissionIds: all,
+    })
+    ElMessage.success('授权成功')
+    visible.value = false
+  } finally {
+    submitting.value = false
+  }
 }
 
 const buildCheckedMap = (grouped?: PermissionGroupMap) => {
@@ -121,6 +149,9 @@ defineExpose({ open })
 </script>
 
 <style scoped>
+.root-notice {
+  margin-bottom: 16px;
+}
 .perm-dialog :deep(.el-dialog) {
   background: #0f172a;
   border-radius: 10px;
@@ -136,6 +167,7 @@ defineExpose({ open })
 
 .tabs {
   display: flex;
+  flex-wrap: wrap;
   gap: 10px;
   margin: 12px 0;
 }

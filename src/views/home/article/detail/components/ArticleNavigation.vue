@@ -15,10 +15,24 @@
       </div>
 
       <div class="actions">
-        <div class="action-item" @click="like">
+        <button
+          type="button"
+          class="action-item"
+          :disabled="liking || article.status !== 1"
+          :aria-pressed="!!articleState.liked"
+          @click="like"
+        >
           <ion-icon :name="articleState.liked ? 'heart' : 'heart-outline'"></ion-icon>
-          <span>{{ articleState.liked ? '已喜欢' : '喜欢' }}</span>
-        </div>
+          <span>{{
+            article.status !== 1
+              ? '发布后可点赞'
+              : liking
+                ? '处理中…'
+                : articleState.liked
+                  ? '已喜欢'
+                  : '喜欢'
+          }}</span>
+        </button>
       </div>
     </div>
 
@@ -44,10 +58,10 @@
 
 <script setup lang="ts">
 import { useRouter } from 'vue-router'
-import { getCurrentUserId } from '@/utils/auth.ts'
+import { useAuthStore } from '@/stores/auth'
 import { ElMessage } from 'element-plus'
 import { type ArticleVO, likeArticleApi } from '@/api/article.ts'
-import { ref } from 'vue'
+import { ref, watch } from 'vue'
 import { todo } from '@/utils/todo.ts'
 
 interface ArticleNavItem {
@@ -63,6 +77,14 @@ const props = defineProps<{
 const articleState = ref({
   ...props.article,
 })
+const liking = ref(false)
+const auth = useAuthStore()
+watch(
+  () => props.article,
+  (article) => {
+    articleState.value = { ...article }
+  },
+)
 const router = useRouter()
 
 const goList = () => {
@@ -75,22 +97,24 @@ const goList = () => {
 // }
 
 const like = async () => {
-  const userId = Number(getCurrentUserId())
-
-  if (!userId) {
+  if (liking.value || props.article.status !== 1) return
+  if (!auth.getToken()) {
     ElMessage.warning('请先登录')
     return
   }
 
-  const res = await likeArticleApi({
-    articleId: props.article.id,
-    userId,
-  })
-  if (res.code === 200) {
-    ElMessage.success(res.data ? '点赞成功 ❤️' : '取消点赞')
-    articleState.value.liked = res.data
-  } else {
-    ElMessage.warning('点赞失败，似乎发生了错误')
+  const articleId = props.article.id
+  liking.value = true
+  try {
+    const res = await likeArticleApi({ articleId })
+    if (props.article.id === articleId && res.code === 200) {
+      articleState.value.liked = res.data
+      ElMessage.success(res.data ? '点赞成功 ❤️' : '取消点赞')
+    }
+  } catch {
+    // The request interceptor displays errors; failed requests do not change the heart state.
+  } finally {
+    liking.value = false
   }
 }
 </script>
@@ -168,6 +192,10 @@ const like = async () => {
 }
 
 .action-item {
+  background: transparent;
+  border: 0;
+  padding: 4px 8px;
+  font: inherit;
   display: flex;
   flex-direction: column;
   align-items: center;
@@ -177,6 +205,11 @@ const like = async () => {
 
   cursor: pointer;
   transition: 0.2s;
+}
+
+.action-item:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
 }
 
 .action-item i,

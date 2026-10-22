@@ -28,25 +28,23 @@
 </template>
 
 <script setup lang="ts">
-import { defineEmits, defineProps } from 'vue'
-
 interface Column {
   label: string
   prop?: string
   width?: string | number
   slot?: string
-  [key: string]: any
+  [key: string]: unknown
 }
 
 const props = defineProps<{
-  data: any[]
+  data: object[]
   columns: Column[]
   loading?: boolean
   current?: number
   size?: number
   total?: number
   pageSizes?: number[]
-  tableProps?: Record<string, any>
+  tableProps?: Record<string, unknown>
 }>()
 
 const emit = defineEmits(['page-change', 'size-change'])

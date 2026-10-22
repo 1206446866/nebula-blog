@@ -6,25 +6,11 @@
 
 <script setup lang="ts">
 import { computed } from 'vue'
-import MarkdownIt from 'markdown-it'
-import hljs from 'highlight.js'
+import { renderMarkdown } from '@/utils/markdown'
 import '@/styles/markdown.css'
 
 const props = defineProps<{ content: string }>()
-const escapeHtml = (s: string) =>
-  s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
-
-const md = new MarkdownIt({
-  html: true,
-  highlight(str, lang) {
-    if (lang && hljs.getLanguage(lang)) {
-      return `<pre><code class="hljs language-${lang}">${hljs.highlight(str, { language: lang }).value}</code></pre>`
-    }
-    return `<pre><code class="hljs">${escapeHtml(str)}</code></pre>`
-  },
-})
-
-const htmlContent = computed(() => md.render(props.content || ''))
+const htmlContent = computed(() => renderMarkdown(props.content))
 </script>
 
 <style scoped>

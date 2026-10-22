@@ -8,10 +8,14 @@
       <div class="user">
         <ion-icon name="person-circle-outline"></ion-icon>
 
-        <tag @click="profile">管理员</tag>
+        <button type="button" class="profile-link" @click="profile">
+          {{ userStore.hasRole(Role.SUPER_ADMIN) ? '超级管理员' : '管理员' }}
+        </button>
       </div>
 
-      <el-button type="danger" size="small" @click="logout"> 退出登录 </el-button>
+      <el-button type="danger" size="small" :loading="userStore.loggingOut" @click="logout">
+        退出登录
+      </el-button>
     </div>
   </div>
 </template>
@@ -23,12 +27,12 @@ defineOptions({
 import { useRouter } from 'vue-router'
 
 import { useAuthStore } from '@/stores/auth'
+import { Role } from '@/constants/role'
 
 const router = useRouter()
 const userStore = useAuthStore()
-const logout = () => {
-  userStore.logout()
-  router.replace('/login')
+const logout = async () => {
+  if (await userStore.logout()) await router.replace('/login')
 }
 
 const profile = () => {
@@ -74,5 +78,14 @@ const profile = () => {
   gap: 6px;
 
   font-size: 16px;
+}
+
+.profile-link {
+  border: 0;
+  padding: 0;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  cursor: pointer;
 }
 </style>

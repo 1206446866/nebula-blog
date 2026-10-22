@@ -1,6 +1,7 @@
 // api/profile.ts
 import request from '@/utils/request'
 import type { Page } from '@/types/page.ts'
+import type { Result } from '@/types/result.ts'
 
 export interface ProfileQuery {
   publicArticlePage?: number
@@ -17,7 +18,7 @@ export interface UserProfileVO {
   loginLogs: UserProfileLoginLogVO[]
   publicArticles: Page<UserProfileArticleVO>
   comments: Page<UserProfileCommentVO>
-  draftArticles: Page<UserProfileArticleVO>
+  draftArticles: Page<UserProfileArticleVO> | null
 }
 
 export interface UserProfileInfoVO {
@@ -27,8 +28,8 @@ export interface UserProfileInfoVO {
   avatar: string
   status: number
   roles: string[]
-  email: string
-  phone: string
+  email: string | null
+  phone: string | null
   createTime: string
 }
 
@@ -40,7 +41,6 @@ export interface UserProfileStatisticsVO {
 }
 
 export interface UserProfileLoginLogVO {
-
   id: number
   /**
    * 用户ID
@@ -91,7 +91,7 @@ export interface UserProfileLoginLogVO {
 export interface UserProfileArticleVO {
   id: number
   title: string
-  content: string
+  content: string | null
   viewCount: number
   createTime: string
   likeCount: number
@@ -102,10 +102,10 @@ export interface UserProfileCommentVO {
   id: number
   articleId: number
   content: string
-  articleTitle: string
+  articleTitle: string | null
   createTime: string
   likeCount: number
 }
-export const getProfileApi = (id: number, params: ProfileQuery) => {
-  return request.get(`/api/profile/${id}`, { params })
+export const getProfileApi = (id: number, params: ProfileQuery, signal?: AbortSignal) => {
+  return request.get<Result<UserProfileVO>>(`/api/profile/${id}`, { params, signal })
 }

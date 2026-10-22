@@ -40,7 +40,7 @@
         </template>
 
         <template #createTime="{ row }">
-          {{ formatDate(row.createTime) }}
+          {{ formatDateTime(row.createTime) || '—' }}
         </template>
 
         <template #actions="{ row }">
@@ -63,7 +63,7 @@ import { useTable } from '@/composables/useTable'
 
 import { type CommentVO, deleteCommentByIdApi, getCommentPageApi } from '@/api/comment'
 import { debounce } from 'lodash-es'
-import { formatDate } from '@/utils/date.ts'
+import { formatDateTime } from '@/utils/date'
 
 const articleIdFilter = ref<number>()
 const contentFilter = ref('')

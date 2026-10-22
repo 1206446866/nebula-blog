@@ -19,7 +19,14 @@ export interface EmailVerifyDTO {
 }
 
 export const loginApi = (data: { account: string; password: string }) => {
-  return request.post<Result<LoginVO>>('/auth/login', data)
+  return request.post<Result<LoginVO>>('/auth/login', data, { skipAuthRedirect: true })
+}
+
+export const logoutApi = (token: string) => {
+  return request.post<Result<boolean>>('/auth/logout', undefined, {
+    headers: { Authorization: `Bearer ${token}` },
+    skipAuthRedirect: true,
+  })
 }
 
 /**
@@ -49,5 +56,15 @@ export const changePasswordApi = (data: {
   newPassword: string
   confirmPassword: string
 }) => {
-  return request.post<Result<Boolean>>('/auth/change-password', data)
+  return request.post<Result<boolean>>('/auth/change-password', data)
+}
+
+export interface ResetPasswordDTO {
+  operatorPassword: string
+  newPassword: string
+  confirmPassword: string
+}
+
+export const resetUserPasswordApi = (userId: number, data: ResetPasswordDTO) => {
+  return request.post<Result<boolean>>(`/auth/reset-password/${userId}`, data)
 }

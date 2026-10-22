@@ -52,7 +52,6 @@ export const deleteCommentByIdApi = (id: number) => {
 
 export interface CommentLikeDto {
   commentId: number
-  userId: number
 }
 
 /**

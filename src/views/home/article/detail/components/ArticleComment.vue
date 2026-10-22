@@ -43,7 +43,6 @@ const total = ref(0)
  */
 const loadComments = async () => {
   const res = await getCommentPageApi(props.articleId, undefined, page.value, pageSize.value)
-  console.log(res)
   if (res.code === 200 && res.data) {
     list.value = res.data.records
     page.value = res.data.pageNumber

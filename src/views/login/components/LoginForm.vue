@@ -23,21 +23,26 @@ const form = reactive({
 })
 
 const handleLogin = async () => {
-  if (!validateForm()) {
+  if (loading.value || !validateForm()) {
     return
   }
-  const res = await loginApi(form)
-  if (res.code !== 200 || !res.data) {
-    ElMessage.error(res.message || '登录失败')
-    return
-  }
-  userStore.setAuth(res.data)
-  // TODO print
-  console.log(res.data)
-  if (userStore.hasRole(Role.ADMIN)) {
-    router.push('/admin')
-  } else {
-    router.push('/')
+  loading.value = true
+  try {
+    const res = await loginApi(form)
+    if (res.code !== 200 || !res.data) {
+      ElMessage.error(res.message || '登录失败')
+      return
+    }
+    userStore.setAuth(res.data)
+    if (userStore.hasRole(Role.ADMIN)) {
+      await router.push('/admin')
+    } else {
+      await router.push('/')
+    }
+  } catch {
+    // The request interceptor displays authentication and network failures.
+  } finally {
+    loading.value = false
   }
 }
 

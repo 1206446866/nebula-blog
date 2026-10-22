@@ -13,12 +13,12 @@
         <span>用户管理</span>
       </router-link>
 
-      <router-link to="/admin/role" class="item">
+      <router-link v-if="authStore.hasRole(Role.SUPER_ADMIN)" to="/admin/role" class="item">
         <ion-icon name="shield-outline"></ion-icon>
         <span>角色管理</span>
       </router-link>
 
-      <router-link to="/admin/permission" class="item">
+      <router-link v-if="authStore.hasRole(Role.SUPER_ADMIN)" to="/admin/permission" class="item">
         <ion-icon name="lock-closed-outline"></ion-icon>
         <span>权限管理</span>
       </router-link>
@@ -46,6 +46,10 @@
   </div>
 </template>
 <script setup lang="ts">
+import { useAuthStore } from '@/stores/auth'
+import { Role } from '@/constants/role'
+
+const authStore = useAuthStore()
 defineOptions({
   name: 'AdminSidebar',
 })

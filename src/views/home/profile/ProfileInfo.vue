@@ -7,24 +7,26 @@
         <h3 class="card-title">基本信息</h3>
 
         <div class="info-list">
-          <div class="info-item">
+          <div v-if="isSelf" class="info-item">
             <span class="label">邮箱</span>
-            <span class="value">{{ props.profile?.userProfileInfoVO.email }}</span>
+            <span class="value">{{ props.profile?.userProfileInfoVO.email || '未绑定' }}</span>
           </div>
 
-          <div class="info-item">
+          <div v-if="isSelf" class="info-item">
             <span class="label">手机号</span>
-            <span class="value">{{ props.profile?.userProfileInfoVO.phone }}</span>
+            <span class="value">{{ props.profile?.userProfileInfoVO.phone || '未绑定' }}</span>
           </div>
 
           <div class="info-item">
             <span class="label">注册时间</span>
-            <span class="value">{{ props.profile?.userProfileInfoVO.createTime }}</span>
+            <span class="value">{{
+              formatDateTime(props.profile?.userProfileInfoVO.createTime) || '—'
+            }}</span>
           </div>
 
-          <div class="info-item">
+          <div v-if="isSelf" class="info-item">
             <span class="label">最后登录</span>
-            <span class="value">2026-06-15 22:30</span>
+            <span class="value">{{ lastLogin || '暂无记录' }}</span>
           </div>
         </div>
       </div>
@@ -34,20 +36,25 @@
         <h3 class="card-title">安全设置</h3>
 
         <div class="security-grid">
-          <div class="action-card" @click="openPasswordDialog">
+          <button type="button" class="action-card" @click="openPasswordDialog">
             <ion-icon name="lock-closed-outline" />
             <span>修改密码</span>
-          </div>
+          </button>
 
-          <div class="action-card" @click="logout">
+          <button
+            type="button"
+            class="action-card"
+            :disabled="authStore.loggingOut"
+            @click="logout"
+          >
             <ion-icon name="log-out-outline" />
-            <span>退出登录</span>
-          </div>
+            <span>{{ authStore.loggingOut ? '正在退出…' : '退出登录' }}</span>
+          </button>
 
-          <div class="action-card danger" @click="deleteAccount">
+          <button type="button" class="action-card danger" @click="openCancellationDialog">
             <ion-icon name="trash-outline" />
             <span>注销账号</span>
-          </div>
+          </button>
         </div>
       </div>
     </div>
@@ -83,7 +90,13 @@
     </div>
   </div>
 
-  <el-dialog v-model="passwordDialogVisible" title="修改密码" width="420px" class="glass-dialog">
+  <el-dialog
+    v-model="passwordDialogVisible"
+    title="修改密码"
+    width="min(420px, calc(100vw - 32px))"
+    class="glass-dialog"
+    @closed="resetForm"
+  >
     <el-form :model="pwdForm">
       <el-form-item label="旧密码">
         <el-input v-model="pwdForm.oldPassword" type="password" show-password />
@@ -100,18 +113,71 @@
 
     <template #footer>
       <el-button @click="passwordDialogVisible = false">取消</el-button>
-      <el-button type="primary" @click="submitChangePassword">确定</el-button>
+      <el-button type="primary" :loading="passwordSubmitting" @click="submitChangePassword"
+        >确定</el-button
+      >
+    </template>
+  </el-dialog>
+
+  <el-dialog
+    v-model="cancellationDialogVisible"
+    title="注销账号"
+    width="min(460px, calc(100vw - 32px))"
+    class="glass-dialog cancellation-dialog"
+    :close-on-click-modal="false"
+    :close-on-press-escape="!cancelling"
+    :show-close="!cancelling"
+    @closed="resetCancellationForm"
+  >
+    <div class="cancellation-notice">
+      <strong>确认离开 Nebula？</strong>
+      <p>注销后，你将无法再登录此账号，个人主页也将关闭。此操作无法在页面中撤回。</p>
+      <p>已发布的文章与评论会保留。</p>
+    </div>
+    <el-form :model="cancellationForm" label-position="top" @submit.prevent="submitCancellation">
+      <el-form-item label="当前密码">
+        <el-input
+          v-model="cancellationForm.password"
+          type="password"
+          autocomplete="current-password"
+          placeholder="输入当前密码以验证身份"
+          show-password
+          :disabled="cancelling"
+        />
+      </el-form-item>
+      <el-checkbox
+        v-model="cancellationForm.confirmed"
+        :disabled="cancelling"
+        class="cancellation-confirm"
+      >
+        我已了解上述影响，确认注销当前账号
+      </el-checkbox>
+    </el-form>
+    <template #footer>
+      <el-button :disabled="cancelling" @click="cancellationDialogVisible = false"
+        >保留账号</el-button
+      >
+      <el-button
+        type="danger"
+        :loading="cancelling"
+        :disabled="!cancellationForm.confirmed"
+        @click="submitCancellation"
+      >
+        确认注销
+      </el-button>
     </template>
   </el-dialog>
 </template>
 
 <script setup lang="ts">
 import { useAuthStore } from '@/stores/auth.ts'
-import { ref } from 'vue'
+import { computed, ref, watch } from 'vue'
 import { ElMessage } from 'element-plus'
 import { changePasswordApi } from '@/api/auth.ts'
+import { cancelSelfAccountApi } from '@/api/user.ts'
 import router from '@/router'
 import type { UserProfileVO } from '@/api/profile.ts'
+import { formatDateTime } from '@/utils/date.ts'
 
 defineOptions({
   name: 'ProfileInfo',
@@ -123,6 +189,22 @@ const props = defineProps<{
 
 const authStore = useAuthStore()
 const passwordDialogVisible = ref(false)
+const passwordSubmitting = ref(false)
+const cancellationDialogVisible = ref(false)
+const cancelling = ref(false)
+const cancellationForm = ref({ password: '', confirmed: false })
+const lastLogin = computed(() =>
+  formatDateTime(props.profile?.loginLogs?.find((record) => record.status === 1)?.createTime),
+)
+watch(
+  () => props.profile?.userProfileInfoVO.id,
+  () => {
+    passwordDialogVisible.value = false
+    resetForm()
+    cancellationDialogVisible.value = false
+    resetCancellationForm()
+  },
+)
 
 const pwdForm = ref({
   oldPassword: '',
@@ -137,33 +219,83 @@ const resetForm = () => {
   }
 }
 const openPasswordDialog = () => {
+  resetForm()
   passwordDialogVisible.value = true
 }
 const submitChangePassword = async () => {
+  if (passwordSubmitting.value) return
+  if (
+    !pwdForm.value.oldPassword.trim() ||
+    !pwdForm.value.newPassword.trim() ||
+    !pwdForm.value.confirmPassword.trim()
+  ) {
+    ElMessage.warning('请填写旧密码、新密码和确认密码')
+    return
+  }
   if (pwdForm.value.newPassword !== pwdForm.value.confirmPassword) {
     ElMessage.error('两次密码不一致')
     return
   }
-  const res = await changePasswordApi({
-    oldPassword: pwdForm.value.oldPassword,
-    newPassword: pwdForm.value.newPassword,
-    confirmPassword: pwdForm.value.confirmPassword,
-  })
-  if (res.code === 200) {
-    resetForm()
-    passwordDialogVisible.value = false
-    ElMessage.success('修改成功，请重新登录')
-  } else {
-    ElMessage.error(res.message)
+  passwordSubmitting.value = true
+  try {
+    const res = await changePasswordApi({
+      oldPassword: pwdForm.value.oldPassword,
+      newPassword: pwdForm.value.newPassword,
+      confirmPassword: pwdForm.value.confirmPassword,
+    })
+    if (res.code === 200 && res.data) {
+      resetForm()
+      passwordDialogVisible.value = false
+      ElMessage.success('修改成功，请重新登录')
+      authStore.clearAuth()
+      await router.replace('/login')
+    } else {
+      ElMessage.error(res.message)
+    }
+  } catch {
+    // Business errors are already displayed by the request interceptor.
+  } finally {
+    passwordSubmitting.value = false
   }
 }
 
-const logout = () => {
-  router.replace('/login')
-  authStore.logout()
+const logout = async () => {
+  if (await authStore.logout()) await router.replace('/login')
 }
-const deleteAccount = () => {
-  ElMessage.warning('功能开发中')
+const resetCancellationForm = () => {
+  cancellationForm.value = { password: '', confirmed: false }
+}
+const openCancellationDialog = () => {
+  resetCancellationForm()
+  cancellationDialogVisible.value = true
+}
+const submitCancellation = async () => {
+  if (cancelling.value || !props.isSelf) return
+  if (!cancellationForm.value.password.trim()) {
+    ElMessage.warning('请输入当前密码')
+    return
+  }
+  if (!cancellationForm.value.confirmed) {
+    ElMessage.warning('请先确认已了解注销影响')
+    return
+  }
+  cancelling.value = true
+  try {
+    const result = await cancelSelfAccountApi({ ...cancellationForm.value })
+    if (result.code === 200 && result.data) {
+      resetCancellationForm()
+      cancellationDialogVisible.value = false
+      authStore.clearAuth()
+      await router.replace('/login')
+      ElMessage.success('账号已注销')
+    } else {
+      ElMessage.error(result.message || '注销失败，请重试')
+    }
+  } catch {
+    // The request interceptor displays the server's validation or permission error.
+  } finally {
+    cancelling.value = false
+  }
 }
 </script>
 
@@ -207,7 +339,6 @@ const deleteAccount = () => {
 
 .top-section {
   display: grid;
-  //grid-template-columns: 1fr 1fr;
   grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
   gap: 20px;
 }
@@ -256,6 +387,9 @@ const deleteAccount = () => {
 }
 
 .action-card {
+  border: 0;
+  color: inherit;
+  font: inherit;
   height: 90px;
 
   display: flex;
@@ -273,6 +407,41 @@ const deleteAccount = () => {
   background: rgba(255, 255, 255, 0.04);
 
   transition: all 0.25s ease;
+}
+
+.action-card:focus-visible {
+  outline: 2px solid #7dd3fc;
+  outline-offset: 3px;
+}
+.cancellation-notice {
+  margin-bottom: 22px;
+  padding: 16px;
+  border: 1px solid #f8717133;
+  border-radius: 12px;
+  background: #f871710a;
+  color: #cbd5e1;
+  line-height: 1.7;
+  font-size: 13px;
+}
+.cancellation-notice strong {
+  color: #fca5a5;
+  font-size: 15px;
+}
+.cancellation-notice p {
+  margin: 8px 0 0;
+}
+.cancellation-confirm {
+  height: auto;
+  align-items: flex-start;
+  white-space: normal;
+}
+.cancellation-confirm :deep(.el-checkbox__label) {
+  white-space: normal;
+  line-height: 1.5;
+  color: #b7c6db;
+}
+:global(.cancellation-dialog .el-form-item__label) {
+  color: #cbd5e1;
 }
 
 .action-card:hover {
@@ -423,5 +592,44 @@ const deleteAccount = () => {
 :global(.el-dialog.glass-dialog .el-dialog__footer) {
   padding: 16px 24px;
   border-top: 1px solid rgba(255, 255, 255, 0.06);
+}
+@media (max-width: 1050px) {
+  .profile-info {
+    width: 90%;
+  }
+}
+@media (max-width: 760px) {
+  .profile-info {
+    width: calc(100% - 32px);
+    gap: 16px;
+  }
+  .top-section {
+    grid-template-columns: minmax(0, 1fr);
+    gap: 16px;
+  }
+  .glass-card {
+    padding: 20px;
+    border-radius: 16px;
+  }
+  .info-card,
+  .security-card {
+    min-height: 0;
+  }
+  .info-item {
+    gap: 18px;
+    align-items: flex-start;
+  }
+  .info-item .value {
+    text-align: right;
+    overflow-wrap: anywhere;
+    min-width: 0;
+  }
+  .info-item .label {
+    flex-shrink: 0;
+  }
+  .overview-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 10px;
+  }
 }
 </style>

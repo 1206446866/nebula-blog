@@ -1,8 +1,10 @@
-import axios, { type AxiosInstance } from 'axios'
+import axios, { type AxiosInstance, type AxiosRequestConfig, type AxiosResponse } from 'axios'
 
 import { ElMessage } from 'element-plus'
 import router from '@/router'
 import { useAuthStore } from '../stores/auth.ts'
+import { belongsToCurrentSession } from './auth-session'
+import { getHttpErrorMessage } from './http-error'
 
 const service: AxiosInstance = axios.create({
   baseURL: '/api',
@@ -11,11 +13,22 @@ const service: AxiosInstance = axios.create({
 
 // 👇 关键：声明返回 T（不是 AxiosResponse）
 declare module 'axios' {
+  export interface AxiosRequestConfig {
+    skipAuthRedirect?: boolean
+  }
   export interface AxiosInstance {
-    get<T = any>(url: string, config?: any): Promise<T>
-    post<T = any>(url: string, data?: any, config?: any): Promise<T>
-    put<T = any>(url: string, data?: any, config?: any): Promise<T>
-    delete<T = any>(url: string, config?: any): Promise<T>
+    get<T = AxiosResponse['data']>(url: string, config?: AxiosRequestConfig): Promise<T>
+    post<T = AxiosResponse['data']>(
+      url: string,
+      data?: unknown,
+      config?: AxiosRequestConfig,
+    ): Promise<T>
+    put<T = AxiosResponse['data']>(
+      url: string,
+      data?: unknown,
+      config?: AxiosRequestConfig,
+    ): Promise<T>
+    delete<T = AxiosResponse['data']>(url: string, config?: AxiosRequestConfig): Promise<T>
   }
 }
 
@@ -25,12 +38,24 @@ declare module 'axios' {
 service.interceptors.request.use((config) => {
   const userStore = useAuthStore()
   const token = userStore.getToken()
-  if (token) {
+  if (token && !config.headers.Authorization) {
     config.headers = config.headers || {}
     config.headers.Authorization = `Bearer ${token}`
   }
   return config
 })
+
+function expireCurrentSession(config: AxiosRequestConfig) {
+  const auth = useAuthStore()
+  if (
+    config.skipAuthRedirect ||
+    !belongsToCurrentSession(config.headers?.Authorization, auth.getToken())
+  )
+    return
+  auth.clearAuth()
+  ElMessage.error('登录状态已失效，请重新登录')
+  void router.replace('/login')
+}
 
 /**
  * 响应拦截器
@@ -39,7 +64,8 @@ service.interceptors.response.use(
   (response) => {
     const { code, message } = response.data
     if (code !== 200) {
-      ElMessage.error(message || '请求失败')
+      if (code === 401 && !response.config.skipAuthRedirect) expireCurrentSession(response.config)
+      else ElMessage.error(message || '请求失败')
       return Promise.reject(response.data)
     }
     return response.data
@@ -47,21 +73,14 @@ service.interceptors.response.use(
 
   (error) => {
     const status = error.response?.status
-    /**
-     * 登录过期
-     */
     if (status === 401) {
-      localStorage.removeItem('token')
-      ElMessage.error('登录已过期')
-      router.push('/login')
-    }
-
-    if (status === 403) {
-      ElMessage.error('权限不足')
-    }
-
-    if (status >= 500) {
-      ElMessage.error('服务器异常')
+      if (error.config?.skipAuthRedirect) {
+        ElMessage.error(getHttpErrorMessage(status, error.response?.data))
+      } else {
+        expireCurrentSession(error.config || {})
+      }
+    } else {
+      ElMessage.error(getHttpErrorMessage(status, error.response?.data))
     }
     return Promise.reject(error)
   },

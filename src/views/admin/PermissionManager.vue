@@ -82,6 +82,7 @@ import {
   type UpdatePermissionDto,
 } from '@/api/permission.ts'
 import { useTable } from '@/composables/useTable.ts'
+import { formatDateTime } from '@/utils/date'
 import BaseTable from '@/components/basic/BaseTable.vue'
 import SafeButton from '@/components/basic/SafeButton.vue'
 import { debounce } from 'lodash-es'
@@ -100,7 +101,12 @@ const columns = [
   { prop: 'id', label: 'ID' },
   { prop: 'name', label: '权限编码' },
   { prop: 'description', label: '描述' },
-  { prop: 'createTime', label: '创建时间' },
+  {
+    prop: 'createTime',
+    label: '创建时间',
+    width: 180,
+    formatter: (row: PermissionVO) => formatDateTime(row.createTime) || '—',
+  },
   { slot: 'actions', label: '操作', width: 160 },
 ]
 const {

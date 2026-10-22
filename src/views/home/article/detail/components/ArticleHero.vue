@@ -8,16 +8,16 @@
 
       <!-- 元信息 -->
       <div class="meta">
-        <div class="meta-item author" @click="goAuthor">
+        <div class="meta-item author" :class="{ 'is-deleted-author': !author }" @click="goAuthor">
           <el-avatar :size="60" :src="avatarUrl">
-            {{ author?.username?.charAt(0) }}
+            {{ author?.username?.charAt(0) || '注' }}
           </el-avatar>
-          <span>{{ author?.username }}</span>
+          <span>{{ author?.username || '已注销用户' }}</span>
         </div>
 
         <div class="meta-item">
           <el-icon><Calendar /></el-icon>
-          <span>{{ formatDate(article.createTime) }}</span>
+          <span>{{ formatDateTime(article.createTime) || '—' }}</span>
         </div>
       </div>
 
@@ -53,7 +53,7 @@
 </template>
 
 <script setup lang="ts">
-import dayjs from 'dayjs'
+import { formatDateTime } from '@/utils/date'
 import { Calendar } from '@element-plus/icons-vue'
 import router from '@/router'
 
@@ -74,9 +74,9 @@ const avatarUrl = computed(() => {
   if (!avatar) return ''
   return `http://localhost:8080/upload/avatar/${avatar}`
 })
-const formatDate = (date: string) => dayjs(date).format('YYYY-MM-DD HH:mm:ss')
 
 const goAuthor = () => {
+  if (!props.author) return
   router.push(`/user/${props.article.userId}`)
 }
 
@@ -104,6 +104,10 @@ const goTag = (tagId: number) => {
 </script>
 
 <style scoped>
+.meta-item.author.is-deleted-author {
+  cursor: default;
+  pointer-events: none;
+}
 .hero {
   width: min(1200px, 100%);
   margin: 0 auto;
@@ -127,7 +131,6 @@ const goTag = (tagId: number) => {
   display: flex;
   flex-wrap: wrap;
   gap: 20px;
-  //margin-bottom: 28px;
 }
 
 .meta-item {

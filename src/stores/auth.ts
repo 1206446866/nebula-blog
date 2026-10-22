@@ -1,10 +1,13 @@
 // src/stores/auth.ts
 import { defineStore } from 'pinia'
 import type { UserVO } from '@/api/user.ts'
-import type { LoginVO } from '@/api/auth.ts'
+import { logoutApi, type LoginVO } from '@/api/auth.ts'
+import { revokeCurrentSession } from '@/utils/auth-session'
+import { Role } from '@/constants/role'
 
 export const useAuthStore = defineStore('auth', {
   state: () => ({
+    loggingOut: false,
     token: localStorage.getItem('token') || '', //防止 token 变成 null。
     user: localStorage.getItem('user') ? JSON.parse(localStorage.getItem('user')!) : null,
     roles: localStorage.getItem('roles') ? JSON.parse(localStorage.getItem('roles')!) : [],
@@ -30,22 +33,47 @@ export const useAuthStore = defineStore('auth', {
     },
 
     hasRole(role: string) {
-      return this.roles.includes(role)
+      if (this.roles.includes(role)) return true
+      if (
+        this.roles.includes(Role.SUPER_ADMIN) &&
+        [Role.ADMIN, Role.USER].some((item) => item === role)
+      )
+        return true
+      return role === Role.USER && this.roles.includes(Role.ADMIN)
     },
 
     hasAnyRole(roles: string[]) {
-      return roles.some((role) => this.roles.includes(role))
+      return roles.some((role) => this.hasRole(role))
     },
 
     hasPermission(permission: string) {
-      return this.permissions.includes(permission)
+      return this.roles.includes(Role.SUPER_ADMIN) || this.permissions.includes(permission)
     },
 
     hasAnyPermission(permissions: string[]) {
-      return permissions.some((permission) => this.permissions.includes(permission))
+      return permissions.some((permission) => this.hasPermission(permission))
     },
 
-    logout() {
+    async logout(): Promise<boolean> {
+      if (this.loggingOut) return false
+      this.loggingOut = true
+      try {
+        return await revokeCurrentSession({
+          token: this.getToken(),
+          revoke: logoutApi,
+          currentToken: () => this.getToken(),
+          clear: () => this.clearAuth(),
+        })
+      } catch {
+        // Keep the session available for retry when the server cannot confirm revocation.
+        // The request interceptor displays the failure.
+        return false
+      } finally {
+        this.loggingOut = false
+      }
+    },
+
+    clearAuth() {
       this.token = ''
       this.user = null
       this.roles = []
