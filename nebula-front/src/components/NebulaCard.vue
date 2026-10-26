@@ -1,4 +1,4 @@
-<!-- src/components/NebulaCard.vue -->
+<!-- 星云卡片组件。 -->
 <template>
   <div class="nebula-card">
     <slot></slot>

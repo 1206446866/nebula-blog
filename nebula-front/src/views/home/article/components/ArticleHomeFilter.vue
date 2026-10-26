@@ -1,13 +1,13 @@
 <template>
   <section v-if="visible" class="filter">
     <div class="container">
-      <!-- CATEGORY DISPLAY -->
+      <!-- 分类筛选展示 -->
       <div v-if="filterStore.categoryIds.length" class="block">
         <div class="label">分类</div>
 
         <div class="row">
           <div v-for="id in filterStore.categoryIds" :key="id" class="chip">
-            <span>{{ categoryMap.get(id) }}</span>
+            <span>{{ categoryMap.get(id) || `分类 #${id}` }}</span>
 
             <!-- ❗唯一动作：删除 -->
             <button class="close" @click="removeCategory(id)">×</button>
@@ -17,13 +17,13 @@
       <!-- 🔥 分割线 -->
       <div class="divider" v-if="visible"></div>
 
-      <!-- TAG DISPLAY -->
+      <!-- 标签筛选展示 -->
       <div v-if="filterStore.tagIds.length" class="block">
         <div class="label">标签</div>
 
         <div class="row">
           <div v-for="t in filterStore.tagIds" :key="t" class="chip">
-            <span>{{ tagMap.get(t) }}</span>
+            <span>{{ tagMap.get(t) || `标签 #${t}` }}</span>
 
             <!-- ❗唯一动作：删除 -->
             <button class="close" @click="removeTag(t)">×</button>
@@ -35,36 +35,10 @@
 </template>
 
 <script setup lang="ts">
-import { computed, onMounted, ref } from 'vue'
-import { listCategoryApi } from '@/api/category.ts'
-import { listTagApi } from '@/api/tag.ts'
-import { useArticleFilterStore } from '@/stores/articleFilter.ts'
+import { useArticleHomeFilter } from '../logic/useArticleHomeFilter'
 
-const filterStore = useArticleFilterStore()
-/**
- * 只要有筛选条件才显示
- */
-const visible = computed(() => {
-  return filterStore.categoryIds.length || filterStore.tagIds.length
-})
-
-function removeCategory(id: number) {
-  filterStore.removeCategory(id)
-}
-function removeTag(id: number) {
-  filterStore.removeTag(id)
-}
-const categoryMap = ref(new Map<number, string>())
-const tagMap = ref(new Map<number, string>())
-onMounted(async () => {
-  const [categoryList, tagList] = await Promise.all([listCategoryApi(), listTagApi()])
-  if (categoryList.code === 200) {
-    categoryMap.value = new Map(categoryList.data.map((item) => [item.id, item.name]))
-  }
-  if (tagList.code === 200) {
-    tagMap.value = new Map(tagList.data.map((item) => [item.id, item.name]))
-  }
-})
+const { filterStore, visible, removeCategory, removeTag, categoryMap, tagMap } =
+  useArticleHomeFilter()
 </script>
 
 <style scoped>

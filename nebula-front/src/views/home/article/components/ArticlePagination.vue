@@ -12,21 +12,14 @@
 </template>
 
 <script setup lang="ts">
-interface Props {
-  currentPage: number
-  pageSize: number
-  total: number
-}
+import { useArticlePagination, type Props } from '../logic/useArticlePagination'
 
 defineProps<Props>()
-
 const emit = defineEmits<{
   (e: 'update:currentPage', value: number): void
 }>()
 
-const handleChange = (page: number) => {
-  emit('update:currentPage', page)
-}
+const { handleChange } = useArticlePagination(emit)
 </script>
 
 <style scoped>

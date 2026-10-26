@@ -1,21 +1,28 @@
 import { createRouter, createWebHistory, type RouteRecordRaw } from 'vue-router'
 import { Role } from '@/constants/role.ts'
+import { clientFeatures } from '@/constants/client-features'
 
 const staticRoutes: RouteRecordRaw[] = [
   /** * 登录页 */
-  { path: '/login', component: () => import('@/views/login/index.vue') },
+  {
+    path: '/login',
+    component: () => import('@/views/login/index.vue'),
+    meta: { public: true, title: '登录' },
+  },
   {
     path: '/register',
     component: () => import('@/views/login/components/RegisterConfirm.vue'),
+    meta: { public: true, title: '注册确认' },
   },
   {
     path: '/test',
     component: () => import('@/views/login/Test.vue'),
     meta: {
       title: '测试页面',
+      public: true,
     },
   },
-  /** * AdminLayout */
+  /** 后台管理布局 */
   {
     path: '/admin',
     component: () => import('@/layout/AdminLayout.vue'),
@@ -46,12 +53,12 @@ const staticRoutes: RouteRecordRaw[] = [
         },
       },
       {
-        meta: { title: '账号管理' },
+        meta: { title: '账号管理', permission: 'user:list' },
         path: 'user',
         component: () => import('@/views/admin/UserManager.vue'),
       },
       {
-        meta: { title: '文章管理' },
+        meta: { title: '文章管理', permission: 'article:list' },
         path: 'article',
         component: () => import('@/views/admin/ArticleManager.vue'),
       },
@@ -65,6 +72,7 @@ const staticRoutes: RouteRecordRaw[] = [
         component: () => import('@/views/admin/CategoryManager.vue'),
         meta: {
           title: '分类管理',
+          permission: 'category:list',
         },
       },
       {
@@ -72,6 +80,7 @@ const staticRoutes: RouteRecordRaw[] = [
         component: () => import('@/views/admin/TagManager.vue'),
         meta: {
           title: '标签管理',
+          permission: 'tag:list',
         },
       },
     ],
@@ -82,45 +91,92 @@ const staticRoutes: RouteRecordRaw[] = [
     component: () => import('@/layout/ClientLayout.vue'),
     children: [
       { path: '', component: () => import('@/views/home/index.vue'), meta: { title: '首页' } },
-      { path: 'article', component: () => import('@/views/home/article/index.vue') },
+      {
+        path: 'search',
+        name: 'SiteSearch',
+        component: () => import('@/views/home/search/index.vue'),
+        meta: { title: '全站搜索' },
+      },
+      {
+        path: 'community',
+        name: 'Community',
+        // 收起的板块不加载页面，旧地址返回首页，避免出现未开放内容。
+        ...(clientFeatures.community
+          ? { component: () => import('@/views/home/community/index.vue') }
+          : { redirect: '/' }),
+        meta: { title: '社区' },
+      },
+      {
+        path: 'media',
+        name: 'MediaLibrary',
+        component: () => import('@/views/home/media/index.vue'),
+        meta: { title: '媒体库' },
+      },
+      {
+        path: 'write',
+        name: 'ArticleCreate',
+        component: () => import('@/views/home/article/write/ArticleWriter.vue'),
+        meta: { title: '写文章', permission: 'article:create' },
+      },
+      {
+        path: 'write/:id',
+        name: 'ArticleEdit',
+        component: () => import('@/views/home/article/write/ArticleWriter.vue'),
+        meta: { title: '编辑与预览', permission: 'article:update', idParam: 'id' },
+      },
+      {
+        path: 'article',
+        component: () => import('@/views/home/article/index.vue'),
+        name: 'ArticleHome',
+        meta: { title: '文章', permission: 'article:list', articleQuery: true },
+      },
       {
         path: 'article/:id',
         name: 'ArticleDetail',
         component: () => import('@/views/home/article/detail/ArticleDetail.vue'),
-        meta: { title: '文章详情' },
+        meta: { title: '文章详情', permission: 'article:list', idParam: 'id' },
       },
       {
         path: 'category',
         component: () => import('@/views/home/category/index.vue'),
-        meta: { title: '分类主页' },
+        meta: { title: '分类主页', permission: 'category:list' },
       },
       {
         path: 'tag',
         component: () => import('@/views/home/tag/index.vue'),
-        meta: { title: '标签主页' },
+        meta: { title: '标签主页', permission: 'tag:list' },
       },
       {
         path: 'user/:userId',
         name: 'UserProfile',
         component: () => import('@/views/home/profile/UserProfile.vue'),
-        meta: { title: '用户主页' },
-        beforeEnter: (to) => {
-          const id = Number(to.params.userId)
-          if (!Number.isFinite(id)) {
-            return '/404'
-          }
-        },
+        meta: { title: '用户主页', idParam: 'userId' },
       },
     ],
   },
 
   /**403*/
-  { path: '/403', component: () => import('@/views/error/403.vue') },
+  {
+    path: '/403',
+    component: () => import('@/views/error/403.vue'),
+    meta: { public: true, title: '无权访问' },
+  },
+  {
+    path: '/404',
+    component: () => import('@/views/error/NotFound.vue'),
+    meta: { public: true, title: '页面不存在' },
+  },
+  {
+    path: '/session-error',
+    component: () => import('@/views/error/SessionUnavailable.vue'),
+    meta: { public: true, title: '暂时无法确认登录' },
+  },
   /**404*/
   {
     path: '/:pathMatch(.*)*',
     name: 'NotFound',
-    component: () => import('@/views/error/NotFound.vue'),
+    redirect: '/404',
+    meta: { public: true },
   },
 ]
 const router = createRouter({ history: createWebHistory(), routes: staticRoutes })

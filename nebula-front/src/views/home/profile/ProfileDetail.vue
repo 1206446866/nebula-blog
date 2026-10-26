@@ -1,83 +1,29 @@
 <script setup lang="ts">
-import { computed, ref, useId, watch } from 'vue'
 import { RouterLink } from 'vue-router'
 import type { UserProfileVO } from '@/api/profile.ts'
 import { formatDateTime, formatRelativeDay } from '@/utils/date.ts'
 import ProfilePagination from './ProfilePagination.vue'
 
+import { useProfileDetail, type TabType } from './logic/useProfileDetail'
+
 defineOptions({ name: 'ProfileDetail' })
-type TabType = 'article' | 'comment' | 'draft'
 const props = defineProps<{ profile: UserProfileVO | null; isSelf: boolean; loading: boolean }>()
 const emit = defineEmits<{ 'page-change': [type: TabType, page: number] }>()
-const activeTab = ref<TabType>('article')
-const tabId = useId()
-const tabs = computed(() => [
-  {
-    id: 'article' as const,
-    label: props.isSelf ? '我的文章' : 'TA的文章',
-    count: props.profile?.publicArticles?.totalRow ?? 0,
-  },
-  {
-    id: 'comment' as const,
-    label: props.isSelf ? '我的评论' : 'TA的评论',
-    count: props.profile?.comments?.totalRow ?? 0,
-  },
-  ...(props.isSelf
-    ? [
-        {
-          id: 'draft' as const,
-          label: '我的草稿',
-          count: props.profile?.draftArticles?.totalRow ?? 0,
-        },
-      ]
-    : []),
-])
-const activePage = computed(() =>
-  activeTab.value === 'article'
-    ? props.profile?.publicArticles
-    : activeTab.value === 'comment'
-      ? props.profile?.comments
-      : props.profile?.draftArticles,
-)
-const articles = computed(() => props.profile?.publicArticles?.records ?? [])
-const comments = computed(() => props.profile?.comments?.records ?? [])
-const drafts = computed(() => props.profile?.draftArticles?.records ?? [])
-const loginRecords = computed(() => (props.isSelf ? (props.profile?.loginLogs ?? []) : []))
-const emptyText = computed(
-  () =>
-    ({ article: '还没有发布文章', comment: '还没有公开评论', draft: '还没有保存草稿' })[
-      activeTab.value
-    ],
-)
-watch(
-  () => props.profile?.userProfileInfoVO.id,
-  () => {
-    activeTab.value = 'article'
-  },
-)
-watch(
-  () => props.isSelf,
-  (isSelf) => {
-    if (!isSelf && activeTab.value === 'draft') activeTab.value = 'article'
-  },
-)
-function changePage(page: number) {
-  emit('page-change', activeTab.value, page)
-}
-function handleTabKey(event: KeyboardEvent, index: number) {
-  let target: number
-  if (event.key === 'ArrowRight') target = (index + 1) % tabs.value.length
-  else if (event.key === 'ArrowLeft') target = (index - 1 + tabs.value.length) % tabs.value.length
-  else if (event.key === 'Home') target = 0
-  else if (event.key === 'End') target = tabs.value.length - 1
-  else return
-  event.preventDefault()
-  activeTab.value = tabs.value[target]!.id
-  const buttons = (
-    event.currentTarget as HTMLElement
-  ).parentElement?.querySelectorAll<HTMLButtonElement>('[role="tab"]')
-  buttons?.[target]?.focus()
-}
+
+const {
+  activeTab,
+  auth,
+  tabId,
+  tabs,
+  activePage,
+  articles,
+  comments,
+  drafts,
+  loginRecords,
+  emptyText,
+  changePage,
+  handleTabKey,
+} = useProfileDetail(props, emit)
 </script>
 
 <template>
@@ -100,6 +46,10 @@ function handleTabKey(event: KeyboardEvent, index: number) {
     </aside>
 
     <section class="glass-card content-card" :aria-busy="loading" aria-label="用户内容">
+      <div v-if="isSelf && auth.hasPermission('article:create')" class="writing-entry">
+        <span>把灵感写成下一篇文章</span>
+        <RouterLink to="/write">写文章 <span aria-hidden="true">↗</span></RouterLink>
+      </div>
       <div class="tab-header" role="tablist" aria-label="用户内容类型">
         <button
           v-for="(tab, index) in tabs"
@@ -135,6 +85,12 @@ function handleTabKey(event: KeyboardEvent, index: number) {
               ><span aria-label="浏览量">◉ {{ article.viewCount ?? 0 }}</span
               ><span aria-label="点赞数">♡ {{ article.likeCount ?? 0 }}</span
               ><span aria-label="评论数">💬 {{ article.comments ?? 0 }}</span>
+              <RouterLink
+                v-if="isSelf && auth.hasPermission('article:update')"
+                class="edit-link"
+                :to="`/write/${article.id}`"
+                >编辑文章</RouterLink
+              >
             </div>
           </article>
         </template>
@@ -162,6 +118,19 @@ function handleTabKey(event: KeyboardEvent, index: number) {
             <div class="meta">
               <span>创建于：{{ formatDateTime(draft.createTime) }}</span
               ><span class="draft-badge">未发布</span>
+              <span v-if="draft.scheduledPublishAt" class="draft-badge">{{
+                draft.scheduleError
+                  ? '定时发布已暂停'
+                  : `定时：${formatDateTime(draft.scheduledPublishAt)}（上海）`
+              }}</span>
+              <template v-if="auth.hasPermission('article:update')">
+                <RouterLink class="edit-link" :to="`/write/${draft.id}`">继续编辑</RouterLink>
+                <RouterLink
+                  class="edit-link"
+                  :to="{ path: `/write/${draft.id}`, query: { mode: 'preview' } }"
+                  >预览</RouterLink
+                >
+              </template>
             </div>
           </article>
         </template>
@@ -248,7 +217,7 @@ function handleTabKey(event: KeyboardEvent, index: number) {
   font-size: 13px;
 }
 
-/* Tabs */
+/* 内容页签 */
 
 .tab-header {
   display: flex;
@@ -357,6 +326,32 @@ function handleTabKey(event: KeyboardEvent, index: number) {
 }
 .content-card {
   min-width: 0;
+}
+.writing-entry {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding-bottom: 20px;
+  margin-bottom: 20px;
+  border-bottom: 1px solid rgba(148, 163, 184, 0.12);
+  color: #94a3b8;
+  font-size: 13px;
+}
+.writing-entry a {
+  flex-shrink: 0;
+  padding: 8px 13px;
+  border: 1px solid rgba(125, 211, 252, 0.22);
+  border-radius: 9px;
+  color: #bae6fd;
+  background: rgba(56, 189, 248, 0.08);
+}
+.edit-link {
+  color: #7dd3fc;
+}
+.edit-link:hover,
+.writing-entry a:hover {
+  color: #e0f2fe;
 }
 .private-label {
   margin-left: 8px;

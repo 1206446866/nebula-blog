@@ -1,10 +1,10 @@
-import { jwtDecode } from 'jwt-decode'
+import { tokenPayload } from './session-cache'
 import { useAuthStore } from '../stores/auth'
 
 export function getTokenPayload() {
   const token = useAuthStore().getToken()
   if (!token) return null
-  return jwtDecode(token)
+  return tokenPayload(token)
 }
 
 export function getCurrentUserId() {

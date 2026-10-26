@@ -30,9 +30,13 @@ export interface UpdateCategoryDTO {
   description?: string
 }
 
-export function pageCategoryApi(params: { name?: string; currentPage?: number; size?: number }) {
+export function pageCategoryApi(
+  params: { name?: string; currentPage?: number; size?: number },
+  signal?: AbortSignal,
+) {
   return request.get<Result<Page<CategoryVO>>>('/categories', {
     params,
+    signal,
   })
 }
 

@@ -41,7 +41,10 @@
         :disabled="isSuperAdminRole || submitting"
       >
         <el-checkbox v-for="p in currentPermissions" :key="p.id" :value="p.id" class="perm-item">
-          {{ p.description }}
+          <span class="perm-label" :title="p.name">
+            <span>{{ p.description || p.name }}</span>
+            <small v-if="p.description">{{ p.name }}</small>
+          </span>
         </el-checkbox>
       </el-checkbox-group>
     </el-card>
@@ -56,94 +59,21 @@
 </template>
 
 <script setup lang="ts">
-import { computed, ref } from 'vue'
-import { type RoleVO } from '@/api/role.ts'
-import {
-  getPermissionsApi,
-  getRolePermissionsApi,
-  type PermissionGroupMap,
-  type PermissionVO,
-  saveRolePermissionsApi,
-} from '@/api/permission.ts'
-import { ElMessage } from 'element-plus'
-import { Role } from '@/constants/role'
+import { useRolePermissionDialog } from './logic/useRolePermissionDialog'
 
-const visible = ref(false)
-const submitting = ref(false)
-const isSuperAdminRole = computed(() => role.value.name === Role.SUPER_ADMIN)
-
-const role = ref<RoleVO>({
-  id: 0,
-  name: '',
-  description: '',
-  createTime: '',
-})
-
-/** 后端数据 */
-const grouped = ref<Record<string, PermissionVO[]>>({})
-
-/** UI模块 */
-const modules = [
-  { key: 'user', name: '用户权限' },
-  { key: 'article', name: '文章权限' },
-  { key: 'category', name: '分类权限' },
-  { key: 'tag', name: '标签权限' },
-  { key: 'comment', name: '评论权限' },
-  { key: 'other', name: '其它' },
-]
-
-const currentModule = ref('user')
-
-const checkedMap = ref<Record<string, number[]>>({})
-
-/** 当前权限 */
-const currentPermissions = computed(() => {
-  return grouped.value?.[currentModule.value] ?? []
-})
-
-const currentModuleName = computed(() => {
-  return modules.find((m) => m.key === currentModule.value)?.name || 'user'
-})
-
-const open = async (roleData: RoleVO) => {
-  role.value = roleData
-  const [all, rolePerms] = await Promise.all([
-    getPermissionsApi(),
-    getRolePermissionsApi(roleData.id),
-  ])
-  grouped.value = all?.data ?? {}
-  const baseMap = buildCheckedMap(isSuperAdminRole.value ? grouped.value : rolePerms.data)
-  checkedMap.value = Object.fromEntries(
-    Object.keys(grouped.value).map((k) => [k, baseMap[k] || []]),
-  )
-  currentModule.value = grouped.value['user'] ? 'user' : Object.keys(grouped.value)[0] || 'other'
-  visible.value = true
-}
-/** submit */
-const submit = async () => {
-  if (isSuperAdminRole.value || submitting.value) return
-  submitting.value = true
-  try {
-    const all = [...new Set(Object.values(checkedMap.value).flat())]
-    await saveRolePermissionsApi({
-      roleId: role.value.id,
-      permissionIds: all,
-    })
-    ElMessage.success('授权成功')
-    visible.value = false
-  } finally {
-    submitting.value = false
-  }
-}
-
-const buildCheckedMap = (grouped?: PermissionGroupMap) => {
-  const map: Record<string, number[]> = {}
-  if (!grouped) return map
-  for (const key in grouped) {
-    map[key] = (grouped[key] || []).map((item) => item.id)
-  }
-  return map
-}
+const {
+  visible,
+  submitting,
+  isSuperAdminRole,
+  role,
+  modules,
+  currentModule,
+  checkedMap,
+  currentPermissions,
+  currentModuleName,
+  open,
+  submit,
+} = useRolePermissionDialog()
 
 defineExpose({ open })
 </script>
@@ -179,9 +109,22 @@ defineExpose({ open })
 }
 
 .perm-item {
+  height: auto;
   padding: 6px 10px;
   background: rgba(255, 255, 255, 0.04);
   border-radius: 6px;
+}
+.perm-label {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  line-height: 1.5;
+}
+.perm-label small {
+  color: #8d9db4;
+  font:
+    11px/1.5 Consolas,
+    monospace;
 }
 
 :deep(.el-checkbox__label) {

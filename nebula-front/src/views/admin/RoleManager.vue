@@ -1,13 +1,15 @@
 <template>
-  <div class="page">
-    <div class="header">
+  <div class="page admin-management-page">
+    <div class="header admin-management-header admin-management-header--large">
       <h1>角色管理</h1>
-      <p class="subtitle">管理系统角色与权限分配</p>
+      <p class="subtitle admin-management-subtitle admin-management-subtitle--small">
+        管理系统角色与权限分配
+      </p>
     </div>
 
-    <div class="content">
+    <div class="content admin-management-content admin-management-content--column">
       <!-- 查询区域 -->
-      <el-form inline class="filter-form">
+      <el-form inline class="filter-form admin-management-filter">
         <el-form-item>
           <el-input v-model="descriptionFilter" placeholder="输入角色描述筛选" clearable />
         </el-form-item>
@@ -26,6 +28,8 @@
         :data="roles"
         :columns="columns"
         :loading="loading"
+        :error="tableError"
+        @retry="reloadTable"
         :current="current"
         :size="size"
         :total="total"
@@ -54,7 +58,12 @@
     </div>
 
     <!-- 编辑/新增 -->
-    <el-dialog v-model="dialogVisible" :title="form.id ? '编辑角色' : '新增角色'" width="400px">
+    <el-dialog
+      class="admin-management-dialog"
+      v-model="dialogVisible"
+      :title="form.id ? '编辑角色' : '新增角色'"
+      width="400px"
+    >
       <el-form :model="form">
         <el-form-item label="角色名称">
           <el-input
@@ -75,193 +84,39 @@
     </el-dialog>
 
     <!--    分配权限对话框-->
-    <RolePermissionDialog ref="permDialogRef" />
+    <RolePermissionDialog class="admin-management-dialog" ref="permDialogRef" />
   </div>
 </template>
 
 <script setup lang="ts">
-import { onMounted, reactive, ref, watch } from 'vue'
-import { debounce } from 'lodash-es'
-import { ElMessage, ElMessageBox } from 'element-plus'
 import BaseTable from '@/components/basic/BaseTable.vue'
 import SafeButton from '@/components/basic/SafeButton.vue'
-import { useTable } from '@/composables/useTable'
-import { formatDateTime } from '@/utils/date'
-import {
-  createRole,
-  type CreateRoleDto,
-  getRolePageApi,
-  removeRole,
-  type RoleVO,
-  updateRole,
-  type UpdateRoleDto,
-} from '@/api/role'
 import RolePermissionDialog from '@/components/dialog/RolePermissionDialog.vue'
 
-/** filter */
-const descriptionFilter = ref('')
+import { useRoleManager } from './logic/useRoleManager'
 
-/** dialog */
-const dialogVisible = ref(false)
-
-/** form */
-const form = reactive<Partial<RoleVO>>({
-  id: undefined,
-  name: '',
-  description: '',
-})
-
-/** table columns（和UM风格一致） */
-const columns = [
-  { label: 'ID', prop: 'id', width: 80 },
-  { label: '角色名称', prop: 'name' },
-  { label: '描述', prop: 'description' },
-  {
-    label: '创建时间',
-    prop: 'createTime',
-    width: 180,
-    formatter: (row: RoleVO) => formatDateTime(row.createTime) || '—',
-  },
-  { label: '操作', slot: 'actions', width: 300 },
-]
-
-/** useTable */
 const {
-  list: roles,
+  descriptionFilter,
+  dialogVisible,
+  form,
+  columns,
+  roles,
   loading,
+  tableError,
   current,
   size,
   total,
-  fetch,
-  resetPage,
-} = useTable<RoleVO, Parameters<typeof getRolePageApi>>(getRolePageApi)
-
-const permDialogRef = ref()
-
-/** 搜索 */
-const onSearch = async () => {
-  resetPage()
-  await fetch({
-    description: descriptionFilter.value,
-    current: current.value,
-    size: size.value,
-  })
-}
-
-/** 分页 */
-const onPageChange = async (page: number) => {
-  await fetch({
-    description: descriptionFilter.value,
-    current: page,
-    size: size.value,
-  })
-}
-
-const onSizeChange = async (newSize: number) => {
-  await fetch({
-    description: descriptionFilter.value,
-    current: current.value,
-    size: newSize,
-  })
-}
-
-/** 防抖搜索 */
-const debounced = debounce(onSearch, 300)
-watch(descriptionFilter, () => {
-  debounced()
-})
-
-/** 新增 */
-const openCreate = () => {
-  Object.assign(form, { id: undefined, name: '', description: '' })
-  dialogVisible.value = true
-}
-
-/** 编辑 */
-const openEdit = (row: RoleVO) => {
-  Object.assign(form, row)
-  dialogVisible.value = true
-}
-
-/** 提交 */
-const submitForm = async () => {
-  if (!form.name) {
-    ElMessage.warning('请输入角色名称')
-    return
-  }
-  if (form.id) {
-    await updateRole(<UpdateRoleDto>form)
-    ElMessage.success('更新成功')
-  } else {
-    await createRole(<CreateRoleDto>form)
-    ElMessage.success('创建成功')
-  }
-  dialogVisible.value = false
-  await onSearch()
-}
-
-/** 删除角色 */
-const deleteRole = async (row: RoleVO) => {
-  await ElMessageBox.confirm(`确定删除角色【${row.name}】吗？`, '提示', {
-    type: 'warning',
-  })
-  await removeRole(row.id)
-  ElMessage.success('删除成功')
-  await onSearch()
-}
-
-const openPermission = async (row: RoleVO) => {
-  permDialogRef.value.open(row)
-}
-
-onMounted(() => {
-  onSearch()
-})
+  reloadTable,
+  onSearch,
+  onPageChange,
+  onSizeChange,
+  permDialogRef,
+  openCreate,
+  openEdit,
+  submitForm,
+  deleteRole,
+  openPermission,
+} = useRoleManager()
 </script>
 
-<style scoped>
-.page {
-  display: flex;
-  flex-direction: column;
-  min-height: 85vh;
-}
-
-.content {
-  flex: 1;
-  display: flex;
-  flex-direction: column;
-}
-
-.header {
-  text-align: center;
-  margin-bottom: 24px;
-}
-
-.header h1 {
-  font-size: 36px;
-  font-weight: bold;
-  margin: 0;
-  background: linear-gradient(90deg, #38bdf8, #818cf8);
-  -webkit-background-clip: text;
-  -webkit-text-fill-color: transparent;
-}
-
-.header .subtitle {
-  color: #94a3b8;
-  font-size: 14px;
-}
-
-.filter-form {
-  display: flex;
-  justify-content: center;
-  margin-bottom: 16px;
-}
-
-:deep(.el-dialog) {
-  background: #111827;
-}
-
-:deep(.el-dialog__title) {
-  color: white;
-}
-</style>
+<style src="./styles/management.css"></style>

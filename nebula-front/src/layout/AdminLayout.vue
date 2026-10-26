@@ -13,7 +13,6 @@
 
       <!-- 页面 -->
       <div class="content">
-        <!--        <GlobalLoading/>-->
         <router-view />
       </div>
     </div>
@@ -24,7 +23,6 @@
 import AdminSidebar from '../components/admin/AdminSidebar.vue'
 import AdminHeader from '../components/admin/AdminHeader.vue'
 import StarBackground from '../components/StarBackground.vue'
-// import GlobalLoading from '@/layout/GlobalLoading.vue'
 </script>
 
 <style scoped>

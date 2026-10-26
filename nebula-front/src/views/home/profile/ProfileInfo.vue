@@ -103,7 +103,12 @@
       </el-form-item>
 
       <el-form-item label="新密码">
-        <el-input v-model="pwdForm.newPassword" type="password" show-password />
+        <el-input
+          v-model="pwdForm.newPassword"
+          type="password"
+          show-password
+          placeholder="6至64个字符"
+        />
       </el-form-item>
 
       <el-form-item label="确认密码">
@@ -170,14 +175,10 @@
 </template>
 
 <script setup lang="ts">
-import { useAuthStore } from '@/stores/auth.ts'
-import { computed, ref, watch } from 'vue'
-import { ElMessage } from 'element-plus'
-import { changePasswordApi } from '@/api/auth.ts'
-import { cancelSelfAccountApi } from '@/api/user.ts'
-import router from '@/router'
 import type { UserProfileVO } from '@/api/profile.ts'
 import { formatDateTime } from '@/utils/date.ts'
+
+import { useProfileInfo } from './logic/useProfileInfo'
 
 defineOptions({
   name: 'ProfileInfo',
@@ -187,116 +188,23 @@ const props = defineProps<{
   isSelf: boolean
 }>()
 
-const authStore = useAuthStore()
-const passwordDialogVisible = ref(false)
-const passwordSubmitting = ref(false)
-const cancellationDialogVisible = ref(false)
-const cancelling = ref(false)
-const cancellationForm = ref({ password: '', confirmed: false })
-const lastLogin = computed(() =>
-  formatDateTime(props.profile?.loginLogs?.find((record) => record.status === 1)?.createTime),
-)
-watch(
-  () => props.profile?.userProfileInfoVO.id,
-  () => {
-    passwordDialogVisible.value = false
-    resetForm()
-    cancellationDialogVisible.value = false
-    resetCancellationForm()
-  },
-)
-
-const pwdForm = ref({
-  oldPassword: '',
-  newPassword: '',
-  confirmPassword: '',
-})
-const resetForm = () => {
-  pwdForm.value = {
-    oldPassword: '',
-    newPassword: '',
-    confirmPassword: '',
-  }
-}
-const openPasswordDialog = () => {
-  resetForm()
-  passwordDialogVisible.value = true
-}
-const submitChangePassword = async () => {
-  if (passwordSubmitting.value) return
-  if (
-    !pwdForm.value.oldPassword.trim() ||
-    !pwdForm.value.newPassword.trim() ||
-    !pwdForm.value.confirmPassword.trim()
-  ) {
-    ElMessage.warning('请填写旧密码、新密码和确认密码')
-    return
-  }
-  if (pwdForm.value.newPassword !== pwdForm.value.confirmPassword) {
-    ElMessage.error('两次密码不一致')
-    return
-  }
-  passwordSubmitting.value = true
-  try {
-    const res = await changePasswordApi({
-      oldPassword: pwdForm.value.oldPassword,
-      newPassword: pwdForm.value.newPassword,
-      confirmPassword: pwdForm.value.confirmPassword,
-    })
-    if (res.code === 200 && res.data) {
-      resetForm()
-      passwordDialogVisible.value = false
-      ElMessage.success('修改成功，请重新登录')
-      authStore.clearAuth()
-      await router.replace('/login')
-    } else {
-      ElMessage.error(res.message)
-    }
-  } catch {
-    // Business errors are already displayed by the request interceptor.
-  } finally {
-    passwordSubmitting.value = false
-  }
-}
-
-const logout = async () => {
-  if (await authStore.logout()) await router.replace('/login')
-}
-const resetCancellationForm = () => {
-  cancellationForm.value = { password: '', confirmed: false }
-}
-const openCancellationDialog = () => {
-  resetCancellationForm()
-  cancellationDialogVisible.value = true
-}
-const submitCancellation = async () => {
-  if (cancelling.value || !props.isSelf) return
-  if (!cancellationForm.value.password.trim()) {
-    ElMessage.warning('请输入当前密码')
-    return
-  }
-  if (!cancellationForm.value.confirmed) {
-    ElMessage.warning('请先确认已了解注销影响')
-    return
-  }
-  cancelling.value = true
-  try {
-    const result = await cancelSelfAccountApi({ ...cancellationForm.value })
-    if (result.code === 200 && result.data) {
-      resetCancellationForm()
-      cancellationDialogVisible.value = false
-      authStore.clearAuth()
-      await router.replace('/login')
-      ElMessage.success('账号已注销')
-    } else {
-      ElMessage.error(result.message || '注销失败，请重试')
-    }
-  } catch {
-    // The request interceptor displays the server's validation or permission error.
-  } finally {
-    cancelling.value = false
-  }
-}
+const {
+  authStore,
+  passwordDialogVisible,
+  passwordSubmitting,
+  cancellationDialogVisible,
+  cancelling,
+  cancellationForm,
+  lastLogin,
+  pwdForm,
+  resetForm,
+  openPasswordDialog,
+  submitChangePassword,
+  logout,
+  resetCancellationForm,
+  openCancellationDialog,
+  submitCancellation,
+} = useProfileInfo(props)
 </script>
 
 <style scoped>
@@ -522,9 +430,7 @@ const submitCancellation = async () => {
 
   color: #94a3b8;
 }
-/* =========================
-   Profile Page Layout
-========================= */
+/* 个人主页布局 */
 
 .profile-info {
   width: 80%;
@@ -534,9 +440,7 @@ const submitCancellation = async () => {
   gap: 20px;
 }
 
-/* =========================
-   Glass Card
-========================= */
+/* 玻璃质感卡片 */
 
 .glass-card {
   background: rgba(15, 23, 42, 0.55);
@@ -546,9 +450,7 @@ const submitCancellation = async () => {
   padding: 24px;
 }
 
-/* =========================
-   Dialog 终极修复版（100%生效）
-========================= */
+/* 弹窗样式 */
 
 /* 遮罩层 */
 .el-overlay {
@@ -556,7 +458,7 @@ const submitCancellation = async () => {
   backdrop-filter: blur(6px);
 }
 
-/* dialog 主体（重点：不能依赖 scoped） */
+/* 弹窗主体样式，移动到页面根节点后仍需生效。 */
 :global(.el-dialog.glass-dialog) {
   background: rgba(15, 23, 42, 0.85) !important;
   backdrop-filter: blur(30px);
@@ -571,24 +473,24 @@ const submitCancellation = async () => {
     0 0 0 1px rgba(56, 189, 248, 0.08);
 }
 
-/* header */
+/* 顶部区域 */
 :global(.el-dialog.glass-dialog .el-dialog__header) {
   padding: 18px 24px;
   border-bottom: 1px solid rgba(255, 255, 255, 0.06);
 }
 
-/* title */
+/* 标题 */
 :global(.el-dialog.glass-dialog .el-dialog__title) {
   color: #ffffff;
   font-weight: 600;
 }
 
-/* body */
+/* 内容区域 */
 :global(.el-dialog.glass-dialog .el-dialog__body) {
   padding: 24px;
 }
 
-/* footer */
+/* 底部区域 */
 :global(.el-dialog.glass-dialog .el-dialog__footer) {
   padding: 16px 24px;
   border-top: 1px solid rgba(255, 255, 255, 0.06);

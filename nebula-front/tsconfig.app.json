@@ -3,16 +3,16 @@
   "include": ["env.d.ts", "src/**/*", "src/**/*.vue"],
   "exclude": ["src/**/__tests__/*"],
   "compilerOptions": {
-    // Extra safety for array and object lookups, but may have false positives.
+    // 加强数组和对象下标访问检查，部分场景可能需要补充类型判断。
     "noUncheckedIndexedAccess": true,
 
-    // Path mapping for cleaner imports.
+    // 配置路径别名，简化模块导入。
     "paths": {
       "@/*": ["./src/*"]
     },
 
-    // `vue-tsc --build` produces a .tsbuildinfo file for incremental type-checking.
-    // Specified here to keep it out of the root directory.
+    // `vue-tsc --build` 会生成增量类型检查所需的 .tsbuildinfo 文件。
+    // 在此指定缓存位置，避免文件生成在项目根目录。
     "tsBuildInfoFile": "./node_modules/.tmp/tsconfig.app.tsbuildinfo"
   }
 }

@@ -1,66 +1,11 @@
 <script setup lang="ts">
-import { computed, onBeforeUnmount, onMounted, ref } from 'vue'
 import { RouterLink } from 'vue-router'
 import NebulaCloud from './NebulaCloud.vue'
+import { useArticleSection } from './logic/useArticleSection'
 
 defineOptions({ name: 'ArticleSection' })
-
-const section = ref<HTMLElement | null>(null)
-const activeIndex = ref(0)
-const motionEnabled = ref(true)
-const isVisible = ref(true)
-let observer: IntersectionObserver | undefined
-
-const topics = [
-  {
-    id: 'backend',
-    name: '后端与架构',
-    star: '后端星域',
-    english: 'BACKEND',
-    description: '深入系统的运行轨迹，在接口、数据与架构之间，构建可靠的秩序。',
-    tags: ['Java', 'Spring Boot', '系统设计'],
-    color: '#8acbdd',
-    rgb: '138, 203, 221',
-    note: '在复杂之中，寻找清晰的结构。',
-  },
-  {
-    id: 'frontend',
-    name: '前端与体验',
-    star: '前端星域',
-    english: 'FRONTEND',
-    description: '让想法拥有可见的形状，用交互、动效与细节，连接人与屏幕。',
-    tags: ['Vue 3', 'TypeScript', '交互设计'],
-    color: '#b5a2e0',
-    rgb: '181, 162, 224',
-    note: '让每一个想法，都有被看见的方式。',
-  },
-  {
-    id: 'intelligence',
-    name: 'AI 与新可能',
-    star: '智能星域',
-    english: 'INTELLIGENCE',
-    description: '带着好奇心走向未知，探索智能工具如何改变创造与思考的方式。',
-    tags: ['AI 应用', '智能体', '效率探索'],
-    color: '#d9b68e',
-    rgb: '217, 182, 142',
-    note: '未知的边界，也是灵感的起点。',
-  },
-] as const
-
-const activeTopic = computed(() => topics[activeIndex.value] ?? topics[0])
-const isAnimated = computed(() => motionEnabled.value && isVisible.value)
-
-onMounted(() => {
-  if (!section.value || !('IntersectionObserver' in window)) return
-  observer = new IntersectionObserver(
-    ([entry]) => {
-      isVisible.value = entry?.isIntersecting ?? false
-    },
-    { threshold: 0.08 },
-  )
-  observer.observe(section.value)
-})
-onBeforeUnmount(() => observer?.disconnect())
+const { section, activeIndex, motionEnabled, reducedMotion, topics, activeTopic, isAnimated } =
+  useArticleSection()
 </script>
 
 <template>
@@ -83,10 +28,11 @@ onBeforeUnmount(() => observer?.disconnect())
           class="motion-button"
           :aria-label="motionEnabled ? '暂停星云动画' : '播放星云动画'"
           :aria-pressed="!motionEnabled"
+          :disabled="reducedMotion"
           @click="motionEnabled = !motionEnabled"
         >
-          <span class="status-dot" :class="{ 'is-paused': !motionEnabled }" />
-          <span>{{ motionEnabled ? '星云漫游中' : '此刻，静静观测' }}</span>
+          <span class="status-dot" :class="{ 'is-paused': !isAnimated }" />
+          <span>{{ isAnimated ? '星云漫游中' : '此刻，静静观测' }}</span>
           <svg viewBox="0 0 16 16" fill="none" aria-hidden="true">
             <path v-if="motionEnabled" d="M6 4v8m4-8v8" stroke="currentColor" stroke-width="1.4" />
             <path v-else d="m6 4 6 4-6 4Z" fill="currentColor" />
@@ -205,9 +151,9 @@ onBeforeUnmount(() => observer?.disconnect())
   position: relative;
   isolation: isolate;
   overflow: hidden;
-  padding: 82px 28px 62px;
+  padding: 52px 64px 30px;
   color: #eef0f5;
-  background: #060a17;
+  background: #080d18;
   scroll-margin-top: 24px;
 }
 .nebula-section::before {
@@ -217,7 +163,7 @@ onBeforeUnmount(() => observer?.disconnect())
   z-index: -1;
   background:
     radial-gradient(ellipse at 74% 36%, #27204438, transparent 57%),
-    linear-gradient(#020617, transparent 100px, transparent calc(100% - 70px), #050816);
+    linear-gradient(#070b17, transparent 100px, transparent calc(100% - 70px), #070b17);
   pointer-events: none;
 }
 .section-haze {
@@ -231,7 +177,7 @@ onBeforeUnmount(() => observer?.disconnect())
   pointer-events: none;
 }
 .nebula-inner {
-  max-width: 1180px;
+  max-width: 1312px;
   margin: 0 auto;
 }
 .nebula-header {
@@ -317,10 +263,13 @@ onBeforeUnmount(() => observer?.disconnect())
 }
 h2 {
   margin: 24px 0 23px;
-  font-size: clamp(40px, 4.7vw, 64px);
-  font-weight: 600;
-  line-height: 1.36;
-  letter-spacing: -1px;
+  font:
+    400 clamp(38px, 4.1vw, 60px)/1.43 'Noto Serif SC',
+    'Songti SC',
+    'SimSun',
+    Georgia,
+    serif;
+  letter-spacing: 0.06em;
 }
 h2 > span {
   color: #b7c2dc;
@@ -336,13 +285,13 @@ h2 > span {
   align-items: center;
   gap: 30px;
   margin-top: 31px;
-  padding: 13px 17px 13px 22px;
-  border: 1px solid #e4e7e8;
-  border-radius: 5px;
-  color: #18202e;
-  background: #e4e7e8;
+  justify-content: space-between;
+  min-width: 220px;
+  padding: 15px 0;
+  border-bottom: 1px solid #abc6dc88;
+  color: #c2dae8;
   font-size: 13px;
-  font-weight: 600;
+  font-weight: 400;
   letter-spacing: 1px;
   text-decoration: none;
   transition:
@@ -356,9 +305,8 @@ h2 > span {
   transition: transform 0.25s;
 }
 .explore-link:hover {
-  background: #fff;
-  transform: translateY(-2px);
-  box-shadow: 0 5px 30px #bdc9eb15;
+  color: #f1f8ff;
+  border-color: #d5e9fb;
 }
 .explore-link:hover svg {
   transform: translateX(3px);
@@ -529,8 +477,8 @@ h2 > span {
   overflow: hidden;
   padding: 24px;
   border: 1px solid #9caec31a;
-  border-radius: 10px;
-  background: linear-gradient(130deg, #141c2c80, #0c122080);
+  border-radius: 2px;
+  background: linear-gradient(130deg, #141c2c40, transparent);
   color: #ced7e6;
   font: inherit;
   text-align: left;
@@ -682,6 +630,9 @@ a:focus-visible {
   }
 }
 @media (max-width: 1050px) {
+  .nebula-section {
+    padding: 40px 32px 30px;
+  }
   .nebula-layout {
     grid-template-columns: 0.9fr 1.15fr;
     min-height: 450px;
@@ -844,6 +795,34 @@ a:focus-visible {
   .nebula-footer i {
     margin: 0 2px;
   }
+}
+@media (max-width: 380px) {
+  .nebula-header {
+    gap: 8px;
+  }
+  .section-coordinate {
+    font-size: 6px;
+    letter-spacing: 0.7px;
+  }
+  .motion-button {
+    font-size: 8px;
+    padding: 8px 0 8px 6px;
+    gap: 5px;
+    white-space: nowrap;
+  }
+  h2 {
+    font-size: 34px;
+  }
+  .routes-hint {
+    display: none;
+  }
+  .nebula-footer > span:last-child {
+    display: none;
+  }
+}
+button:disabled {
+  cursor: default;
+  opacity: 0.65;
 }
 @media (prefers-reduced-motion: reduce) {
   *,

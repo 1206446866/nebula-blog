@@ -4,6 +4,7 @@ import { sendEmailCaptchaApi, verifyEmailCaptchaApi } from '@/api/auth.ts'
 import { ElMessage } from 'element-plus'
 import { isAxiosError } from 'axios'
 import { getRetryAfterSeconds } from '@/utils/http-error'
+import { isValidNewPassword, newPasswordMessage } from '@/utils/password-policy'
 
 defineOptions({
   name: 'EmailRegisterForm',
@@ -70,7 +71,7 @@ const sendCaptcha = async () => {
         startCountdown(expireTime)
       }
     }
-    // The request interceptor displays the failure without logging submitted credentials.
+    // 请求拦截器统一显示失败提示，不记录提交的账号凭据。
   } finally {
     sending.value = false
   }
@@ -83,8 +84,8 @@ const register = async () => {
     return
   }
 
-  if (!form.password) {
-    ElMessage.warning('请输入密码')
+  if (!isValidNewPassword(form.password)) {
+    ElMessage.warning(newPasswordMessage)
     return
   }
 
@@ -103,7 +104,7 @@ const register = async () => {
 
     ElMessage.success(res.message || '验证成功，请查看邮箱确认邮件')
   } catch {
-    // The request interceptor displays the failure without logging submitted credentials.
+    // 请求拦截器统一显示失败提示，不记录提交的账号凭据。
   } finally {
     registering.value = false
   }
@@ -173,7 +174,7 @@ watch(
       class="input-item"
       size="large"
       type="password"
-      placeholder="密码"
+      placeholder="密码（6至64个字符）"
       v-model="form.password"
     />
 

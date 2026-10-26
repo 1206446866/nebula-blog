@@ -1,6 +1,7 @@
 import MarkdownIt from 'markdown-it'
 import DOMPurify from 'dompurify'
 import hljs from 'highlight.js'
+import { mediaPath } from './resource.ts'
 
 const markdown = new MarkdownIt({
   html: false,
@@ -9,21 +10,32 @@ const markdown = new MarkdownIt({
       try {
         return hljs.highlight(code, { language, ignoreIllegals: true }).value
       } catch {
-        // Let Markdown-it escape code when highlighting cannot handle it.
+        // 代码高亮无法处理时，交由 Markdown-it 转义代码。
       }
     }
     return ''
   },
 })
 
-// Keep Markdown-it's escaping of fence attributes, including the language name.
+const renderImage = markdown.renderer.rules.image
+markdown.renderer.rules.image = (tokens, index, options, env, renderer) => {
+  const token = tokens[index]
+  const path = mediaPath(token?.attrGet('src') || '')
+  if (path?.startsWith('upload/article/')) {
+    if (token?.attrs) token.attrs = token.attrs.filter(([name]) => name !== 'src')
+    token?.attrSet('data-media-path', path)
+  }
+  return renderImage ? renderImage(tokens, index, options, env, renderer) : ''
+}
+
+// 保留 Markdown-it 对代码块属性的转义，包括语言名称。
 const renderFence = markdown.renderer.rules.fence
 markdown.renderer.rules.fence = (tokens, index, options, env, renderer) => {
   tokens[index]?.attrJoin('class', 'hljs')
   return renderFence ? renderFence(tokens, index, options, env, renderer) : ''
 }
 
-// Preserve Markdown table alignment without allowing arbitrary inline CSS.
+// 保留 Markdown 表格对齐方式，同时禁止任意行内样式。
 for (const rule of ['th_open', 'td_open']) {
   markdown.renderer.rules[rule] = (tokens, index, options, _env, renderer) => {
     const token = tokens[index]
@@ -34,13 +46,13 @@ for (const rule of ['th_open', 'td_open']) {
   }
 }
 
-/** The only HTML renderer used by article bodies and editor previews. */
+/** 文章正文与编辑器预览统一使用此 HTML 渲染入口。 */
 export function renderMarkdown(source: string | null | undefined): string {
   const content = source ?? ''
   if (!DOMPurify.isSupported) {
     return `<pre>${markdown.utils.escapeHtml(content)}</pre>`
   }
-  // Sanitize last; callers must not append or transform HTML after this boundary.
+  // 最后执行安全过滤，调用方不得在此之后拼接或转换 HTML。
   return DOMPurify.sanitize(markdown.render(content), {
     ALLOWED_TAGS: [
       'p',
@@ -72,7 +84,7 @@ export function renderMarkdown(source: string | null | undefined): string {
       'a',
       'img',
     ],
-    ALLOWED_ATTR: ['href', 'src', 'alt', 'title', 'class', 'start', 'align'],
+    ALLOWED_ATTR: ['href', 'src', 'alt', 'title', 'class', 'start', 'align', 'data-media-path'],
     ALLOW_DATA_ATTR: false,
     ALLOW_ARIA_ATTR: false,
     RETURN_TRUSTED_TYPE: false,

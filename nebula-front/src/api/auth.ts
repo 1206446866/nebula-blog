@@ -9,6 +9,14 @@ export interface LoginVO {
   permissions: string[]
 }
 
+export type CurrentSessionVO = Omit<LoginVO, 'token'>
+export const currentSessionApi = (token: string) =>
+  request.get<Result<CurrentSessionVO>>('/auth/session', {
+    headers: { Authorization: `Bearer ${token}` },
+    skipAuthRedirect: true,
+    silentError: true,
+  })
+
 /**
  * 邮箱注册验证
  */
@@ -18,8 +26,8 @@ export interface EmailVerifyDTO {
   password: string
 }
 
-export const loginApi = (data: { account: string; password: string }) => {
-  return request.post<Result<LoginVO>>('/auth/login', data, { skipAuthRedirect: true })
+export const loginApi = (data: { account: string; password: string }, signal?: AbortSignal) => {
+  return request.post<Result<LoginVO>>('/auth/login', data, { skipAuthRedirect: true, signal })
 }
 
 export const logoutApi = (token: string) => {

@@ -1,11 +1,11 @@
 <template>
-  <div class="page">
-    <div class="header">
+  <div class="page admin-management-page">
+    <div class="header admin-management-header">
       <h1>评论管理</h1>
-      <p class="subtitle">管理平台评论内容与互动信息</p>
+      <p class="subtitle admin-management-subtitle">管理平台评论内容与互动信息</p>
     </div>
 
-    <div class="content">
+    <div class="content admin-management-content">
       <!-- 查询区域 -->
       <el-form inline class="filter-form">
         <el-form-item>
@@ -25,6 +25,8 @@
         :data="comments"
         :columns="columns"
         :loading="loading"
+        :error="tableError"
+        @retry="reloadTable"
         :current="current"
         :size="size"
         :total="total"
@@ -54,136 +56,33 @@
 </template>
 
 <script setup lang="ts">
-import { onMounted, ref, watch } from 'vue'
-import { ElMessage, ElMessageBox } from 'element-plus'
-
 import BaseTable from '@/components/basic/BaseTable.vue'
 import SafeButton from '@/components/basic/SafeButton.vue'
-import { useTable } from '@/composables/useTable'
-
-import { type CommentVO, deleteCommentByIdApi, getCommentPageApi } from '@/api/comment'
-import { debounce } from 'lodash-es'
 import { formatDateTime } from '@/utils/date'
 
-const articleIdFilter = ref<number>()
-const contentFilter = ref('')
-const columns = [
-  {
-    label: 'ID',
-    prop: 'id',
-    width: 80,
-  },
-  {
-    label: '用户',
-    prop: 'username',
-    width: 140,
-  },
-  {
-    label: '文章ID',
-    prop: 'articleId',
-    width: 120,
-  },
-  {
-    label: '评论内容',
-    slot: 'content',
-  },
-  {
-    label: '创建时间',
-    slot: 'createTime',
-    width: 180,
-  },
-  {
-    label: '操作',
-    slot: 'actions',
-    width: 120,
-  },
-]
+import { useCommentManager } from './logic/useCommentManager'
 
 const {
-  list: comments,
+  articleIdFilter,
+  contentFilter,
+  columns,
+  comments,
   loading,
+  tableError,
   current,
   size,
   total,
-  fetch: fetchComments,
-  resetPage,
-} = useTable<CommentVO, Parameters<typeof getCommentPageApi>>(getCommentPageApi)
-
-const debouncedFetch = debounce(async () => {
-  resetPage()
-  await onSearch()
-}, 300)
-
-watch([articleIdFilter, contentFilter], () => {
-  debouncedFetch()
-})
-
-const loadComments = async (page = current.value, pageSize = size.value) => {
-  await fetchComments(articleIdFilter.value, contentFilter.value, page, pageSize)
-}
-
-const onSearch = async () => {
-  resetPage()
-  await loadComments(1, size.value)
-}
-
-const onPageChange = async (page: number) => {
-  await loadComments(page, size.value)
-}
-
-const onSizeChange = async (newSize: number) => {
-  await loadComments(current.value, newSize)
-}
-
-const deleteComment = async (row: CommentVO) => {
-  await ElMessageBox.confirm(`确定删除评论【${row.id}】吗？`, '删除确认', {
-    type: 'warning',
-  })
-
-  const res = await deleteCommentByIdApi(row.id)
-
-  if (res.code === 200 && res.data) {
-    ElMessage.success('删除成功')
-
-    await loadComments()
-  } else {
-    ElMessage.error(res.msg || '删除失败')
-  }
-}
-
-onMounted(async () => {
-  await loadComments()
-})
+  reloadTable,
+  onSearch,
+  onPageChange,
+  onSizeChange,
+  deleteComment,
+} = useCommentManager()
 </script>
 
+<style src="./styles/management.css"></style>
+
 <style scoped>
-.page {
-  display: flex;
-  flex-direction: column;
-  min-height: 85vh;
-}
-
-.header {
-  text-align: center;
-  margin-bottom: 24px;
-}
-
-.header h1 {
-  font-size: 34px;
-  font-weight: bold;
-  background: linear-gradient(90deg, #38bdf8, #818cf8);
-  -webkit-background-clip: text;
-  -webkit-text-fill-color: transparent;
-}
-
-.subtitle {
-  color: #94a3b8;
-}
-
-.content {
-  flex: 1;
-}
-
 .ellipsis {
   display: inline-block;
   max-width: 500px;

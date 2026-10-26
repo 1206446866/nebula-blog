@@ -8,7 +8,7 @@ let renderMarkdown
 let purifier
 
 before(async () => {
-  // No script execution or external resource loading is enabled in this DOM.
+  // 此测试页面不执行脚本，也不加载外部资源。
   dom = new JSDOM('', { url: 'https://nebula.test/' })
   globalThis.window = dom.window
   ;({ renderMarkdown } = await import('../src/utils/markdown.ts'))
@@ -25,6 +25,14 @@ function rendered(source) {
   root.innerHTML = renderMarkdown(source)
   return root
 }
+
+test('local article images require authenticated loading and keep tokens out of HTML', () => {
+  const path = 'upload/article/admin/20261023/0123456789abcdef0123456789abcdef.png'
+  const image = rendered(`![配图](/${path})`).querySelector('img')
+  assert.equal(image.getAttribute('data-media-path'), path)
+  assert.equal(image.getAttribute('src'), null)
+  assert.equal(image.alt, '配图')
+})
 
 function assertSafe(root) {
   assert.equal(

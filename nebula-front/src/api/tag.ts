@@ -1,4 +1,4 @@
-// src/api/tag.ts
+// 标签相关接口。
 
 import request from '@/utils/request'
 import type { Result } from '@/types/result'
@@ -36,8 +36,9 @@ export interface UpdateTagDTO {
 /**
  * 标签分页
  */
-export function pageTagApi(name?: string, current = 1, size = 10) {
+export function pageTagApi(name?: string, current = 1, size = 10, signal?: AbortSignal) {
   return request.get<Result<Page<TagVO>>>('/tags', {
+    signal,
     params: {
       name,
       current,

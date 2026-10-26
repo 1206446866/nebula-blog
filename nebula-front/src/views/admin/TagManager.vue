@@ -1,13 +1,13 @@
 <template>
-  <div class="page">
-    <div class="header">
+  <div class="page admin-management-page">
+    <div class="header admin-management-header">
       <h1>标签管理</h1>
-      <p class="subtitle">管理系统标签信息</p>
+      <p class="subtitle admin-management-subtitle">管理系统标签信息</p>
     </div>
 
-    <div class="content">
+    <div class="content admin-management-content">
       <!-- 搜索 -->
-      <el-form inline class="filter-form">
+      <el-form inline class="filter-form admin-management-filter">
         <el-form-item label="标签名称">
           <el-input v-model="nameFilter" placeholder="输入标签名称" clearable />
         </el-form-item>
@@ -26,6 +26,8 @@
         :data="tags"
         :columns="columns"
         :loading="loading"
+        :error="tableError"
+        @retry="reloadTable"
         :current="current"
         :size="size"
         :total="total"
@@ -61,208 +63,31 @@
 </template>
 
 <script setup lang="ts">
-import { onMounted, reactive, ref, watch } from 'vue'
-import { debounce } from 'lodash-es'
-import { ElMessage, ElMessageBox } from 'element-plus'
-
 import BaseTable from '@/components/basic/BaseTable.vue'
-import { useTable } from '@/composables/useTable'
-import { formatDateTime } from '@/utils/date'
 
-import type { CreateTagDTO, TagVO, UpdateTagDTO } from '@/api/tag'
-import { createTagApi, deleteTagApi, pageTagApi, updateTagApi } from '@/api/tag'
+import { useTagManager } from './logic/useTagManager'
 
-/**
- * 搜索
- */
-const nameFilter = ref('')
-
-/**
- * 弹窗
- */
-const dialogVisible = ref(false)
-const dialogTitle = ref('')
-
-/**
- * 表单
- */
-const tagForm = reactive<Partial<TagVO & CreateTagDTO>>({
-  id: undefined,
-  name: '',
-  description: '',
-})
-
-/**
- * 表格
- */
 const {
-  list: tags,
+  nameFilter,
+  dialogVisible,
+  dialogTitle,
+  tagForm,
+  tags,
   loading,
+  tableError,
   current,
   size,
   total,
-  fetch,
-  resetPage,
-} = useTable<TagVO, Parameters<typeof pageTagApi>>(pageTagApi)
-
-/**
- * 列定义
- */
-const columns = [
-  { label: 'ID', prop: 'id', width: 80 },
-  { label: '名称', prop: 'name' },
-  { label: '描述', prop: 'description' },
-  {
-    label: '创建时间',
-    prop: 'createTime',
-    width: 180,
-    formatter: (row: TagVO) => formatDateTime(row.createTime) || '—',
-  },
-  { label: '操作', slot: 'actions', width: 160 },
-]
-
-/**
- * 查询
- */
-const fetchData = async () => {
-  await fetch(nameFilter.value, current.value, size.value)
-}
-
-const debouncedFetch = debounce(() => {
-  resetPage()
-  fetchData()
-}, 300)
-
-watch(nameFilter, () => {
-  debouncedFetch()
-})
-
-const onSearch = () => {
-  resetPage()
-  fetchData()
-}
-
-/**
- * 分页
- */
-const onPageChange = (page: number) => {
-  fetch(nameFilter.value, page, size.value)
-}
-
-const onSizeChange = (newSize: number) => {
-  fetch(nameFilter.value, current.value, newSize)
-}
-
-/**
- * 新增
- */
-const openCreate = () => {
-  dialogTitle.value = '新增标签'
-  Object.assign(tagForm, {
-    id: undefined,
-    name: '',
-    description: '',
-  })
-  dialogVisible.value = true
-}
-
-/**
- * 编辑
- */
-const openEdit = (row: TagVO) => {
-  dialogTitle.value = '编辑标签'
-  Object.assign(tagForm, row)
-  dialogVisible.value = true
-}
-
-/**
- * 保存
- */
-const saveTag = async () => {
-  if (!tagForm.name?.trim()) {
-    ElMessage.warning('请输入标签名称')
-    return
-  }
-
-  let res
-
-  if (tagForm.id) {
-    const dto: UpdateTagDTO = {
-      id: tagForm.id,
-      name: tagForm.name!,
-      description: tagForm.description,
-    }
-    res = await updateTagApi(dto)
-  } else {
-    const dto: CreateTagDTO = {
-      name: tagForm.name!,
-      description: tagForm.description,
-    }
-    res = await createTagApi(dto)
-  }
-
-  if (res.code === 200) {
-    ElMessage.success('保存成功')
-    dialogVisible.value = false
-    fetchData()
-  } else {
-    ElMessage.error(res.message || '操作失败')
-  }
-}
-
-/**
- * 删除
- */
-const deleteTag = async (row: TagVO) => {
-  await ElMessageBox.confirm(`确认删除标签【${row.name}】吗？`, '提示', { type: 'warning' })
-  const res = await deleteTagApi(row.id)
-  if (res.code === 200) {
-    ElMessage.success('删除成功')
-    fetchData()
-  } else {
-    ElMessage.error(res.message || '删除失败')
-  }
-}
-
-/**
- * 初始化
- */
-onMounted(() => {
-  fetchData()
-})
+  reloadTable,
+  onSearch,
+  onPageChange,
+  onSizeChange,
+  columns,
+  openCreate,
+  openEdit,
+  saveTag,
+  deleteTag,
+} = useTagManager()
 </script>
 
-<style scoped>
-.page {
-  display: flex;
-  flex-direction: column;
-  min-height: 85vh;
-}
-
-.header {
-  text-align: center;
-  margin-bottom: 24px;
-}
-
-.header h1 {
-  font-size: 34px;
-  font-weight: bold;
-  background: linear-gradient(90deg, #38bdf8, #818cf8);
-  -webkit-background-clip: text;
-  -webkit-text-fill-color: transparent;
-}
-
-.subtitle {
-  color: #94a3b8;
-}
-
-.content {
-  flex: 1;
-}
-
-.filter-form {
-  display: flex;
-  justify-content: center;
-  margin-bottom: 16px;
-}
-</style>
+<style src="./styles/management.css"></style>

@@ -8,10 +8,10 @@
         :style="{ animationDelay: i * 70 + 'ms' }"
         @click="goDetail(article.id)"
       >
-        <!-- subtle glow layer -->
+        <!-- 柔和光晕层 -->
         <div class="glow"></div>
 
-        <!-- TITLE -->
+        <!-- 文章标题 -->
         <div class="title-row">
           <h3 class="title">
             {{ article.title }}
@@ -22,7 +22,7 @@
           </span>
         </div>
 
-        <!-- DESC -->
+        <!-- 文章摘要 -->
         <p class="desc">
           {{
             article.content.length > 100
@@ -31,7 +31,7 @@
           }}
         </p>
 
-        <!-- FOOTER -->
+        <!-- 文章卡片底部 -->
         <div class="footer">
           <div class="left-info">👁 {{ article.viewCount }}</div>
 
@@ -46,16 +46,15 @@
 
 <script setup lang="ts">
 import type { ArticleVO } from '@/api/article.js'
-import { useRouter } from 'vue-router'
 import { formatDate } from '@/utils/date'
+
+import { useArticleHomeField } from '../logic/useArticleHomeField'
 
 defineProps<{
   articles: ArticleVO[]
 }>()
-const router = useRouter()
-const goDetail = (id: number) => {
-  router.push(`/article/${id}`)
-}
+
+const { goDetail } = useArticleHomeField()
 </script>
 
 <style scoped>
@@ -66,9 +65,7 @@ const goDetail = (id: number) => {
   color: white;
 }
 
-/* =========================
-   LIST CONTAINER
-========================= */
+/* 文章列表容器 */
 
 .hybrid {
   width: min(1280px, calc(100% - 96px));
@@ -79,9 +76,7 @@ const goDetail = (id: number) => {
   align-items: start;
 }
 
-/* =========================
-   CARD (UPGRADED B)
-========================= */
+/* 文章卡片 */
 
 .card {
   height: 180px;
@@ -102,18 +97,18 @@ const goDetail = (id: number) => {
   transform-style: preserve-3d;
   will-change: transform, opacity, filter;
 
-  /* 改这里：不用fadeUp */
+  /* 使用卡片自身的入场动画。 */
   animation: floatIn 0.7s cubic-bezier(0.2, 0.8, 0.2, 1) both;
 }
 
-/* hover = slight elevation + glow */
+/* 悬停时轻微抬升并增强光晕 */
 .card:hover {
   border-color: rgba(120, 180, 255, 0.28);
   box-shadow: 0 18px 55px rgba(0, 0, 0, 0.45);
   transform: translateY(-4px) scale(1.01);
 }
 
-/* subtle gradient glow */
+/* 柔和渐变光晕 */
 .glow {
   position: absolute;
   inset: 0;
@@ -126,9 +121,7 @@ const goDetail = (id: number) => {
   opacity: 1;
 }
 
-/* =========================
-   TITLE (stronger hierarchy)
-========================= */
+/* 标题层级 */
 
 .title {
   font-size: 19px;
@@ -138,9 +131,7 @@ const goDetail = (id: number) => {
   color: rgba(120, 180, 255, 0.72);
 }
 
-/* =========================
-   DESC (breathing space)
-========================= */
+/* 摘要留白 */
 
 .desc {
   font-size: 14px;
@@ -153,9 +144,7 @@ const goDetail = (id: number) => {
   max-width: 720px;
 }
 
-/* =========================
-   FOOTER
-========================= */
+/* 文章卡片底部 */
 
 .footer {
   display: flex;
@@ -163,9 +152,7 @@ const goDetail = (id: number) => {
   align-items: center;
 }
 
-/* =========================
-   ANIMATION
-========================= */
+/* 入场动画 */
 
 @keyframes floatIn {
   0% {
