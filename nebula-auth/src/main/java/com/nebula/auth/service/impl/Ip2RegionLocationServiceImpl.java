@@ -72,6 +72,7 @@ public class Ip2RegionLocationServiceImpl implements LocationService {
         return ip.contains(".");
     }
 
+    /** 从归属地原始字段中组合城市和国家，缺少城市时仅返回国家。 */
     private String format(String region) {
 
         /*
@@ -106,6 +107,7 @@ public class Ip2RegionLocationServiceImpl implements LocationService {
     }
 
 
+    /** 安全关闭归属地查询器，忽略关闭阶段的IO异常。 */
     private void close(Searcher searcher) {
         if (searcher != null) {
             try {

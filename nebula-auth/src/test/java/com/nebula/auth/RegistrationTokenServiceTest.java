@@ -67,6 +67,12 @@ class RegistrationTokenServiceTest {
     }
 
     @Test
+    void missingCaptchaIssuanceResultNeverReportsSuccess() {
+        assertThrows(RegistrationUnavailableException.class,
+                () -> credentials.issueCaptcha("fixture@example.invalid", "123456"));
+    }
+
+    @Test
     void unknownTtlCannotIssueAnUnboundedCredential() {
         when(redis.getExpire(key, TimeUnit.MILLISECONDS)).thenReturn(null);
         assertThrows(RegistrationUnavailableException.class, () -> credentials.consume(token));

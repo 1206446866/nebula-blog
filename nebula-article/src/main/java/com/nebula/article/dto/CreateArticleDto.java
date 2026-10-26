@@ -24,6 +24,7 @@ public class CreateArticleDto {
      * 文章标题
      */
     @NotBlank(message = "文章标题不能为空")
+    @Size(max = 255, message = "文章标题不能超过255个字符")
     private String title;
 
     /**

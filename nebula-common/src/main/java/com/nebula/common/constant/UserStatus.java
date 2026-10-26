@@ -24,7 +24,7 @@ public enum UserStatus {
     }
 
     public boolean notMatches(Integer code) {
-        return this.code.equals(code);
+        return !matches(code);
     }
 
     //code反向查找枚举

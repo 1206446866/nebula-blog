@@ -79,6 +79,12 @@ class TokenSessionServiceTest {
     }
 
     @Test
+    void unknownRevocationResultNeverReportsSuccess() {
+        when(redis.delete("auth:session:" + id)).thenReturn(null);
+        assertThrows(TokenSessionUnavailableException.class, () -> sessions.revoke(id));
+    }
+
+    @Test
     void repeatedRevocationIsSafe() {
         when(redis.delete("auth:session:" + id)).thenReturn(true, false);
         assertDoesNotThrow(() -> sessions.revoke(id));

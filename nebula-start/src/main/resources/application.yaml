@@ -3,6 +3,10 @@ server:
   forward-headers-strategy: none
 
 spring:
+  servlet:
+    multipart:
+      max-file-size: 10MB
+      max-request-size: 11MB
   config:
     import:
       - optional:configtree:./.secrets/
@@ -33,6 +37,7 @@ spring:
       host: localhost
       port: 6379
       database: 0
+      password: ${NEBULA_REDIS_PASSWORD:}
       timeout: 10s
 
   mail:
@@ -56,13 +61,23 @@ mybatis-flex:
     print-banner: true
 
 jwt:
-  # Base64 of at least 32 random bytes; no shared/default signing key.
+  # 至少32个随机字节的Base64密钥，不提供共享默认值。
   secret: ${NEBULA_JWT_SECRET:}
-#  expire：token 过期时间，单位毫秒，这里 604800000ms = 7天。
-  expire: 604800000
+  # 新签发会话默认两小时，可按部署需要覆盖；已有会话按原有效期处理。
+  expire: ${NEBULA_JWT_EXPIRE:7200000}
+
+nebula:
+  registration:
+    confirmation-url: ${NEBULA_REGISTRATION_CONFIRMATION_URL:http://localhost:5173/register}
+
+springdoc:
+  api-docs:
+    enabled: ${NEBULA_API_DOCS_ENABLED:false}
+  swagger-ui:
+    enabled: ${NEBULA_API_DOCS_ENABLED:false}
 
 file:
-  upload-dir: upload/avatar/
+  upload-root: ${NEBULA_UPLOAD_ROOT:upload}
 
 #logging:
 #  level:

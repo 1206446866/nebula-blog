@@ -29,6 +29,7 @@
         <java.version>17</java.version>
     </properties>
     <dependencies>
+        <dependency><groupId>com.nebula</groupId><artifactId>nebula-media</artifactId><version>${project.version}</version></dependency>
         <dependency>
             <groupId>org.springframework.boot</groupId>
             <artifactId>spring-boot-starter</artifactId>

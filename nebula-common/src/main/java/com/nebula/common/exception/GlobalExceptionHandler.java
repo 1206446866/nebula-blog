@@ -33,6 +33,17 @@ import org.springframework.web.servlet.resource.NoResourceFoundException;
 @RestControllerAdvice
 public class GlobalExceptionHandler {
 
+    @ExceptionHandler(ResourceLimitException.class)
+    public ResponseEntity<Result<Void>> handleResourceLimit(ResourceLimitException e) {
+        return ResponseEntity.status(e.getHttpStatus()).header("Retry-After", String.valueOf(e.getRetryAfterSeconds()))
+                .header("Cache-Control", "no-store").body(Result.error(e.getHttpStatus(), e.getMessage()));
+    }
+
+    @ExceptionHandler(org.springframework.dao.QueryTimeoutException.class)
+    public ResponseEntity<Result<Void>> handleQueryTimeout(org.springframework.dao.QueryTimeoutException e) {
+        return ResponseEntity.status(503).header("Retry-After", "2").body(Result.error(503, "查询耗时过长，请稍后重试"));
+    }
+
     /**
      * 全局异常
      */

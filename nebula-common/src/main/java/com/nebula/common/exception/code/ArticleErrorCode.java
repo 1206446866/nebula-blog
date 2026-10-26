@@ -56,7 +56,10 @@ public enum ArticleErrorCode implements ErrorCode {
     ARTICLE_TAG_BIND_FAILED(40409, "文章标签绑定失败"),
 
     ARTICLE_LIKE_FAILED(40901, "点赞状态更新失败，请重试"),
-    ARTICLE_STATUS_INVALID(40024, "文章状态非法");
+    ARTICLE_STATUS_INVALID(40024, "文章状态非法"),
+    SCHEDULE_TIME_INVALID(40025, "请选择未来的发布时间，并提供时区"),
+    SCHEDULE_DRAFT_REQUIRED(40026, "仅草稿可以安排定时发布，请先撤回已发布文章"),
+    SCHEDULE_CONTENT_INVALID(40027, "请先完善文章标题、正文和有效分类");
 
 
     private final Integer code;
@@ -69,7 +72,7 @@ public enum ArticleErrorCode implements ErrorCode {
             case ARTICLE_NOT_FOUND, ARTICLE_NOT_PUBLISHED -> 404;
             case ARTICLE_ACCESS_DENIED -> 403;
             case ARTICLE_LIKE_FAILED -> 409;
-            case ARTICLE_STATUS_INVALID -> 400;
+            case ARTICLE_STATUS_INVALID, SCHEDULE_TIME_INVALID, SCHEDULE_DRAFT_REQUIRED, SCHEDULE_CONTENT_INVALID -> 400;
             default -> 500;
         };
     }

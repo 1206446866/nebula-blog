@@ -62,6 +62,10 @@ public class ArticleVO {
 
     private Integer status;
 
+    private LocalDateTime scheduledPublishAt;
+
+    private String scheduleError;
+
     private Long categoryId;
 
     private List<Long> tagIds;

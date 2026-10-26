@@ -28,7 +28,7 @@ public class JwtUtil {
     private final JwtParser parser;
 
     public JwtUtil(TokenSessionService sessions, @Value("${jwt.secret:}") String base64Secret,
-                   @Value("${jwt.expire:604800000}") long expire) {
+                   @Value("${jwt.expire:7200000}") long expire) {
         this.sessions = sessions;
         if (expire <= 0) throw new IllegalStateException("jwt.expire must be positive (milliseconds)");
         this.expire = expire;

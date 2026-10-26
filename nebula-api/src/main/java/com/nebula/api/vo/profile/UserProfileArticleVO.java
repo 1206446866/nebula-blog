@@ -37,6 +37,10 @@ public class UserProfileArticleVO {
      */
     private LocalDateTime createTime;
 
+    private LocalDateTime scheduledPublishAt;
+
+    private String scheduleError;
+
     /**
      * 获赞数
      */

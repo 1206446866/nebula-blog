@@ -135,6 +135,7 @@ public class RegistrationTokenService {
         }
     }
 
+    /** 将验证码原子校验结果转换为过期、错误次数耗尽或服务不可用等业务异常。 */
     private void checkCaptchaResult(Long result) {
         if (Long.valueOf(-2).equals(result)) throw new BusinessException(CAPTCHA_ATTEMPTS_EXCEEDED);
         if (Long.valueOf(0).equals(result)) throw new BusinessException(CAPTCHA_INVALID);
@@ -182,6 +183,7 @@ public class RegistrationTokenService {
         return cache;
     }
 
+    /** 仅在注册事务回滚后按剩余有效期恢复凭证，不延长原截止时间或覆盖新凭证。 */
     private void restore(String key, RegisterCacheDTO cache, Instant expiresAt) {
         Duration remaining = Duration.between(Instant.now(), expiresAt);
         if (remaining.isNegative() || remaining.isZero()) return;

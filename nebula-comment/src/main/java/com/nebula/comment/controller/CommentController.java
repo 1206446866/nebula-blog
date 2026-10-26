@@ -22,6 +22,20 @@ public class CommentController {
 
     private final CommentService commentService;
 
+    @GetMapping("/threads")
+    public Result<Page<CommentVO>> pageThreads(@RequestParam @Min(1) Long articleId,
+                                               @RequestParam(defaultValue = "1") @Min(1) Integer currentPage,
+                                               @RequestParam(defaultValue = "10") @Min(1) @Max(100) Integer size) {
+        return Result.success(commentService.pageThreads(articleId, currentPage, size));
+    }
+
+    @GetMapping("/{rootId}/replies")
+    public Result<Page<CommentVO>> pageReplies(@PathVariable @Min(1) Long rootId,
+                                               @RequestParam(defaultValue = "1") @Min(1) Integer currentPage,
+                                               @RequestParam(defaultValue = "5") @Min(1) @Max(100) Integer size) {
+        return Result.success(commentService.pageReplies(rootId, currentPage, size));
+    }
+
     @GetMapping
     public Result<Page<CommentVO>> pageComments(@RequestParam(required = false) @Min(1) Long articleId,
                                               @RequestParam(required = false) String content,
@@ -44,7 +58,7 @@ public class CommentController {
      */
     @PreAuthorize("hasAuthority('comment:delete')")
     @DeleteMapping("/delete/{id}")
-    public Result<Boolean> deleteComment(@PathVariable Long id) {
+    public Result<Boolean> deleteComment(@PathVariable @Min(1) Long id) {
         return Result.success(commentService.deleteCommentById(id));
     }
 

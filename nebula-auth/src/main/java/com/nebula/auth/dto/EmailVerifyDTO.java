@@ -18,6 +18,7 @@ public class EmailVerifyDTO {
     private String code;
 
     @NotBlank(message = "密码不能为空")
+    @com.nebula.common.validation.NewPassword
     private String password;
 
     public void setEmail(String email) { this.email = RegistrationEmail.normalize(email); }

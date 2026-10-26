@@ -1,0 +1,4 @@
+# 正式环境必须显式配置对外确认页面，避免发送本机开发地址。
+nebula:
+  registration:
+    confirmation-url: ${NEBULA_REGISTRATION_CONFIRMATION_URL}

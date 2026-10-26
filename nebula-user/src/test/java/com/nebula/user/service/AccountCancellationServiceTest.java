@@ -13,7 +13,7 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.context.SecurityContextHolder;
-import org.springframework.security.crypto.password.PasswordEncoder;
+import com.nebula.common.security.SensitivePasswordVerifier;
 import org.springframework.test.util.ReflectionTestUtils;
 
 import java.util.List;
@@ -25,8 +25,8 @@ import static org.mockito.Mockito.*;
 class AccountCancellationServiceTest {
     private final UserMapper users = mock(UserMapper.class);
     private final UserRoleMapper roles = mock(UserRoleMapper.class);
-    private final PasswordEncoder passwords = mock(PasswordEncoder.class);
-    private final UserServiceImpl service = new UserServiceImpl(roles, passwords, mock(RoleCatalog.class));
+    private final SensitivePasswordVerifier passwords = mock(SensitivePasswordVerifier.class);
+    private final UserServiceImpl service = new UserServiceImpl(roles, passwords, mock(RoleCatalog.class), mock(com.nebula.media.service.MediaService.class));
     private User current;
     private CancelAccountDTO request;
 

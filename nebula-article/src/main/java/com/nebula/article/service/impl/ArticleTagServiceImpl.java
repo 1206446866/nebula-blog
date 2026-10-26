@@ -17,6 +17,7 @@ import java.util.Map;
 import java.util.stream.Collectors;
 
 import static com.nebula.article.entity.table.ArticleTagTableDef.ARTICLE_TAG;
+import static com.nebula.article.entity.table.ArticleTableDef.ARTICLE;
 
 /**
  * 文章标签关联 Service 实现
@@ -49,7 +50,10 @@ public class ArticleTagServiceImpl extends ServiceImpl<ArticleTagMapper, Article
 
     @Override
     public Map<Long, Long> getArticleCountByTag() {
-        QueryWrapper query = QueryWrapper.create().select(ARTICLE_TAG.TAG_ID, QueryMethods.count(ARTICLE_TAG.ARTICLE_ID).as("articleId")).groupBy(ARTICLE_TAG.TAG_ID);
+        QueryWrapper query = QueryWrapper.create()
+                .select(ARTICLE_TAG.TAG_ID, QueryMethods.count(ARTICLE_TAG.ARTICLE_ID).as("articleId"))
+                .from(ARTICLE_TAG).innerJoin(ARTICLE).on(ARTICLE.ID.eq(ARTICLE_TAG.ARTICLE_ID))
+                .where(ARTICLE.DELETED.eq(0)).and(ARTICLE.STATUS.eq(1)).groupBy(ARTICLE_TAG.TAG_ID);
         List<ArticleTag> articleTags = getMapper().selectListByQuery(query);
         return articleTags.stream().collect(Collectors.toMap(ArticleTag::getTagId, ArticleTag::getArticleId));
     }

@@ -13,6 +13,13 @@ public class CommentVO {
     private Long userId;
     private String username;
     private Long articleId;
+    private Long parentId;
+    private Long rootId;
+    private Long replyToUserId;
+    private String replyToUsername;
+    private String avatar;
+    private Long likeCount;
+    private Long replyCount;
     private String content;
     private LocalDateTime createTime;
     private Boolean liked;

@@ -45,8 +45,10 @@ import static org.mockito.Mockito.*;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.*;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*;
 
-/** Flex/MySQL commits exercise row locking; cleanup removes only this test's fixture IDs. */
-@SpringBootTest
+/** 使用Flex和MySQL真实提交验证行锁，仅清理本测试创建的专用数据。 */
+// 此处验证数据库的并发一致性；防刷额度由独立回归验证，避免高并发用例被正常限流挡住。
+@SpringBootTest(properties = {"nebula.resources.write.concurrency=32", "nebula.resources.write.account-concurrency=32",
+        "nebula.resources.write.ip-concurrency=32", "nebula.resources.max-concurrency=32"})
 @AutoConfigureMockMvc
 class ArticleLikeIntegrityIntegrationTest extends JwtIntegrationTestSupport {
     @Autowired MockMvc mvc;

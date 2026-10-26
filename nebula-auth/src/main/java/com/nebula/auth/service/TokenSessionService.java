@@ -52,6 +52,7 @@ public class TokenSessionService {
         }
     }
 
+    /** 用用户ID和当前密码摘要绑定会话，使修改密码后原会话自动失效。 */
     private String binding(User user) {
         // Store neither the bearer token nor the database password hash in Redis.
         // Every request compares against the current database hash. A committed
@@ -65,11 +66,13 @@ public class TokenSessionService {
         }
     }
 
+    /** 只接受标准UUID会话标识，拒绝旧Token或畸形会话ID。 */
     private boolean validId(String id) {
         if (id == null) return false;
         try { return UUID.fromString(id).toString().equals(id); }
         catch (IllegalArgumentException e) { return false; }
     }
 
+    /** 为已验证的会话ID添加统一Redis键前缀。 */
     private String key(String sessionId) { return PREFIX + sessionId; }
 }

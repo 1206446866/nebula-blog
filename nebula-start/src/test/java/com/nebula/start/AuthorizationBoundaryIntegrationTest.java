@@ -47,6 +47,7 @@ import static com.nebula.user.entity.table.UserRoleTableDef.USER_ROLE;
 import static org.junit.jupiter.api.Assertions.*;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.*;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 @SpringBootTest
 @AutoConfigureMockMvc
@@ -71,6 +72,49 @@ class AuthorizationBoundaryIntegrationTest extends JwtIntegrationTestSupport {
     void clearAuthentication() {
         SecurityContextHolder.clearContext();
         sessionTokens.forEach(jwt::revokeToken);
+    }
+
+    @Test void currentSessionIsAvailableWithoutManagementPermissionsAndContainsNoSecrets() throws Exception {
+        var ordinary = user(null);
+        mvc.perform(get("/auth/session").header("Authorization", bearer(ordinary)))
+                .andExpect(status().isOk()).andExpect(jsonPath("$.data.user.id").value(ordinary.getId()))
+                .andExpect(jsonPath("$.data.roles").isEmpty()).andExpect(jsonPath("$.data.permissions").isEmpty())
+                .andExpect(jsonPath("$.data.user.password").doesNotExist()).andExpect(jsonPath("$.data.token").doesNotExist());
+    }
+
+    @Test void sessionIdentityCannotBeSelectedThroughAQueryParameter() throws Exception {
+        var caller = user(3L); var other = user(1L);
+        mvc.perform(get("/auth/session").param("userId", other.getId().toString()).header("Authorization", bearer(caller)))
+                .andExpect(status().isOk()).andExpect(jsonPath("$.data.user.id").value(caller.getId()));
+    }
+
+    @Test void sessionAuthorizationRefreshesPermissionsForAnExistingToken() throws Exception {
+        var role = customRole("article:list"); var caller = user(role.getId()); var token = bearer(caller);
+        mvc.perform(get("/auth/session").header("Authorization", token)).andExpect(jsonPath("$.data.permissions[0]").value("article:list"));
+        rolePermissions.deleteByCondition(ROLE_PERMISSION.ROLE_ID.eq(role.getId()));
+        rolePermissions.insert(RolePermission.create().setRoleId(role.getId()).setPermissionId(permission("user:list").getId()));
+        mvc.perform(get("/auth/session").header("Authorization", token)).andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.permissions[0]").value("user:list"));
+    }
+
+    @Test void sessionAuthorizationRefreshesRolesAfterDemotion() throws Exception {
+        var caller = user(2L); var token = bearer(caller);
+        mvc.perform(get("/auth/session").header("Authorization", token)).andExpect(jsonPath("$.data.roles[0]").value("ADMIN"));
+        userRoles.deleteByCondition(USER_ROLE.USER_ID.eq(caller.getId()));
+        userRoles.insert(UserRole.create().setUserId(caller.getId()).setRoleId(3L));
+        mvc.perform(get("/auth/session").header("Authorization", token)).andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.roles[0]").value("USER"));
+    }
+
+    @Test void currentSessionRejectsAnonymousRevokedAndDisabledSessions() throws Exception {
+        SecurityContextHolder.clearContext();
+        mvc.perform(get("/auth/session")).andExpect(status().isUnauthorized());
+        mvc.perform(get("/auth/session").header("Authorization", "Bearer invalid-token")).andExpect(status().isUnauthorized());
+        var caller = user(3L); String token = bearer(caller); jwt.revokeToken(token.substring(7));
+        mvc.perform(get("/auth/session").header("Authorization", token)).andExpect(status().isUnauthorized());
+        var disabled = user(3L); String disabledToken = bearer(disabled);
+        users.update(User.create().setId(disabled.getId()).setStatus(1));
+        mvc.perform(get("/auth/session").header("Authorization", disabledToken)).andExpect(status().isUnauthorized());
     }
 
     private User user(Long roleId) {

@@ -3,16 +3,44 @@ package com.nebula.common.redis;
 import jakarta.annotation.Resource;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.redis.core.RedisTemplate;
+import org.springframework.data.redis.core.script.DefaultRedisScript;
 import org.springframework.stereotype.Component;
 
 import java.util.concurrent.TimeUnit;
+import java.util.List;
 
 @Slf4j
 @Component
 public class RedisService {
+    private static final DefaultRedisScript<Long> RELEASE_OWNED = new DefaultRedisScript<>("""
+            if redis.call('GET', KEYS[1]) == ARGV[1] then
+                return redis.call('DEL', KEYS[1])
+            end
+            return 0
+            """, Long.class);
 
     @Resource
     private RedisTemplate<String, Object> redisTemplate;
+
+    /** 原子写入带有效期的占位；已有记录或Redis异常时返回false，不能退化为重复计数。 */
+    public boolean setIfAbsent(String key, Object owner, long timeout, TimeUnit unit) {
+        try {
+            return Boolean.TRUE.equals(redisTemplate.opsForValue().setIfAbsent(key, owner, timeout, unit));
+        } catch (Exception e) {
+            log.warn("Redis原子占位失败,key={}", key, e);
+            return false;
+        }
+    }
+
+    /** 仅释放仍属于本次操作的占位，避免补偿误删过期后由其他请求取得的新记录。 */
+    public boolean deleteIfValue(String key, Object owner) {
+        try {
+            return Long.valueOf(1).equals(redisTemplate.execute(RELEASE_OWNED, List.of(key), owner));
+        } catch (Exception e) {
+            log.warn("Redis占位释放失败,key={}", key, e);
+            return false;
+        }
+    }
 
 
     /**

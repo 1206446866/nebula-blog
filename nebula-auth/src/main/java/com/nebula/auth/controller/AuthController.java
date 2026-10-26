@@ -25,10 +25,16 @@ public class AuthController {
 
     private final AuthService authService;
     private final AuthAbuseProtection abuseProtection;
+
+    @GetMapping("/session")
+    @PreAuthorize("isAuthenticated()")
+    public Result<com.nebula.auth.vo.CurrentSessionVO> currentSession() {
+        return Result.success(authService.currentSession());
+    }
     /**
      * 用户登录
      */
-    @Operation(summary = "用户登录", security = {})
+    @Operation(summary = "用户登录")
     @PostMapping("/login")
     public Result<LoginVO> login(@Valid @RequestBody LoginDTO loginDTO, HttpServletRequest request) {
         abuseProtection.requireLoginIp(request);

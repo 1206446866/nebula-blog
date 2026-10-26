@@ -15,7 +15,7 @@ import com.nebula.comment.mapper.CommentMapper;
 import com.nebula.comment.service.CommentService;
 import com.nebula.comment.vo.CommentVO;
 import com.nebula.article.service.ArticleReadAccess;
-import com.nebula.common.constant.RoleEnum;
+import com.nebula.comment.service.CommentThreadService;
 import com.nebula.common.exception.BusinessException;
 import com.nebula.common.exception.code.CommentErrorCode;
 import com.nebula.common.util.SecurityUtils;
@@ -40,6 +40,17 @@ public class CommentServiceImpl extends ServiceImpl<CommentMapper, Comment> impl
 
     private final CommentLikeMapper commentLikeMapper;
     private final ArticleReadAccess articleReadAccess;
+    private final CommentThreadService threads;
+
+    @Override
+    public Page<CommentVO> pageThreads(Long articleId, int page, int size) {
+        return threads.pageThreads(articleId, page, size);
+    }
+
+    @Override
+    public Page<CommentVO> pageReplies(Long rootId, int page, int size) {
+        return threads.pageReplies(rootId, page, size);
+    }
 
     @Override
     public Page<CommentVO> pageComments(Long articleId, String content, int page, int size) {
@@ -51,6 +62,9 @@ public class CommentServiceImpl extends ServiceImpl<CommentMapper, Comment> impl
                         COMMENT.USER_ID,
                         USER.USERNAME,
                         COMMENT.ARTICLE_ID,
+                        COMMENT.PARENT_ID,
+                        COMMENT.LIKE_COUNT,
+                        USER.AVATAR,
                         COMMENT.CONTENT,
                         COMMENT.CREATE_TIME,
                         QueryMethods.case_()
@@ -59,7 +73,7 @@ public class CommentServiceImpl extends ServiceImpl<CommentMapper, Comment> impl
                 )
                 .from(COMMENT)
                 .leftJoin(USER)
-                .on(COMMENT.USER_ID.eq(USER.ID))
+                .on(COMMENT.USER_ID.eq(USER.ID).and(USER.DELETED.eq(0)))
                 .leftJoin(COMMENT_LIKE)
                 .on(COMMENT_LIKE.COMMENT_ID.eq(COMMENT.ID)
                         .and(COMMENT_LIKE.USER_ID.eq(viewerId)))
@@ -72,21 +86,12 @@ public class CommentServiceImpl extends ServiceImpl<CommentMapper, Comment> impl
 
     @Override
     public Boolean releaseComment(ReleaseCommentDto comment) {
-        articleReadAccess.requireReadableArticle(comment.getArticleId());
-        return save(Comment.create().setUserId(SecurityUtils.getUserId()).setArticleId(comment.getArticleId()).setContent(comment.getContent()));
+        return threads.release(comment);
     }
 
     @Override
     public Boolean deleteCommentById(Long id) {
-        Comment comment = mapper.selectOneById(id);
-        if (comment == null) {
-            throw new BusinessException(
-                    CommentErrorCode.COMMENT_NOT_FOUND
-            );
-        }
-        articleReadAccess.requireReadableArticle(comment.getArticleId());
-        checkOwnerOrAdmin(comment.getUserId());
-        return removeById(id);
+        return threads.delete(id);
     }
 
     @Override
@@ -100,6 +105,7 @@ public class CommentServiceImpl extends ServiceImpl<CommentMapper, Comment> impl
                 .orderBy(COMMENT.CREATE_TIME.desc(), COMMENT.ID.desc()));
     }
 
+    /** 限定个人主页评论来自仍存在且已发布的文章，避免暴露草稿评论。 */
     private QueryWrapper visibleProfileComments(Long userId) {
         return QueryWrapper.create().where(COMMENT.USER_ID.eq(userId))
                 .and(COMMENT.ARTICLE_ID.in(articleReadAccess.publishedArticleIds()));
@@ -146,16 +152,4 @@ public class CommentServiceImpl extends ServiceImpl<CommentMapper, Comment> impl
         return total == null ? 0L : total;
     }
 
-    /**
-     * 检查评论是否本人或管理员
-     */
-    private void checkOwnerOrAdmin(Long userId) {
-        if (!SecurityUtils.hasRole(RoleEnum.ADMIN.getCode())
-                && !Objects.equals(userId, SecurityUtils.getUserId()
-        )) {
-            throw new BusinessException(
-                    CommentErrorCode.COMMENT_ACCESS_DENIED
-            );
-        }
-    }
 }

@@ -49,7 +49,7 @@ import static org.mockito.Mockito.verifyNoInteractions;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.*;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*;
 
-/** Management regressions use the complete Security chain and rolled-back MyBatis-Flex fixtures. */
+/** 管理回归使用完整安全链和事务回滚的MyBatis-Flex专用数据。 */
 @SpringBootTest
 @AutoConfigureMockMvc
 @Transactional
@@ -101,8 +101,7 @@ class AdminManagementIntegrityIntegrationTest extends JwtIntegrationTestSupport 
     @AfterTransaction void verifyRollback() throws Exception {
         var remaining = Db.selectListBySql("SELECT id FROM article WHERE title=?", marker);
         if (!remaining.isEmpty()) {
-            // A failed write must not leave audit fixtures behind even if an implementation
-            // unexpectedly uses an independent transaction.
+            // 即使实现意外使用独立事务，失败写入也不能留下本轮专用数据。
             for (var row : remaining) {
                 Long id = row.getLong("id");
                 Db.deleteBySql("DELETE FROM article_category WHERE article_id=?", id);
@@ -424,20 +423,25 @@ class AdminManagementIntegrityIntegrationTest extends JwtIntegrationTestSupport 
         assertEquals(0, details.path("tagIds").size());
     }
 
-    @Test void publishedArticleCacheRoundTripsDatesAndCollections() throws Exception {
+    @Test void legacyArticleSnapshotsRoundTripWithoutReplacingFreshDetails() throws Exception {
         var article = article(1);
         var tag = tag("cached");
         articleTags.insert(ArticleTag.create().setArticleId(article.getId()).setTagId(tag.getId()));
         var first = data(request(root, get("/articles/" + article.getId()), 200));
+        // 主动构造旧快照验证Redis序列化，详情读取不再负责写入正文缓存。
+        var snapshot = json.treeToValue(first, com.nebula.article.vo.ArticleVO.class).setContent("过期正文");
+        cache.set(ARTICLE_DETAIL + article.getId(), snapshot);
         assertTrue(Boolean.TRUE.equals(cache.hasKey(ARTICLE_DETAIL + article.getId())));
         com.nebula.article.vo.ArticleVO cached = cache.get(ARTICLE_DETAIL + article.getId());
         assertNotNull(cached);
         assertEquals(articles.selectOneById(article.getId()).getCreateTime(), cached.getCreateTime());
         assertEquals(List.of(tag.getId()), cached.getTagIds());
+        assertEquals(snapshot.getContent(), cached.getContent());
         var hit = data(request(root, get("/articles/" + article.getId()), 200));
         assertEquals(first.path("createTime"), hit.path("createTime"));
         assertEquals(first.path("tagIds"), hit.path("tagIds"));
         assertEquals(first.path("content"), hit.path("content"));
+        assertNotEquals(cached.getContent(), hit.path("content").asText());
     }
 
     @Test void emptyCatalogFiltersIncludeLegacyUnclassifiedArticlesAndSortingIsStable() {
@@ -461,6 +465,144 @@ class AdminManagementIntegrityIntegrationTest extends JwtIntegrationTestSupport 
         assertThrows(com.nebula.common.exception.BusinessException.class, () -> roleService.pageRoles(dto));
     }
 
+    private Comment threadComment(Article article, User user, Long parentId, String suffix) {
+        var comment = Comment.create().setArticleId(article.getId()).setUserId(user.getId()).setParentId(parentId)
+                .setContent(marker + suffix).setStatus(0).setLikeCount(0L);
+        comments.insertSelective(comment); return comment;
+    }
+
+    @Test void threadsAndNestedRepliesArePagedSeparatelyWithReplyTargets() throws Exception {
+        var article = article(1); var other = user("responder", 3L);
+        var rootComment = threadComment(article, root, 0L, " root");
+        var first = threadComment(article, other, rootComment.getId(), " first");
+        var nested = threadComment(article, root, first.getId(), " nested");
+        var roots = data(request(other, get("/comments/threads").param("articleId", article.getId().toString()), 200));
+        assertEquals(1, roots.path("totalRow").asLong());
+        assertEquals(2, roots.path("records").get(0).path("replyCount").asLong());
+        var replyPage = data(request(other, get("/comments/" + rootComment.getId() + "/replies").param("size", "1").param("currentPage", "2"), 200));
+        assertEquals(2, replyPage.path("totalRow").asLong());
+        var reply = replyPage.path("records").get(0);
+        assertEquals(nested.getId(), reply.path("id").asLong());
+        assertEquals(first.getId(), reply.path("parentId").asLong());
+        assertEquals(other.getUsername(), reply.path("replyToUsername").asText());
+        assertEquals(rootComment.getId(), reply.path("rootId").asLong());
+        assertFalse(reply.path("createTime").asText().isBlank());
+    }
+
+    @Test void rootPaginationDoesNotCountRepliesAsAdditionalThreads() throws Exception {
+        var article = article(1); var first = threadComment(article, root, 0L, " first");
+        var second = threadComment(article, root, 0L, " second");
+        threadComment(article, root, first.getId(), " reply");
+        var page = data(request(root, get("/comments/threads").param("articleId", article.getId().toString()).param("size", "1"), 200));
+        assertEquals(2, page.path("totalRow").asLong()); assertEquals(second.getId(), page.path("records").get(0).path("id").asLong());
+        var next = data(request(root, get("/comments/threads").param("articleId", article.getId().toString()).param("size", "1").param("currentPage", "2"), 200));
+        assertEquals(first.getId(), next.path("records").get(0).path("id").asLong());
+        assertEquals(1, next.path("records").get(0).path("replyCount").asLong());
+    }
+
+    @Test void legacyNullParentsAreStillVisibleAsRoots() throws Exception {
+        var article = article(1); var legacy = threadComment(article, root, null, " legacy");
+        Db.updateBySql("UPDATE comment SET parent_id=NULL WHERE id=?", legacy.getId());
+        var page = data(request(root, get("/comments/threads").param("articleId", article.getId().toString()), 200));
+        assertEquals(1, page.path("totalRow").asLong());
+        request(root, body(put("/comments/release"), Map.of("articleId", article.getId(), "parentId", legacy.getId(), "content", marker + " new")), 200);
+    }
+
+    @Test void repliesUseTheCurrentUserAndPreserveTheActualParent() throws Exception {
+        var article = article(1); var actor = user("reply_actor", 3L); var parent = threadComment(article, root, 0L, " root");
+        request(actor, body(put("/comments/release"), Map.of("articleId", article.getId(), "parentId", parent.getId(),
+                "content", marker + " posted", "userId", root.getId())), 200);
+        var row = Db.selectOneBySql("SELECT user_id,parent_id,like_count FROM comment WHERE content=?", marker + " posted");
+        assertEquals(actor.getId(), row.getLong("user_id")); assertEquals(parent.getId(), row.getLong("parent_id"));
+        assertEquals(0L, row.getLong("like_count"));
+    }
+
+    @Test void repliesCannotReferenceAnotherArticle() throws Exception {
+        var first = article(1); var second = article(1); var parent = threadComment(first, root, 0L, " root");
+        request(root, body(put("/comments/release"), Map.of("articleId", second.getId(), "parentId", parent.getId(), "content", marker + " rejected")), 400);
+        assertTrue(Db.selectListBySql("SELECT id FROM comment WHERE article_id=?", second.getId()).isEmpty());
+    }
+
+    @Test void missingAndDeletedParentsCannotReceiveReplies() throws Exception {
+        var article = article(1); var parent = threadComment(article, root, 0L, " deleted"); comments.deleteById(parent.getId());
+        for (Long id : List.of(parent.getId(), Long.MAX_VALUE)) {
+            request(root, body(put("/comments/release"), Map.of("articleId", article.getId(), "parentId", id, "content", marker + " rejected")), 404);
+        }
+    }
+
+    @Test void threadEndpointsAndRepliesRespectPrivateArticleVisibility() throws Exception {
+        var article = article(0); var reader = user("private_reader", 3L); var parent = threadComment(article, root, 0L, " private");
+        request(reader, get("/comments/threads").param("articleId", article.getId().toString()), 404);
+        request(reader, get("/comments/" + parent.getId() + "/replies"), 404);
+        request(reader, body(put("/comments/release"), Map.of("articleId", article.getId(), "parentId", parent.getId(), "content", marker + " rejected")), 404);
+        request(null, get("/comments/" + parent.getId() + "/replies"), 401);
+    }
+
+    @Test void replyInputAndPaginationAreValidated() throws Exception {
+        var article = article(1); var parent = threadComment(article, root, 0L, " root");
+        for (String content : List.of(" ", "x".repeat(2001))) request(root, body(put("/comments/release"),
+                Map.of("articleId", article.getId(), "parentId", parent.getId(), "content", content)), 400);
+        request(root, body(put("/comments/release"), Map.of("articleId", article.getId(), "parentId", -1, "content", "valid")), 400);
+        request(root, get("/comments/threads").param("articleId", article.getId().toString()).param("size", "101"), 400);
+        request(root, get("/comments/" + parent.getId() + "/replies").param("currentPage", "0"), 400);
+    }
+
+    @Test void deletingAReplyRemovesOnlyItsBranchAndItsLikes() throws Exception {
+        var article = article(1); var other = user("branch_author", 3L); var parent = threadComment(article, root, 0L, " root");
+        var branch = threadComment(article, other, parent.getId(), " branch");
+        var nested = threadComment(article, root, branch.getId(), " nested");
+        var sibling = threadComment(article, root, parent.getId(), " sibling");
+        request(root, body(put("/comments/like"), Map.of("commentId", nested.getId())), 200);
+        request(other, delete("/comments/delete/" + branch.getId()), 200);
+        assertEquals(2, Db.selectOneBySql("SELECT COUNT(*) AS total FROM comment WHERE id IN (?,?) AND status=1", branch.getId(), nested.getId()).getInt("total"));
+        assertTrue(Db.selectListBySql("SELECT id FROM comment_like WHERE comment_id=?", nested.getId()).isEmpty());
+        var replies = data(request(root, get("/comments/" + parent.getId() + "/replies"), 200));
+        assertEquals(1, replies.path("totalRow").asLong()); assertEquals(sibling.getId(), replies.path("records").get(0).path("id").asLong());
+        assertNotNull(comments.selectOneById(parent.getId()));
+    }
+
+    @Test void deletingARootRemovesAllRepliesAndStopsFurtherReplying() throws Exception {
+        var article = article(1); var parent = threadComment(article, root, 0L, " root");
+        var first = threadComment(article, root, parent.getId(), " first"); threadComment(article, root, first.getId(), " nested");
+        request(root, delete("/comments/delete/" + parent.getId()), 200);
+        assertEquals(0, Db.selectOneBySql("SELECT COUNT(*) AS total FROM comment WHERE article_id=? AND status=0", article.getId()).getInt("total"));
+        request(root, get("/comments/" + parent.getId() + "/replies"), 404);
+        request(root, body(put("/comments/release"), Map.of("articleId", article.getId(), "parentId", first.getId(), "content", marker + " rejected")), 404);
+    }
+
+    @Test void anotherAuthorCannotDeleteAThreadTheyOnlyRepliedTo() throws Exception {
+        var article = article(1); var other = user("not_owner", 3L); var parent = threadComment(article, root, 0L, " root");
+        threadComment(article, other, parent.getId(), " reply");
+        request(other, delete("/comments/delete/" + parent.getId()), 403);
+        assertNotNull(comments.selectOneById(parent.getId()));
+    }
+
+    @Test void deletedAuthorsAndReplyTargetsDoNotExposeTheirOldNamesOrAvatars() throws Exception {
+        var article = article(1); var other = user("deleted_commenter", 3L); var parent = threadComment(article, other, 0L, " root");
+        threadComment(article, root, parent.getId(), " reply"); users.deleteById(other.getId());
+        var roots = data(request(root, get("/comments/threads").param("articleId", article.getId().toString()), 200));
+        assertTrue(roots.path("records").get(0).path("username").isNull());
+        var replies = data(request(root, get("/comments/" + parent.getId() + "/replies"), 200));
+        assertTrue(replies.path("records").get(0).path("replyToUsername").isNull());
+    }
+
+    @Test void replyListsIncludeTheCurrentUsersLikeAndTheStoredCount() throws Exception {
+        var article = article(1); var parent = threadComment(article, root, 0L, " root");
+        var reply = threadComment(article, root, parent.getId(), " reply");
+        request(root, body(put("/comments/like"), Map.of("commentId", reply.getId())), 200);
+        var page = data(request(root, get("/comments/" + parent.getId() + "/replies"), 200));
+        assertTrue(page.path("records").get(0).path("liked").asBoolean());
+        assertEquals(1, page.path("records").get(0).path("likeCount").asLong());
+    }
+
+    @Test void repliesEndpointRequiresARootAndRejectsBrokenHistoricalAncestry() throws Exception {
+        var article = article(1); var parent = threadComment(article, root, 0L, " root");
+        var reply = threadComment(article, root, parent.getId(), " reply");
+        request(root, get("/comments/" + reply.getId() + "/replies"), 400);
+        Db.updateBySql("UPDATE comment SET parent_id=? WHERE id=?", Long.MAX_VALUE, reply.getId());
+        request(root, body(put("/comments/release"), Map.of("articleId", article.getId(), "parentId", reply.getId(), "content", "broken")), 404);
+    }
+
     private User writer(String suffix, String... permissionNames) {
         var role = Role.create().setName(marker + "_" + suffix).setDescription(marker).setDeleted(0);
         roles.insert(role);
@@ -474,6 +616,65 @@ class AdminManagementIntegrityIntegrationTest extends JwtIntegrationTestSupport 
 
     private User writer() {
         return writer("writer", "article:list", "article:create", "article:update", "article:delete");
+    }
+
+    @Test void authoringCreateReturnsAnIdAndIgnoresForgedPublicationAndOwnership() throws Exception {
+        var writer = writer(); var category = category("authoring"); var tag = tag("authoring");
+        var response = data(request(writer, body(post("/articles/drafts"), Map.of(
+                "title", marker, "content", "preview draft", "categoryId", category.getId(),
+                "tagIds", List.of(tag.getId()), "status", 1, "userId", root.getId(), "author", "forged")), 200));
+        assertTrue(response.isIntegralNumber()); long id = response.asLong(); articleIds.add(id);
+        var stored = articles.selectOneById(id);
+        assertEquals(0, stored.getStatus()); assertEquals(writer.getId(), stored.getUserId());
+        assertEquals(writer.getUsername(), stored.getAuthor());
+        var detail = data(request(writer, get("/articles/" + id + "/edit"), 200));
+        assertEquals(category.getId(), detail.path("categoryId").asLong());
+        assertEquals(tag.getId(), detail.path("tagIds").get(0).asLong());
+        request(writer, body(put("/articles/edit"), editPayload(stored, category)), 200);
+        assertEquals(1, articles.selectCountByQuery(QueryWrapper.create().where(ARTICLE.USER_ID.eq(writer.getId()))));
+    }
+
+    @ParameterizedTest @ValueSource(ints = {0, 1})
+    void editorReadsDoNotIncreaseViewsOrCreatePublicCache(int articleStatus) throws Exception {
+        var owner = writer("edit_only", "article:update"); var article = ownedDraft(owner);
+        articles.update(article.setStatus(articleStatus).setViewCount(7L));
+        var detail = data(request(owner, get("/articles/" + article.getId() + "/edit"), 200));
+        assertEquals(7, detail.path("viewCount").asLong());
+        assertEquals(7L, articles.selectOneById(article.getId()).getViewCount());
+        assertFalse(Boolean.TRUE.equals(redis.hasKey(ARTICLE_DETAIL + article.getId())));
+        assertFalse(Boolean.TRUE.equals(redis.hasKey(ARTICLE_VIEW + article.getId() + ":" + owner.getId())));
+    }
+
+    @Test void authoringReadsRejectAnonymousReadersNonOwnersAndDeletedArticles() throws Exception {
+        var owner = writer(); var draft = ownedDraft(owner);
+        var other = writer("other_editor", "article:update");
+        var reader = writer("read_only_editor", "article:list");
+        request(null, get("/articles/" + draft.getId() + "/edit"), 401);
+        request(reader, get("/articles/" + draft.getId() + "/edit"), 403);
+        request(other, get("/articles/" + draft.getId() + "/edit"), 403);
+        articles.update(draft.setStatus(1));
+        request(other, get("/articles/" + draft.getId() + "/edit"), 403);
+        articles.deleteById(draft.getId());
+        request(owner, get("/articles/" + draft.getId() + "/edit"), 404);
+        request(owner, get("/articles/0/edit"), 400);
+    }
+
+    @ParameterizedTest @ValueSource(longs = {1L, 2L})
+    void administratorsCanPreviewOtherAuthorsDraftsWithoutPublishing(long roleId) throws Exception {
+        var owner = writer(); var draft = ownedDraft(owner); var manager = user("preview_manager", roleId);
+        assertEquals(draft.getId(), data(request(manager, get("/articles/" + draft.getId() + "/edit"), 200)).path("id").asLong());
+        assertEquals(0, articles.selectOneById(draft.getId()).getStatus());
+    }
+
+    @Test void authoringCreateRequiresPermissionAndValidInputs() throws Exception {
+        var reader = writer("read_only_create", "article:list"); var category = category("new_editor");
+        var payload = Map.of("title", marker, "content", "draft", "categoryId", category.getId());
+        request(null, body(post("/articles/drafts"), payload), 401);
+        request(reader, body(post("/articles/drafts"), payload), 403);
+        request(root, body(post("/articles/drafts"), Map.of("title", marker, "content", "draft")), 400);
+        request(root, body(post("/articles/drafts"), Map.of("title", "x".repeat(256), "content", "draft", "categoryId", category.getId())), 400);
+        var draft = article(0);
+        request(root, body(put("/articles/edit"), Map.of("id", draft.getId(), "title", "x".repeat(256), "content", "draft", "categoryId", category.getId())), 400);
     }
 
     private Article ownedDraft(User owner) {

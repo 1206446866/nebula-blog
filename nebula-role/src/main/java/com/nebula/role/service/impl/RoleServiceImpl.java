@@ -119,7 +119,7 @@ public class RoleServiceImpl extends ServiceImpl<RoleMapper, Role> implements Ro
         List<UserRole> userRoles = userRoleMapper.selectListByCondition(USER_ROLE.USER_ID.eq(userId));
         List<Long> roleIds = userRoles.stream().map(UserRole::getRoleId).toList();
         if (roleIds.isEmpty()) return List.of();
-        List<Role> roleList = getMapper().selectListByQuery(QueryWrapper.create().select(ROLE.DESCRIPTION).where(ROLE.ID.in(roleIds, !roleIds.isEmpty())));
+        List<Role> roleList = getMapper().selectListByQuery(QueryWrapper.create().select(ROLE.DESCRIPTION).where(ROLE.ID.in(roleIds)));
         return roleList.stream().map(Role::getDescription).toList();
     }
 }

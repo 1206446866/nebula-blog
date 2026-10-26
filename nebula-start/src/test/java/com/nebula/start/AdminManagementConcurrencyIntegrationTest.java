@@ -104,6 +104,10 @@ class AdminManagementConcurrencyIntegrationTest extends JwtIntegrationTestSuppor
         SecurityContextHolder.clearContext();
         for (var row : Db.selectListBySql("SELECT id FROM article WHERE user_id=?", root.getId())) {
             Long id = row.getLong("id");
+            for (var comment : Db.selectListBySql("SELECT id FROM comment WHERE article_id=?", id)) {
+                Db.deleteByMap("comment_like", Map.of("comment_id", comment.getLong("id")));
+                Db.deleteById("comment", "id", comment.getLong("id"));
+            }
             redis.delete(List.of(ARTICLE_DETAIL + id, ARTICLE_VIEW + id + ":" + root.getId()));
             Db.deleteByMap("article_category", Map.of("article_id", id));
             Db.deleteByMap("article_tag", Map.of("article_id", id));
@@ -234,6 +238,30 @@ class AdminManagementConcurrencyIntegrationTest extends JwtIntegrationTestSuppor
         assertEquals("committed change", observed.get());
         assertEquals(status, Db.selectOneBySql("SELECT status FROM article WHERE id=?", article.getId()).getInt("status"));
         assertEquals(1, Db.selectListBySql("SELECT category_id FROM article_category WHERE article_id=?", article.getId()).size());
+    }
+
+    @ParameterizedTest @ValueSource(booleans = {true, false})
+    void repliesAndRootDeletionSerializeWithoutLeavingOrphans(boolean replyFirst) throws Exception {
+        var article = article();
+        var parent = Comment.create().setArticleId(article.getId()).setUserId(root.getId()).setParentId(0L)
+                .setContent(marker).setStatus(0).setLikeCount(0L);
+        comments.insertSelective(parent); commentIds.add(parent.getId());
+        var dto = new com.nebula.comment.dto.ReleaseCommentDto().setArticleId(article.getId()).setParentId(parent.getId()).setContent(marker + " reply");
+        var entered = new CountDownLatch(1); var release = new CountDownLatch(1); releases.add(release);
+        var first = new AtomicBoolean(true); String winner = replyFirst ? "reply" : "thread-delete";
+        doAnswer(invocation -> {
+            var row = invocation.callRealMethod();
+            if (Thread.currentThread().getName().startsWith(winner) && first.getAndSet(false)) pause(entered, release);
+            return row;
+        }).when(articles).selectOneByQuery(any(QueryWrapper.class));
+        var winning = start(winner, () -> replyFirst ? commentService.releaseComment(dto) : commentService.deleteCommentById(parent.getId()));
+        assertTrue(entered.await(5, TimeUnit.SECONDS));
+        var losing = start(replyFirst ? "thread-delete" : "reply", () -> replyFirst ? commentService.deleteCommentById(parent.getId()) : commentService.releaseComment(dto));
+        assertThrows(TimeoutException.class, () -> losing.get(200, TimeUnit.MILLISECONDS));
+        release.countDown(); assertTrue(winning.get(10, TimeUnit.SECONDS));
+        if (replyFirst) assertTrue(losing.get(10, TimeUnit.SECONDS));
+        else assertInstanceOf(BusinessException.class, assertThrows(ExecutionException.class, () -> losing.get(10, TimeUnit.SECONDS)).getCause());
+        assertEquals(0, Db.selectOneBySql("SELECT COUNT(*) AS total FROM comment WHERE article_id=? AND status=0", article.getId()).getInt("total"));
     }
 
     @ParameterizedTest @ValueSource(booleans = {true, false})

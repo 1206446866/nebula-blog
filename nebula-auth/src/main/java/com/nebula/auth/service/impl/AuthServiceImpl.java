@@ -16,17 +16,11 @@ import com.nebula.auth.vo.LoginVO;
 import com.nebula.common.constant.LoginStatus;
 import com.nebula.common.constant.RoleEnum;
 import com.nebula.common.constant.UserStatus;
-import com.nebula.common.constant.redisKey.AuthRedisKey;
 import com.nebula.common.exception.AuthException;
 import com.nebula.common.exception.BusinessException;
 import com.nebula.common.mail.service.MailService;
-import com.nebula.common.redis.RedisService;
 import com.nebula.common.security.LoginUser;
 import com.nebula.common.util.SecurityUtils;
-import com.nebula.role.entity.Permission;
-import com.nebula.role.entity.RolePermission;
-import com.nebula.role.mapper.PermissionMapper;
-import com.nebula.role.mapper.RolePermissionMapper;
 import com.nebula.role.service.PermissionService;
 import com.nebula.role.service.RoleService;
 import com.nebula.user.entity.User;
@@ -49,13 +43,8 @@ import java.util.List;
 import java.util.Objects;
 import java.util.UUID;
 import java.security.SecureRandom;
-import java.nio.charset.StandardCharsets;
 import java.util.Locale;
-import java.util.concurrent.TimeUnit;
-import java.util.stream.Collectors;
 
-import static com.nebula.role.entity.table.PermissionTableDef.PERMISSION;
-import static com.nebula.role.entity.table.RolePermissionTableDef.ROLE_PERMISSION;
 import static com.nebula.user.entity.table.UserRoleTableDef.USER_ROLE;
 import static com.nebula.user.entity.table.UserTableDef.USER;
 import static com.nebula.common.exception.code.RegistrationErrorCode.EMAIL_ALREADY_REGISTERED;
@@ -81,16 +70,6 @@ public class AuthServiceImpl implements AuthService {
     private final UserRoleMapper userRoleMapper;
 
 
-    /**
-     * 角色权限关联 RolePermissionMapper
-     */
-    private final RolePermissionMapper rolePermissionMapper;
-
-    /**
-     * 权限 PermissionMapper
-     */
-    private final PermissionMapper permissionMapper;
-
     private final LoginLogService loginLogService;
 
     private final AuthenticationManager authenticationManager;
@@ -101,13 +80,13 @@ public class AuthServiceImpl implements AuthService {
 
     private final PasswordEncoder passwordEncoder;
 
-    private final RedisService redisService;
-
     private final MailService mailService;
     private final PermissionService permissionService;
     private final RegistrationTokenService registrationTokens;
     private final AuthAbuseProtection abuseProtection;
     private final RoleService roleService;
+    private final com.nebula.common.security.SensitivePasswordVerifier sensitivePasswords;
+    private final com.nebula.auth.security.RegistrationProperties registration;
 
 
     @Override
@@ -117,18 +96,16 @@ public class AuthServiceImpl implements AuthService {
         if (Objects.isNull(lu) || Objects.isNull(lu.getPassword())) {
             throw new AuthenticationCredentialsNotFoundException("Authentication required");
         }
-        if (!passwordEncoder.matches(dto.getOldPassword(), lu.getPassword())) {
-            throw new BusinessException(OLD_PASSWORD_INCORRECT);
-        }
+        if (dto == null) throw new BusinessException(PASSWORD_POLICY_INVALID);
+        com.nebula.common.util.PasswordPolicy.validateNewPassword(dto.getNewPassword());
         if (!dto.getNewPassword().equals(dto.getConfirmPassword())) {
             throw new BusinessException(PASSWORD_CONFIRMATION_MISMATCH);
         }
+        if (!sensitivePasswords.matches(dto.getOldPassword(), lu.getPassword())) throw new BusinessException(OLD_PASSWORD_INCORRECT);
         User user = User.create();
         user.setId(lu.getUserId());
         user.setPassword(passwordEncoder.encode(dto.getNewPassword()));
-        // The JWT principal contains the password hash read by the filter.
-        // Only one request verified against this hash may change it, including
-        // concurrent requests that already passed authentication before the change.
+        // 同时匹配认证时的密码哈希，已通过认证的并发请求也不能重复修改旧密码。
         int affected = userMapper.updateByQuery(user, QueryWrapper.create()
                 .where(USER.ID.eq(lu.getUserId()))
                 .and(USER.PASSWORD.eq(lu.getPassword()))
@@ -148,23 +125,19 @@ public class AuthServiceImpl implements AuthService {
     @Override
     @Transactional(rollbackFor = Exception.class)
     public Boolean resetPassword(Long userId, ResetPasswordDTO dto) {
-        if (!SecurityUtils.isAdmin() || !SecurityUtils.hasPermission("user:update")) {
+        LoginUser operator = SecurityUtils.getLoginUser();
+        if (operator == null || !SecurityUtils.isAdmin() || !SecurityUtils.hasPermission("user:update")) {
             throw new org.springframework.security.access.AccessDeniedException("仅有用户管理权限的管理员可重置密码");
         }
         if (userId == null || userId < 1) throw new BusinessException(com.nebula.common.exception.code.UserErrorCode.USER_NOT_FOUND);
-        if (Objects.equals(userId, SecurityUtils.getUserId())) throw new BusinessException(USER_SELF_OPERATION_DENIED);
-        if (dto == null || dto.getNewPassword() == null || dto.getNewPassword().length() < 8
-                || dto.getNewPassword().length() > 64 || dto.getNewPassword().getBytes(StandardCharsets.UTF_8).length > 72) {
-            throw new BusinessException(PASSWORD_POLICY_INVALID);
-        }
+        if (Objects.equals(userId, operator.getUserId())) throw new BusinessException(USER_SELF_OPERATION_DENIED);
+        if (dto == null) throw new BusinessException(PASSWORD_POLICY_INVALID);
+        com.nebula.common.util.PasswordPolicy.validateNewPassword(dto.getNewPassword());
         if (!dto.getNewPassword().equals(dto.getConfirmPassword())) throw new BusinessException(PASSWORD_CONFIRMATION_MISMATCH);
-        String operator = String.valueOf(SecurityUtils.getUserId());
-        abuseProtection.requireCredentialAttempt("password-reset", operator);
-        if (!passwordEncoder.matches(dto.getOperatorPassword(), SecurityUtils.getLoginUser().getPassword())) {
+        if (!sensitivePasswords.matches(dto.getOperatorPassword(), operator.getPassword())) {
             throw new BusinessException(OPERATOR_PASSWORD_INCORRECT);
         }
-        abuseProtection.credentialSucceeded("password-reset", operator);
-        // Lock bindings before the target row so promotion cannot race the hierarchy check.
+        // 先锁角色绑定再锁目标账号，避免并发提权绕过角色层级检查。
         var bindings = userRoleMapper.selectListByQuery(QueryWrapper.create().where(USER_ROLE.USER_ID.eq(userId)).forUpdate());
         boolean protectedTarget = bindings.stream().anyMatch(binding ->
                 Objects.equals(binding.getRoleId(), RoleEnum.SUPER_ADMIN.getRoleId())
@@ -211,6 +184,17 @@ public class AuthServiceImpl implements AuthService {
 
 
     @Override
+    public com.nebula.auth.vo.CurrentSessionVO currentSession() {
+        if (!(SecurityUtils.getLoginUser() instanceof AuthLoginUser viewer)) {
+            throw new org.springframework.security.access.AccessDeniedException("请先登录");
+        }
+        var user = BeanUtil.copyProperties(viewer.getUser(), UserVO.class);
+        user.setRoleIds(userRoleMapper.selectListByCondition(USER_ROLE.USER_ID.eq(viewer.getUserId()))
+                .stream().map(UserRole::getRoleId).toList());
+        return new com.nebula.auth.vo.CurrentSessionVO(user, viewer.getRoles(), viewer.getPermissions());
+    }
+
+    @Override
     public Long sendEmailCaptcha(String email) {
         email = RegistrationEmail.normalize(email);
         String code = String.format(Locale.ROOT, "%06d", RANDOM.nextInt(1_000_000));
@@ -226,6 +210,7 @@ public class AuthServiceImpl implements AuthService {
 
     @Override
     public String verifyEmailCaptcha(EmailVerifyDTO dto) {
+        com.nebula.common.util.PasswordPolicy.validateNewPassword(dto.getPassword());
         String email = RegistrationEmail.normalize(dto.getEmail());
 
         if (userMapper.selectCountByQuery(QueryWrapper.create().where(USER.EMAIL.eq(email))) > 0) {
@@ -240,11 +225,11 @@ public class AuthServiceImpl implements AuthService {
                 <h3>Nebula Blog 注册确认</h3>
                 <p>您正在注册 Nebula Blog 账号。</p>
                 <p>请点击下面链接完成注册：</p>
-                <a href="http://localhost:5173/register?token=%s">
+                <a href="%s">
                 完成注册
                 </a>
                 <p>该链接10分钟内有效。</p>
-                """.formatted(verifyToken));
+                """.formatted(org.springframework.web.util.HtmlUtils.htmlEscape(registration.confirmationLink(verifyToken))));
         return "验证成功";
     }
 
@@ -258,7 +243,7 @@ public class AuthServiceImpl implements AuthService {
                     .setUsername("registering..." + UUID.randomUUID())
                     .setEmail(cache.getAccount()).setPassword(cache.getPassword())
                     .setStatus(UserStatus.NORMAL.getCode()).setDeleted(0);
-            // uk_user_email is the final arbiter for different links and concurrent requests.
+            // 不同注册链接或并发请求仍由uk_user_email唯一约束阻止重复注册。
             if (userMapper.insertSelective(user) != 1) throw new RegistrationUnavailableException();
             user.setNid(String.valueOf(user.getId())).setUsername("普通用户" + user.getId());
             if (userMapper.update(user) != 1) throw new RegistrationUnavailableException();
@@ -283,6 +268,7 @@ public class AuthServiceImpl implements AuthService {
         return permissions.contains(permission);
     }
 
+    /** 将认证异常转换为项目登录结果码，用于一致记录失败原因。 */
     private Integer getLoginStatus(Exception e) {
         if (e instanceof UsernameNotFoundException) {
             return LoginStatus.USER_NOT_FOUND.getCode();
@@ -302,6 +288,7 @@ public class AuthServiceImpl implements AuthService {
         return LoginStatus.FAIL.getCode();
     }
 
+    /** 按邮箱或NID查找账号，用于登录尝试计数与失败日志归属。 */
     private User findUserByAccount(String account) {
 
         if (account.contains("@")) {

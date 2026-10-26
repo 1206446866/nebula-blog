@@ -33,7 +33,10 @@ public class SecurityConfig {
     private final JwtAuthenticationFilter jwtAuthenticationFilter;
 
     @Bean
-    public SecurityFilterChain securityFilterChain(HttpSecurity http) throws Exception {
+    public SecurityFilterChain securityFilterChain(HttpSecurity http,
+            com.nebula.common.security.ResourceGuard resources,
+            com.nebula.common.util.ClientIpResolver ips,
+            com.fasterxml.jackson.databind.ObjectMapper json) throws Exception {
         http
 
                 .cors(Customizer.withDefaults())
@@ -53,14 +56,15 @@ public class SecurityConfig {
                                 "/auth/email/verify").permitAll()
                         // 静态资源放行
                         .requestMatchers("/upload/**").permitAll()
-                        //spring doc放行
-                        .requestMatchers("/swagger-ui.html", "/swagger-ui/**", "/v3/api-docs/**").permitAll()
+                        // 文档默认关闭；显式开启后也仅允许超级管理员携带有效Token访问。
+                        .requestMatchers("/swagger-ui.html", "/swagger-ui/**", "/v3/api-docs/**").hasRole("SUPER_ADMIN")
                         // 其他请求需要认证
                         .anyRequest().authenticated())
 
                 .exceptionHandling(exception -> exception.authenticationEntryPoint(jwtAuthenticationEntryPoint).accessDeniedHandler(jwtAccessDeniedHandler))
                 // 添加JWT过滤器
                 .addFilterBefore(jwtAuthenticationFilter, UsernamePasswordAuthenticationFilter.class)
+                .addFilterAfter(new ResourceProtectionFilter(resources, ips, json), JwtAuthenticationFilter.class)
 //               Security的表单登陆
                 .formLogin(AbstractHttpConfigurer::disable)
 //                HTTP 头基础认证入口Authorization: Basic base64(username:password)

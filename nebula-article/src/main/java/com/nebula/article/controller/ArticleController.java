@@ -57,6 +57,20 @@ public class ArticleController {
         return Result.success(articleService.createArticle(dto));
     }
 
+    /** Create a private draft and return its ID for continued editing. */
+    @PreAuthorize("hasAuthority('article:create')")
+    @PostMapping("/drafts")
+    public Result<Long> createDraft(@RequestBody @Valid CreateArticleDto dto) {
+        return Result.success(articleService.createDraft(dto));
+    }
+
+    /** Authoring reads must not increment views or populate the public detail cache. */
+    @PreAuthorize("hasAuthority('article:update')")
+    @GetMapping("/{id}/edit")
+    public Result<ArticleVO> getArticleForEdit(@PathVariable @Min(1) Long id) {
+        return Result.success(articleService.getArticleForEdit(id));
+    }
+
     /**
      * 修改文章
      *

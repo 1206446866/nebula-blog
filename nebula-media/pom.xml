@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 https://maven.apache.org/xsd/maven-4.0.0.xsd">
+  <modelVersion>4.0.0</modelVersion>
+  <parent><groupId>com.nebula</groupId><artifactId>nebula-blog</artifactId><version>1.0.0</version></parent>
+  <artifactId>nebula-media</artifactId>
+  <dependencies>
+    <dependency><groupId>com.nebula</groupId><artifactId>nebula-common</artifactId><version>${project.version}</version></dependency>
+    <dependency><groupId>com.mybatis-flex</groupId><artifactId>mybatis-flex-spring-boot3-starter</artifactId></dependency>
+    <dependency><groupId>org.sejda.imageio</groupId><artifactId>webp-imageio</artifactId><version>0.1.6</version></dependency>
+    <dependency><groupId>org.projectlombok</groupId><artifactId>lombok</artifactId><scope>provided</scope></dependency>
+    <dependency><groupId>org.springframework.boot</groupId><artifactId>spring-boot-starter-test</artifactId><scope>test</scope></dependency>
+  </dependencies>
+</project>

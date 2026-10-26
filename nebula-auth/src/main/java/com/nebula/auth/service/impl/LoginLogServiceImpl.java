@@ -58,6 +58,7 @@ public class LoginLogServiceImpl extends ServiceImpl<LoginLogMapper, LoginLog> i
                 .setLocation(location));
     }
 
+    /** 容错解析浏览器信息，缺失或格式异常时返回空，避免影响登录结果。 */
     private static UserAgent parseUserAgent(String userAgent) {
         if (UNKNOWN.equals(userAgent)) return null;
         try {
@@ -68,6 +69,7 @@ public class LoginLogServiceImpl extends ServiceImpl<LoginLogMapper, LoginLog> i
         }
     }
 
+    /** 清理控制字符并按字段长度截断请求信息，空值统一显示Unknown。 */
     private static String logValue(String value, int maxLength) {
         if (value == null) return UNKNOWN;
         String sanitized = value.codePoints().limit(maxLength)

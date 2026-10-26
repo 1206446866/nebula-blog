@@ -20,6 +20,7 @@
 
     <modules>
         <module>nebula-common</module>
+        <module>nebula-media</module>
         <module>nebula-api</module>
         <module>nebula-auth</module>
         <module>nebula-user</module>

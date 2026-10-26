@@ -10,13 +10,9 @@ import com.mybatisflex.core.util.StringUtil;
 import com.mybatisflex.spring.service.impl.ServiceImpl;
 import com.nebula.article.dto.*;
 import com.nebula.article.entity.Article;
-import com.nebula.article.entity.ArticleCategory;
 import com.nebula.article.entity.ArticleLike;
-import com.nebula.article.entity.ArticleTag;
-import com.nebula.article.mapper.ArticleCategoryMapper;
 import com.nebula.article.mapper.ArticleLikeMapper;
 import com.nebula.article.mapper.ArticleMapper;
-import com.nebula.article.mapper.ArticleTagMapper;
 import com.nebula.article.service.ArticleCategoryService;
 import com.nebula.article.service.ArticleService;
 import com.nebula.article.service.ArticleReadAccess;
@@ -24,7 +20,6 @@ import com.nebula.article.service.ArticleCatalogReferences;
 import com.nebula.article.service.ArticleTagService;
 import com.nebula.article.vo.ArticleVO;
 import com.nebula.common.constant.ArticleStatus;
-import com.nebula.common.constant.redisKey.ArticleRedisKey;
 import com.nebula.common.exception.BusinessException;
 import com.nebula.common.redis.RedisService;
 import com.nebula.common.util.SecurityUtils;
@@ -42,6 +37,7 @@ import java.time.ZonedDateTime;
 import java.util.List;
 import java.util.Objects;
 import java.util.concurrent.TimeUnit;
+import java.util.UUID;
 
 import static com.nebula.article.entity.table.ArticleCategoryTableDef.ARTICLE_CATEGORY;
 import static com.nebula.article.entity.table.ArticleLikeTableDef.ARTICLE_LIKE;
@@ -55,14 +51,13 @@ import static com.nebula.common.exception.code.ArticleErrorCode.*;
 @RequiredArgsConstructor
 public class ArticleServiceImpl extends ServiceImpl<ArticleMapper, Article> implements ArticleService {
 
-    private final ArticleCategoryMapper articleCategoryMapper;
-    private final ArticleTagMapper articleTagMapper;
     private final ArticleCategoryService articleCategoryService;
     private final ArticleTagService articleTagService;
     private final ArticleLikeMapper articleLikeMapper;
     private final RedisService redisService;
     private final ArticleReadAccess articleReadAccess;
     private final ArticleCatalogReferences references;
+    private final com.nebula.media.service.MediaService mediaService;
     private static final ZoneId ZONE_ID = ZoneId.of("Asia/Shanghai");
 
     @Override
@@ -85,31 +80,30 @@ public class ArticleServiceImpl extends ServiceImpl<ArticleMapper, Article> impl
 
     @Override
     public ArticleVO getArticleById(Long id) {
-        // Check current database visibility before reading a shared cache entry.
+        // 授权查询已经取得完整文章，直接使用本次数据库正文，避免旧请求重新填回过期缓存。
         Article article = articleReadAccess.requireReadableArticle(id);
         boolean published = ArticleStatus.PUBLISHED.getCode().equals(article.getStatus());
         var viewer = SecurityUtils.getLoginUser();
         Long viewerId = viewer == null ? null : viewer.getUserId();
-        String key = ARTICLE_DETAIL + id;
-        ArticleVO cached = published ? redisService.get(key) : null;
-        ArticleVO articleVO = cached == null ? toDetailVO(article) : BeanUtil.copyProperties(cached, ArticleVO.class);
+        ArticleVO articleVO = toDetailVO(article);
         populateCatalogReferences(articleVO, id);
         if (published) {
-            if (cached == null) redisService.set(key, articleVO, 30, TimeUnit.MINUTES);
             boolean increased = increaseViewCount(id, viewerId);
             articleVO.setViewCount((article.getViewCount() == null ? 0L : article.getViewCount()) + (increased ? 1 : 0));
         }
         articleVO.setLiked(viewerId != null && articleLikeMapper.selectOneByCondition(
                 ARTICLE_LIKE.ARTICLE_ID.eq(id).and(ARTICLE_LIKE.USER_ID.eq(viewerId))) != null);
-        // Shared cached details must not override the current database counter.
+        // 互动状态和计数使用本次数据库记录，不能由历史缓存覆盖。
         articleVO.setLikeCount(article.getLikeCount() == null ? 0 : article.getLikeCount());
         return articleVO;
     }
 
+    /** 将文章实体转换为详情展示对象，关联分类与标签由后续步骤补充。 */
     private ArticleVO toDetailVO(Article article) {
         return BeanUtil.copyProperties(article, ArticleVO.class);
     }
 
+    /** 重新读取有效分类和标签，避免详情缓存继续返回已删除的目录关联。 */
     private void populateCatalogReferences(ArticleVO article, Long articleId) {
         var category = Db.selectOneBySql("SELECT ac.category_id FROM article_category ac JOIN category c ON c.id=ac.category_id "
                 + "WHERE ac.article_id=? AND c.deleted=0 ORDER BY ac.category_id LIMIT 1", articleId);
@@ -119,35 +113,49 @@ public class ArticleServiceImpl extends ServiceImpl<ArticleMapper, Article> impl
                 .stream().map(row -> row.getLong("tag_id")).toList());
     }
 
+    /** 按用户和文章限制每日浏览计数，未登录访问不计数，有效期到上海时区次日零点。 */
     private boolean increaseViewCount(Long articleId, Long userId) {
         if (userId == null) {
             return false;
         }
         String key = ARTICLE_VIEW + articleId + ":" + userId;
 
-        if (redisService.hasKey(key)) {
-            return false;
-        }
-
         ZonedDateTime now = ZonedDateTime.now(ZONE_ID);
 
         ZonedDateTime tomorrow = now.toLocalDate().plusDays(1).atStartOfDay(ZONE_ID);
 
-        long seconds = Duration.between(now, tomorrow).getSeconds();
-        UpdateChain.of(Article.class)
-                .setRaw(ARTICLE.VIEW_COUNT, ARTICLE.VIEW_COUNT.add(1))
-                .where(ARTICLE.ID.eq(articleId))
-                .update();
-        redisService.set(key, 1, seconds, TimeUnit.SECONDS);
-        return true;
+        long seconds = Math.max(1, Duration.between(now, tomorrow).getSeconds());
+        String owner = UUID.randomUUID().toString();
+        if (!redisService.setIfAbsent(key, owner, seconds, TimeUnit.SECONDS)) return false;
+        try {
+            boolean updated = UpdateChain.of(mapper)
+                    .setRaw(ARTICLE.VIEW_COUNT, new com.mybatisflex.core.query.RawQueryColumn("COALESCE(view_count,0)+1"))
+                    .where(ARTICLE.ID.eq(articleId)).and(articleReadAccess.publishedCondition()).update();
+            if (!updated) redisService.deleteIfValue(key, owner);
+            return updated;
+        } catch (RuntimeException e) {
+            redisService.deleteIfValue(key, owner);
+            throw e;
+        }
     }
 
     @Transactional(rollbackFor = Exception.class)
     @Override
     public boolean createArticle(CreateArticleDto dto) {
+        createDraft(dto);
+        return true;
+    }
+
+    @Transactional(rollbackFor = Exception.class)
+    @Override
+    public Long createDraft(CreateArticleDto dto) {
+        if (SecurityUtils.getLoginUser() == null || !SecurityUtils.hasPermission("article:create")) {
+            throw new AccessDeniedException("需要文章创建权限");
+        }
         references.lockCategory(dto.getCategoryId());
         var tagIds = references.lockTags(dto.getTagIds());
 //        草稿态
+        mediaService.lockArticleImages(dto.getContent());
         Article article = Article.create().setUserId(SecurityUtils.getUserId())
                 .setAuthor(Objects.requireNonNull(SecurityUtils.getLoginUser()).getUsername())
                 .setTitle(dto.getTitle()).setContent(dto.getContent())
@@ -155,7 +163,25 @@ public class ArticleServiceImpl extends ServiceImpl<ArticleMapper, Article> impl
         if (mapper.insertSelective(article) != 1) throw new BusinessException(ARTICLE_CREATE_FAILED);
         articleCategoryService.bindCategories(article.getId(), dto.getCategoryId());
         articleTagService.bindTags(article.getId(), tagIds);
-        return true;
+        return article.getId();
+    }
+
+    @Transactional(readOnly = true)
+    @Override
+    public ArticleVO getArticleForEdit(Long id) {
+        var actor = SecurityUtils.getLoginUser();
+        if (actor == null || actor.getUserId() == null || !SecurityUtils.hasPermission("article:update")) {
+            throw new AccessDeniedException("需要文章编辑权限");
+        }
+        if (id == null || id < 1) throw new BusinessException(ARTICLE_NOT_FOUND);
+        Article article = mapper.selectOneById(id);
+        if (article == null) throw new BusinessException(ARTICLE_NOT_FOUND);
+        if (!SecurityUtils.isAdmin() && !SecurityUtils.isSelf(article.getUserId())) {
+            throw new BusinessException(ARTICLE_ACCESS_DENIED);
+        }
+        ArticleVO result = toDetailVO(article);
+        populateCatalogReferences(result, id);
+        return result;
     }
 
     @Transactional(rollbackFor = Exception.class)
@@ -164,12 +190,15 @@ public class ArticleServiceImpl extends ServiceImpl<ArticleMapper, Article> impl
         references.lockCategory(dto.getCategoryId());
         var tagIds = references.lockTags(dto.getTagIds());
         checkOwnerOrAdmin(dto.getId(), "article:update");
+        mediaService.lockArticleImages(dto.getContent());
         boolean res = updateById(Article.create()
                 .setId(dto.getId())
                 .setTitle(dto.getTitle())
                 .setContent(dto.getContent())
         );
         if (!res) throw new BusinessException(ARTICLE_UPDATE_FAILED);
+        // 修改正文需重新确认发布计划，防止尚未确认的新内容按旧计划公开。
+        Db.updateBySql("UPDATE article SET scheduled_publish_at=NULL, scheduled_by=NULL, schedule_error=NULL WHERE id=?", dto.getId());
         articleCategoryService.bindCategories(dto.getId(), dto.getCategoryId());
         articleTagService.bindTags(dto.getId(), tagIds);
         evictDetailAfterCommit(dto.getId());
@@ -189,6 +218,7 @@ public class ArticleServiceImpl extends ServiceImpl<ArticleMapper, Article> impl
         if (mapper.update(Article.create().setId(dto.getId()).setStatus(dto.getStatus())) != 1) {
             throw new BusinessException(ARTICLE_STATUS_UPDATE_FAILED);
         }
+        Db.updateBySql("UPDATE article SET scheduled_publish_at=NULL, scheduled_by=NULL, schedule_error=NULL WHERE id=?", dto.getId());
         evictDetailAfterCommit(dto.getId());
         return true;
     }
@@ -206,6 +236,7 @@ public class ArticleServiceImpl extends ServiceImpl<ArticleMapper, Article> impl
         return pageAs(Page.of(dto.getCurrent(), dto.getSize()), query, ArticleVO.class);
     }
 
+    /** 用子查询追加分类与标签筛选，组内任选其一、两组同时满足，避免分页重复。 */
     private void applyCatalogFilters(QueryWrapper query, ArticlePageDTO dto) {
         if (dto.getCategoryIds() != null && !dto.getCategoryIds().isEmpty()) {
             requireFilterIds(dto.getCategoryIds());
@@ -221,6 +252,7 @@ public class ArticleServiceImpl extends ServiceImpl<ArticleMapper, Article> impl
         }
     }
 
+    /** 限制筛选项最多100个且ID均为正数，非法条件直接拒绝。 */
     private void requireFilterIds(List<Long> ids) {
         if (ids.size() > 100 || ids.stream().anyMatch(id -> id == null || id < 1)) {
             throw new BusinessException(com.nebula.common.exception.code.ManagementErrorCode.TAG_INVALID);
@@ -304,12 +336,14 @@ public class ArticleServiceImpl extends ServiceImpl<ArticleMapper, Article> impl
         return true;
     }
 
+    /** 仅在数据库事务提交成功后失效详情缓存，避免回滚影响已缓存的数据。 */
     private void evictDetailAfterCommit(Long articleId) {
         TransactionSynchronizationManager.registerSynchronization(new TransactionSynchronization() {
             @Override public void afterCommit() { redisService.delete(ARTICLE_DETAIL + articleId); }
         });
     }
 
+    /** 校验文章操作权限并锁定记录，仅允许作者本人或管理员继续修改。 */
     private void checkOwnerOrAdmin(Long articleId, String permission) {
         var actor = SecurityUtils.getLoginUser();
         if (actor == null || actor.getUserId() == null || !SecurityUtils.hasPermission(permission)) {

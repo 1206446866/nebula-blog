@@ -7,6 +7,7 @@ import com.nebula.api.vo.profile.UserProfileVO;
 import com.nebula.api.vo.tag.home.TagHomeVO;
 import com.nebula.common.result.Result;
 import jakarta.validation.Valid;
+import org.springframework.security.access.prepost.PreAuthorize;
 import jakarta.validation.constraints.Min;
 import lombok.RequiredArgsConstructor;
 import org.springframework.validation.annotation.Validated;
@@ -43,6 +44,7 @@ public class ApiController {
      * @return 标签主页信息
      */
     @GetMapping("/tag")
+    @PreAuthorize("@securityUtils.hasPermission('tag:list')")
     public Result<List<TagHomeVO>> getTagHome() {
         return Result.success(tagHomeFacade.getTagHome());
     }

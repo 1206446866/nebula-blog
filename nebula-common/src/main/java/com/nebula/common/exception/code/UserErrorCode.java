@@ -50,7 +50,8 @@ public enum UserErrorCode implements ErrorCode{
     AVATAR_FILE_REQUIRED(1013, "请选择文件"),
     AVATAR_TOO_LARGE(1014, "图片不能超过10MB"),
     AVATAR_CONTENT_INVALID(1015, "图片内容非法"),
-    USER_STATUS_INVALID(1016, "用户状态非法");
+    USER_STATUS_INVALID(1016, "用户状态非法"),
+    COMMUNITY_KEYWORD_TOO_LONG(1017, "搜索关键词不能超过50个字符");
 
     private final Integer code;
     private final String message;
