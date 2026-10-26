@@ -43,8 +43,8 @@ export const saveRolePermissionsApi = (data: { roleId?: number; permissionIds: n
   return request.post<Result<Boolean>>('/permissions/save', data)
 }
 
-export const getPermissionPage = (params: PermissionPageDto) => {
-  return request.get<Result<Page<PermissionVO>>>('/permissions/page', { params })
+export const getPermissionPage = (params: PermissionPageDto, signal?: AbortSignal) => {
+  return request.get<Result<Page<PermissionVO>>>('/permissions/page', { params, signal })
 }
 
 export const createPermissionApi = (params: CreatePermissionDto) => {

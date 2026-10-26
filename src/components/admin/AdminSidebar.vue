@@ -8,7 +8,7 @@
         <span>首页</span>
       </router-link>
 
-      <router-link to="/admin/user" class="item">
+      <router-link v-if="authStore.hasPermission('user:list')" to="/admin/user" class="item">
         <ion-icon name="people-outline"></ion-icon>
         <span>用户管理</span>
       </router-link>
@@ -23,7 +23,7 @@
         <span>权限管理</span>
       </router-link>
 
-      <router-link to="/admin/article" class="item">
+      <router-link v-if="authStore.hasPermission('article:list')" to="/admin/article" class="item">
         <ion-icon name="document-text-outline"></ion-icon>
         <span>文章管理</span>
       </router-link>
@@ -33,12 +33,16 @@
         <span>评论管理</span>
       </router-link>
 
-      <router-link to="/admin/category" class="item">
+      <router-link
+        v-if="authStore.hasPermission('category:list')"
+        to="/admin/category"
+        class="item"
+      >
         <ion-icon name="folder-outline"></ion-icon>
         <span>分类管理</span>
       </router-link>
 
-      <router-link to="/admin/tag" class="item">
+      <router-link v-if="authStore.hasPermission('tag:list')" to="/admin/tag" class="item">
         <ion-icon name="pricetag-outline"></ion-icon>
         <span>标签管理</span>
       </router-link>
@@ -46,13 +50,15 @@
   </div>
 </template>
 <script setup lang="ts">
-import { useAuthStore } from '@/stores/auth'
 import { Role } from '@/constants/role'
 
-const authStore = useAuthStore()
+import { useAdminSidebar } from './logic/useAdminSidebar'
+
 defineOptions({
   name: 'AdminSidebar',
 })
+
+const { authStore } = useAdminSidebar()
 </script>
 <style scoped>
 .sidebar {

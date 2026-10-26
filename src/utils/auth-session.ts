@@ -1,4 +1,4 @@
-/** Revoke the captured session before clearing it; a newer login must survive. */
+/** 先撤销操作开始时的会话，再清理本地状态；保留期间新登录的会话。 */
 export async function revokeCurrentSession(options: {
   token: string
   revoke: (token: string) => Promise<unknown>
@@ -11,7 +11,7 @@ export async function revokeCurrentSession(options: {
       await revoke(token)
     } catch (error) {
       const failure = error as { response?: { status?: number }; code?: number }
-      // An expired or already revoked session has already reached the desired state.
+      // 会话已过期或已被撤销时，无需再次处理。
       if (failure?.response?.status !== 401 && failure?.code !== 401) throw error
     }
   }

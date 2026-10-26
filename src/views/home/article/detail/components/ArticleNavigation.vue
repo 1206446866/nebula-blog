@@ -1,238 +1,221 @@
 <template>
-  <div class="article-navigation glass-card">
-    <!-- 上一篇 -->
-    <div class="nav-item" :class="{ disabled: !prevArticle }" @click="todo()">
-      <div class="label">上一篇</div>
-      <div class="title">
-        {{ prevArticle?.title || '没有了' }}
-      </div>
+  <section class="article-navigation" aria-label="文章互动">
+    <div class="closing-heading">
+      <span>THE END, FOR NOW</span>
+      <h2>让这次阅读，留下一点回声。</h2>
+      <p>如果文字曾与你共鸣，就为它送上一颗爱心。</p>
     </div>
-
-    <!-- 中间：喜欢 -->
-    <div class="center">
-      <div class="center-header">
-        <ion-icon name="compass-outline"></ion-icon>
-      </div>
-
-      <div class="actions">
-        <button
-          type="button"
-          class="action-item"
-          :disabled="liking || article.status !== 1"
-          :aria-pressed="!!articleState.liked"
-          @click="like"
-        >
-          <ion-icon :name="articleState.liked ? 'heart' : 'heart-outline'"></ion-icon>
-          <span>{{
-            article.status !== 1
-              ? '发布后可点赞'
-              : liking
-                ? '处理中…'
-                : articleState.liked
-                  ? '已喜欢'
-                  : '喜欢'
-          }}</span>
-        </button>
-      </div>
+    <div class="closing-actions">
+      <button
+        type="button"
+        class="like-button"
+        :class="{ 'is-liked': articleState.liked }"
+        :disabled="liking || article.status !== 1"
+        :aria-pressed="!!articleState.liked"
+        @click="like"
+      >
+        <svg viewBox="0 0 24 24" aria-hidden="true">
+          <path
+            d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21l7.78-7.55 1.06-1.06a5.5 5.5 0 0 0 0-7.78Z"
+          /></svg
+        ><span>{{
+          article.status !== 1
+            ? '发布后可点赞'
+            : liking
+              ? '处理中…'
+              : articleState.liked
+                ? '已喜欢这篇文章'
+                : '喜欢这篇文章'
+        }}</span>
+      </button>
+      <a class="discussion-link" href="#article-comments"
+        >参与讨论 <span aria-hidden="true">↓</span></a
+      >
     </div>
-
-    <!-- 下一篇 + 返回 -->
-    <div class="right">
-      <div class="nav-item" :class="{ disabled: !nextArticle }" @click="todo()">
-        <!--           @click="goArticle(nextArticle?.id)-->
-        <div class="label">下一篇</div>
-        <div class="title">
-          {{ nextArticle?.title || '没有了' }}
-        </div>
-      </div>
-
-      <div class="divider"></div>
-
-      <div class="nav-item back" @click="goList">
-        <ion-icon name="arrow-back-outline"></ion-icon>
-        <span>返回列表</span>
-      </div>
-    </div>
-  </div>
+    <nav class="continuation" aria-label="继续阅读">
+      <button type="button" class="back-link" @click="goList">
+        <span aria-hidden="true">↖</span> 回到文章星海</button
+      ><button
+        v-if="prevArticle"
+        type="button"
+        class="adjacent-link"
+        @click="goArticle(prevArticle.id)"
+      >
+        上一篇 · {{ prevArticle.title }}</button
+      ><button
+        v-if="nextArticle"
+        type="button"
+        class="adjacent-link"
+        @click="goArticle(nextArticle.id)"
+      >
+        下一篇 · {{ nextArticle.title }} ↗
+      </button>
+    </nav>
+  </section>
 </template>
 
 <script setup lang="ts">
-import { useRouter } from 'vue-router'
-import { useAuthStore } from '@/stores/auth'
-import { ElMessage } from 'element-plus'
-import { type ArticleVO, likeArticleApi } from '@/api/article.ts'
-import { ref, watch } from 'vue'
-import { todo } from '@/utils/todo.ts'
+import { type ArticleVO } from '@/api/article.ts'
 
-interface ArticleNavItem {
-  id: number
-  title: string
-}
+import { useArticleNavigation, type ArticleNavItem } from '../logic/useArticleNavigation'
 
 const props = defineProps<{
   prevArticle?: ArticleNavItem | null
   nextArticle?: ArticleNavItem | null
   article: ArticleVO
 }>()
-const articleState = ref({
-  ...props.article,
-})
-const liking = ref(false)
-const auth = useAuthStore()
-watch(
-  () => props.article,
-  (article) => {
-    articleState.value = { ...article }
-  },
-)
-const router = useRouter()
 
-const goList = () => {
-  router.push('/article')
-}
-
-// const goArticle = (id?: number) => {
-//   if (!id) return
-//   router.push(`/article/${id}`)
-// }
-
-const like = async () => {
-  if (liking.value || props.article.status !== 1) return
-  if (!auth.getToken()) {
-    ElMessage.warning('请先登录')
-    return
-  }
-
-  const articleId = props.article.id
-  liking.value = true
-  try {
-    const res = await likeArticleApi({ articleId })
-    if (props.article.id === articleId && res.code === 200) {
-      articleState.value.liked = res.data
-      ElMessage.success(res.data ? '点赞成功 ❤️' : '取消点赞')
-    }
-  } catch {
-    // The request interceptor displays errors; failed requests do not change the heart state.
-  } finally {
-    liking.value = false
-  }
-}
+const { articleState, liking, goList, goArticle, like } = useArticleNavigation(props)
 </script>
 
 <style scoped>
 .article-navigation {
+  margin: 18px 0 0;
+  padding: 35px 0 0;
+  border-top: 1px solid #bba3d020;
+}
+.closing-heading {
+  text-align: center;
+}
+.closing-heading > span {
+  color: #7c6e8d;
+  font:
+    8px/1.5 Consolas,
+    monospace;
+  letter-spacing: 0.2em;
+}
+.closing-heading h2 {
+  font:
+    22px/1.8 'Noto Serif SC',
+    'Songti SC',
+    SimSun,
+    Georgia,
+    serif;
+  font-weight: 400;
+  letter-spacing: 0.06em;
+  color: #d2c4e0;
+  margin: 13px 0 8px;
+}
+.closing-heading p {
+  font-size: 11px;
+  line-height: 1.8;
+  color: #8d809d;
+}
+.closing-actions {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 25px;
+  margin: 26px 0 40px;
+}
+.like-button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  padding: 13px 24px;
+  border: 1px solid #bba0d342;
+  border-radius: 7px;
+  color: #d4c1e6;
+  background: linear-gradient(120deg, #a587c01d, #9d83b40a);
+  font: inherit;
+  font-size: 12px;
+  cursor: pointer;
+  transition:
+    background 0.2s,
+    border-color 0.2s;
+}
+.like-button svg {
+  width: 17px;
+  height: 17px;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 1.3;
+  stroke-linejoin: round;
+}
+.like-button:hover {
+  border-color: #c0a4db80;
+  background: #ad8bce26;
+}
+.like-button.is-liked {
+  color: #e3cce1;
+  background: #ad8bce26;
+}
+.like-button.is-liked svg {
+  fill: currentColor;
+}
+.like-button:disabled {
+  opacity: 0.5;
+  cursor: default;
+}
+.discussion-link {
+  color: #a89bb9;
+  font-size: 11px;
+}
+.discussion-link > span {
+  margin-left: 10px;
+  color: #c5b2db;
+}
+.continuation {
   display: flex;
   align-items: center;
   justify-content: space-between;
-
-  padding: 16px 20px;
-  border-radius: 18px;
-  gap: 20px;
+  gap: 18px;
+  padding-top: 22px;
+  border-top: 1px solid #bba3d01a;
+  flex-wrap: wrap;
 }
-
-/* 左右文章块 */
-.nav-item {
-  display: flex;
-  flex-direction: column;
-  cursor: pointer;
-  transition: 0.2s;
-  min-width: 140px;
-}
-
-.nav-item:hover {
-  color: var(--el-color-primary);
-}
-
-.nav-item.disabled {
-  opacity: 0.4;
-  cursor: not-allowed;
-}
-
-/* 返回 */
-.back {
-  flex-direction: row;
-  align-items: center;
-  gap: 6px;
-  font-weight: 500;
-}
-
-/* 文本 */
-.label {
-  font-size: 12px;
-  color: #94a3b8;
-  margin-bottom: 4px;
-}
-
-.title {
-  font-size: 13px;
-  font-weight: 500;
-
-  display: -webkit-box;
-  -webkit-line-clamp: 1;
-  -webkit-box-orient: vertical;
-  overflow: hidden;
-}
-
-/* 中间 */
-.center {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 8px;
-}
-
-.center-header {
-  font-size: 18px;
-  color: var(--el-color-primary);
-}
-
-.actions {
-  display: flex;
-  align-items: center;
-}
-
-.action-item {
-  background: transparent;
+.continuation button {
   border: 0;
-  padding: 4px 8px;
-  font: inherit;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-
-  font-size: 12px;
-  color: #64748b;
-
+  background: transparent;
+  padding: 0;
   cursor: pointer;
-  transition: 0.2s;
+  color: #8f809f;
+  font: inherit;
+  font-size: 10px;
+  line-height: 1.8;
+  text-align: left;
 }
-
-.action-item:disabled {
-  opacity: 0.55;
-  cursor: not-allowed;
+.back-link > span {
+  color: #c7b6dd;
+  margin-right: 9px;
+  font-size: 14px;
 }
-
-.action-item i,
-.action-item ion-icon {
-  font-size: 18px;
-  margin-bottom: 2px;
+.continuation button:hover,
+.discussion-link:hover {
+  color: #d7c5e9;
 }
-
-.action-item:hover {
-  color: var(--el-color-primary);
-  transform: translateY(-1px);
+.adjacent-link {
+  overflow-wrap: anywhere;
+  max-width: 40%;
 }
-
-/* 右侧 */
-.right {
-  display: flex;
-  align-items: center;
-  gap: 16px;
+button:focus-visible,
+a:focus-visible {
+  outline: 2px solid #c4b4ed;
+  outline-offset: 5px;
 }
-
-.divider {
-  width: 1px;
-  height: 30px;
-  background: rgba(148, 163, 184, 0.3);
+@media (max-width: 600px) {
+  .closing-heading h2 {
+    font-size: 20px;
+  }
+  .closing-actions {
+    gap: 20px;
+  }
+  .like-button {
+    padding: 12px 18px;
+    font-size: 11px;
+  }
+  .continuation {
+    gap: 15px;
+  }
+  .adjacent-link {
+    max-width: 100%;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .like-button {
+    transition: none;
+  }
 }
 </style>

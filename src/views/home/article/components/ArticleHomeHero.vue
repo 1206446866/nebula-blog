@@ -30,7 +30,7 @@
       </div>
     </div>
 
-    <!-- subtle background glow -->
+    <!-- 柔和背景光晕 -->
     <div class="bg-glow"></div>
   </section>
 </template>
@@ -42,7 +42,7 @@
   overflow: hidden;
 }
 
-/* layout */
+/* 整体布局 */
 .hero-inner {
   display: flex;
   justify-content: center;
@@ -53,7 +53,7 @@
   margin: 0 auto;
 }
 
-/* badge */
+/* 顶部标识 */
 .hero-badge {
   display: inline-flex;
   padding: 8px 14px;
@@ -70,7 +70,7 @@
   color: rgba(255, 255, 255, 0.8);
 }
 
-/* title */
+/* 标题 */
 .hero h1 {
   font-size: 54px;
   line-height: 1.1;
@@ -79,7 +79,7 @@
   margin-bottom: 18px;
 }
 
-/* subtitle */
+/* 副标题 */
 .hero-subtitle {
   max-width: 560px;
   font-size: 16px;
@@ -88,7 +88,7 @@
   color: rgba(255, 255, 255, 0.6);
 }
 
-/* stats */
+/* 统计信息 */
 .hero-stats {
   margin-top: 42px;
   display: flex;
@@ -112,7 +112,7 @@
   color: rgba(255, 255, 255, 0.5);
 }
 
-/* divider */
+/* 分隔线 */
 .stat-item:not(:last-child)::after {
   content: '';
   position: absolute;
@@ -126,7 +126,7 @@
   background: rgba(255, 255, 255, 0.08);
 }
 
-/* background glow */
+/* 背景光晕 */
 .bg-glow {
   position: absolute;
   inset: -200px;

@@ -21,23 +21,15 @@
 </template>
 
 <script setup lang="ts">
+import { Role } from '@/constants/role'
+
+import { useAdminHeader } from './logic/useAdminHeader'
+
 defineOptions({
   name: 'AdminHeader',
 })
-import { useRouter } from 'vue-router'
 
-import { useAuthStore } from '@/stores/auth'
-import { Role } from '@/constants/role'
-
-const router = useRouter()
-const userStore = useAuthStore()
-const logout = async () => {
-  if (await userStore.logout()) await router.replace('/login')
-}
-
-const profile = () => {
-  router.push('/user/' + userStore.user.id)
-}
+const { userStore, logout, profile } = useAdminHeader()
 </script>
 
 <style scoped>

@@ -24,15 +24,13 @@ export function useUploadAvatar() {
     }
 
     uploading.value = true
+    const token = userStore.getToken()
 
     try {
       const res = await uploadAvatarApi(file)
+      if (userStore.getToken() !== token) return
 
       if (res.code === 200) {
-        // userStore.setUser({
-        //   ...userStore.user,
-        //   avatar: res.data,
-        // })
         userStore.updateAvatar(res.data)
 
         ElMessage.success('头像上传成功')

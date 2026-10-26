@@ -1,7 +1,8 @@
 <script setup lang="ts">
-import { useRouter } from 'vue-router'
+import { useRoute, useRouter } from 'vue-router'
+import { safeRedirect } from '@/router/policy'
 import { useAuthStore } from '@/stores/auth.ts'
-import { reactive, ref } from 'vue'
+import { onBeforeUnmount, reactive, ref } from 'vue'
 import { loginApi } from '@/api/auth.ts'
 import { ElMessage } from 'element-plus'
 import { Role } from '@/constants/role.ts'
@@ -15,8 +16,11 @@ const emit = defineEmits<{
 }>()
 
 const router = useRouter()
+const route = useRoute()
 const userStore = useAuthStore()
 const loading = ref(false)
+const controller = new AbortController()
+onBeforeUnmount(() => controller.abort())
 const form = reactive({
   account: '',
   password: '',
@@ -28,19 +32,17 @@ const handleLogin = async () => {
   }
   loading.value = true
   try {
-    const res = await loginApi(form)
+    const res = await loginApi({ ...form }, controller.signal)
     if (res.code !== 200 || !res.data) {
       ElMessage.error(res.message || '登录失败')
       return
     }
     userStore.setAuth(res.data)
-    if (userStore.hasRole(Role.ADMIN)) {
-      await router.push('/admin')
-    } else {
-      await router.push('/')
-    }
+    await router.replace(
+      safeRedirect(route.query.redirect) || (userStore.hasRole(Role.ADMIN) ? '/admin' : '/'),
+    )
   } catch {
-    // The request interceptor displays authentication and network failures.
+    // 认证失败和网络错误由请求拦截器统一显示。
   } finally {
     loading.value = false
   }

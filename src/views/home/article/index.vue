@@ -1,49 +1,38 @@
 <template>
   <ArticleHomeHero />
   <ArticleHomeFilter />
-  <ArticleHomeField :articles="articles" />
-  <ArticlePagination v-model:currentPage="currentPage" :page-size="pageSize" :total="total" />
+  <div v-loading="loading"><ArticleHomeField :articles="articles" /></div>
+  <div v-if="loadError" class="load-error">
+    <p>文章暂时没有加载出来</p>
+    <el-button @click="loadArticles">重新加载</el-button>
+  </div>
+  <ArticlePagination
+    :current-page="currentPage"
+    :page-size="pageSize"
+    :total="total"
+    @update:current-page="changePage"
+  />
 </template>
 
 <script setup lang="ts">
-import { useArticleFilterStore } from '@/stores/articleFilter.ts'
-import { onMounted, ref, watch } from 'vue'
 import ArticleHomeHero from '@/views/home/article/components/ArticleHomeHero.vue'
 import ArticleHomeFilter from '@/views/home/article/components/ArticleHomeFilter.vue'
 import ArticleHomeField from '@/views/home/article/components/ArticleHomeField.vue'
 import ArticlePagination from '@/views/home/article/components/ArticlePagination.vue'
-import { type ArticleVO, getPublishedArticlePageApi } from '@/api/article.ts'
+
+import { useArticleHome } from './logic/useArticleHome'
 
 defineOptions({
   name: 'ArticleHome',
 })
-const articles = ref<ArticleVO[]>([])
-const currentPage = ref(1)
-const pageSize = ref(10)
-const total = ref(0)
-const filterStore = useArticleFilterStore()
-async function loadArticles() {
-  const res = await getPublishedArticlePageApi({
-    categoryIds: filterStore.categoryIds,
-    tagIds: filterStore.tagIds,
-    current: currentPage.value,
-    size: pageSize.value,
-  })
-  articles.value = res.data.records
-  total.value = res.data.totalRow
-}
 
-watch(
-  () => [filterStore.categoryIds, filterStore.tagIds],
-  () => {
-    currentPage.value = 1
-    loadArticles()
-  },
-  {
-    deep: true,
-  },
-)
-onMounted(() => {
-  loadArticles()
-})
+const { articles, currentPage, pageSize, total, loading, loadError, loadArticles, changePage } =
+  useArticleHome()
 </script>
+<style scoped>
+.load-error {
+  text-align: center;
+  color: #94a3b8;
+  padding: 24px;
+}
+</style>

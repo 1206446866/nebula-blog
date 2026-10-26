@@ -1,35 +1,74 @@
-// src/stores/auth.ts
+// 登录状态管理。
+import { avatarUrl as resourceAvatarUrl } from '@/utils/resource'
 import { defineStore } from 'pinia'
 import type { UserVO } from '@/api/user.ts'
-import { logoutApi, type LoginVO } from '@/api/auth.ts'
+import { currentSessionApi, logoutApi, type LoginVO } from '@/api/auth.ts'
 import { revokeCurrentSession } from '@/utils/auth-session'
 import { Role } from '@/constants/role'
+import {
+  authorizationKey,
+  normalizeRoles,
+  persistAuth,
+  readAuthCache,
+  singleFlight,
+  stringList,
+  tokenPayload,
+} from '@/utils/session-cache'
+
+const loadSession = singleFlight(async (token: string) => (await currentSessionApi(token)).data)
 
 export const useAuthStore = defineStore('auth', {
   state: () => ({
     loggingOut: false,
-    token: localStorage.getItem('token') || '', //防止 token 变成 null。
-    user: localStorage.getItem('user') ? JSON.parse(localStorage.getItem('user')!) : null,
-    roles: localStorage.getItem('roles') ? JSON.parse(localStorage.getItem('roles')!) : [],
-    permissions: localStorage.getItem('permissions')
-      ? JSON.parse(localStorage.getItem('permissions')!)
-      : [],
+    verifiedToken: '',
+    viewRevision: 0,
+    ...readAuthCache(localStorage),
   }),
 
   actions: {
     setAuth(data: LoginVO) {
+      this.verifiedToken = ''
       this.token = data.token
       this.user = data.user
-      this.roles = data.roles || []
-      this.permissions = data.permissions || []
-      localStorage.setItem('token', data.token)
-      localStorage.setItem('user', JSON.stringify(data.user))
-      localStorage.setItem('roles', JSON.stringify(this.roles))
-      localStorage.setItem('permissions', JSON.stringify(this.permissions))
+      this.roles = normalizeRoles(data.roles)
+      this.permissions = stringList(data.permissions)
+      persistAuth(localStorage, this)
     },
 
     getToken() {
-      return this.token || localStorage.getItem('token') || ''
+      return this.token
+    },
+
+    async refreshSession(): Promise<boolean> {
+      const token = this.token
+      const data = await loadSession(token)
+      if (this.token !== token) return false
+      if (
+        !data?.user ||
+        String(data.user.id) !== tokenPayload(token)?.sub ||
+        !Array.isArray(data.roles) ||
+        !Array.isArray(data.permissions)
+      ) {
+        throw new Error('Invalid session response')
+      }
+      const roles = normalizeRoles(data.roles)
+      const permissions = stringList(data.permissions)
+      if (
+        this.verifiedToken !== token ||
+        authorizationKey(this.roles, this.permissions) !== authorizationKey(roles, permissions)
+      )
+        this.viewRevision++
+      this.user = data.user
+      this.roles = roles
+      this.permissions = permissions
+      this.verifiedToken = token
+      persistAuth(localStorage, this)
+      return true
+    },
+
+    syncFromStorage() {
+      this.verifiedToken = ''
+      Object.assign(this, readAuthCache(localStorage))
     },
 
     hasRole(role: string) {
@@ -42,7 +81,7 @@ export const useAuthStore = defineStore('auth', {
       return role === Role.USER && this.roles.includes(Role.ADMIN)
     },
 
-    hasAnyRole(roles: string[]) {
+    hasAnyRole(roles: readonly string[]) {
       return roles.some((role) => this.hasRole(role))
     },
 
@@ -65,8 +104,8 @@ export const useAuthStore = defineStore('auth', {
           clear: () => this.clearAuth(),
         })
       } catch {
-        // Keep the session available for retry when the server cannot confirm revocation.
-        // The request interceptor displays the failure.
+        // 服务端尚未确认会话撤销时保留当前会话，以便重试。
+        // 失败提示由请求拦截器统一显示。
         return false
       } finally {
         this.loggingOut = false
@@ -74,25 +113,23 @@ export const useAuthStore = defineStore('auth', {
     },
 
     clearAuth() {
+      this.verifiedToken = ''
       this.token = ''
       this.user = null
       this.roles = []
       this.permissions = []
-      localStorage.removeItem('token')
-      localStorage.removeItem('user')
-      localStorage.removeItem('roles')
-      localStorage.removeItem('permissions')
+      persistAuth(localStorage, this)
     },
 
     setUser(user: UserVO) {
       this.user = user
-      localStorage.setItem('user', JSON.stringify(user))
+      persistAuth(localStorage, this)
     },
 
     updateAvatar(avatar: string) {
       if (this.user) {
         this.user.avatar = avatar
-        localStorage.setItem('user', JSON.stringify(this.user))
+        persistAuth(localStorage, this)
       }
     },
 
@@ -101,7 +138,7 @@ export const useAuthStore = defineStore('auth', {
       if (!avatar) {
         return ''
       }
-      return `http://localhost:8080/upload/avatar/${avatar}`
+      return resourceAvatarUrl(avatar)
     },
   },
 

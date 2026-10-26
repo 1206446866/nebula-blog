@@ -1,66 +1,96 @@
 <template>
   <div class="base-table">
-    <el-table :data="data" :loading="loading" border style="width: 100%" v-bind="tableProps">
+    <div v-if="error" class="table-error" role="alert">
+      <span>{{ error }}</span>
+      <el-button link type="primary" :disabled="loading" @click="emit('retry')">重新加载</el-button>
+    </div>
+    <el-table v-loading="loading" v-bind="tableProps" :data="data" border style="width: 100%">
       <!-- 动态列 -->
       <el-table-column v-for="col in columns" :key="col.prop || col.label" v-bind="col">
-        <!--        <template v-if="col.slot" #default="{ row }">-->
-        <!--          <slot :name="col.slot" :row="row" />-->
-        <!--        </template>-->
         <template v-if="col.slot" #default="scope">
           <slot :name="col.slot" v-bind="scope" />
         </template>
       </el-table-column>
+      <template #empty>{{
+        loading ? '正在加载…' : error ? '数据暂时未能加载' : '暂无数据'
+      }}</template>
     </el-table>
 
     <!-- 分页 -->
     <el-pagination
-      v-if="props.total ?? 0 > 0"
+      v-if="total > 0"
       class="pagination-container"
       :current-page="props.current"
       :page-size="props.size"
       :total="props.total"
       layout="total, sizes, prev, pager, next, jumper"
       :page-sizes="pageSizes"
+      :disabled="loading"
+      popper-class="nebula-table-pagination"
       @current-change="onPageChange"
       @size-change="onSizeChange"
     />
   </div>
 </template>
 
-<script setup lang="ts">
-interface Column {
-  label: string
-  prop?: string
-  width?: string | number
-  slot?: string
-  [key: string]: unknown
-}
+<script setup lang="ts" generic="Row extends object">
+import type { TableColumnCtx } from 'element-plus'
+import type { VNode } from 'vue'
+import type { TableColumn } from './table'
 
-const props = defineProps<{
-  data: object[]
-  columns: Column[]
-  loading?: boolean
-  current?: number
-  size?: number
-  total?: number
-  pageSizes?: number[]
-  tableProps?: Record<string, unknown>
+const props = withDefaults(
+  defineProps<{
+    data: Row[]
+    columns: TableColumn<Row>[]
+    loading?: boolean
+    error?: string | null
+    current?: number
+    size?: number
+    total?: number
+    pageSizes?: number[]
+    tableProps?: Record<string, unknown>
+  }>(),
+  {
+    loading: false,
+    error: null,
+    current: 1,
+    size: 10,
+    total: 0,
+    pageSizes: () => [10, 20, 50, 100],
+  },
+)
+
+const emit = defineEmits<{
+  'page-change': [page: number]
+  'size-change': [size: number]
+  retry: []
 }>()
 
-const emit = defineEmits(['page-change', 'size-change'])
+defineSlots<{
+  [name: string]: (scope: { row: Row; column: TableColumnCtx<Row>; $index: number }) => VNode[]
+}>()
 
 const onPageChange = (page: number) => {
-  emit('page-change', Number(page))
+  if (!props.loading && Number.isSafeInteger(page) && page > 0) emit('page-change', page)
 }
 
 const onSizeChange = (newSize: number) => {
-  emit('size-change', Number(newSize))
+  if (!props.loading && Number.isSafeInteger(newSize) && newSize > 0) emit('size-change', newSize)
 }
 </script>
 
 <style scoped>
 .base-table {
   width: 100%;
+}
+
+.table-error {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 12px;
+  color: #fca5a5;
 }
 
 :deep(.el-table) {
@@ -103,15 +133,15 @@ const onSizeChange = (newSize: number) => {
   border-radius: 6px;
 }
 
-/* sizes 选择器 */
+/* 每页条数选择器 */
 :deep(.el-pagination .el-select__wrapper) {
   background: rgba(31, 41, 55, 0.6) !important;
   border-radius: 6px;
   border: 1px solid rgba(148, 163, 184, 0.15);
 }
 
-/* 作用于分页 page-size 下拉弹层（teleport 到 body） */
-:global(.el-select__popper) {
+/* 每页条数的下拉浮层会移到页面根节点，需使用专用样式类。 */
+:global(.nebula-table-pagination) {
   background: rgba(17, 24, 39, 0.95) !important;
   border: 1px solid rgba(148, 163, 184, 0.2);
   backdrop-filter: blur(12px);
@@ -119,19 +149,19 @@ const onSizeChange = (newSize: number) => {
 }
 
 /* 下拉项默认背景和文字颜色 */
-:global(.el-select__popper .el-select-dropdown__item) {
+:global(.nebula-table-pagination .el-select-dropdown__item) {
   background-color: rgba(31, 41, 55, 0.95);
   color: #e5e7eb;
 }
 
-/* hover 高亮 */
-:global(.el-select-dropdown__item.hover),
-:global(.el-select-dropdown__item:hover) {
+/* 悬停高亮 */
+:global(.nebula-table-pagination .el-select-dropdown__item.hover),
+:global(.nebula-table-pagination .el-select-dropdown__item:hover) {
   background: rgba(59, 130, 246, 0.2);
 }
 
 /* 当前选中项 */
-:global(.el-select-dropdown__item.selected) {
+:global(.nebula-table-pagination .el-select-dropdown__item.selected) {
   color: #3b82f6;
 }
 </style>

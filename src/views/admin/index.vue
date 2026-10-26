@@ -1,4 +1,6 @@
 <script setup lang="ts">
+import NebulaCard from '@/components/NebulaCard.vue'
+
 defineOptions({
   name: 'AdminHome',
 })

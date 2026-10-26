@@ -24,7 +24,7 @@ ul {
 
 /* 全局字体系统 */
 html, body {
-  /*font-family: "Poppins",sans-serif;*/
+  /* 备用字体示例：font-family: "Poppins",sans-serif; */
   font-family: "Poppins", system-ui, -apple-system, "Segoe UI", sans-serif;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;

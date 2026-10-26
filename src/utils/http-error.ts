@@ -1,4 +1,4 @@
-/** Public API messages are useful for client errors; unexpected server failures stay generic. */
+/** 客户端请求错误可展示接口公开提示，服务端异常统一使用通用提示。 */
 export function getHttpErrorMessage(status: number | undefined, data: unknown): string {
   const message =
     data && typeof data === 'object' && 'message' in data && typeof data.message === 'string'
@@ -6,6 +6,7 @@ export function getHttpErrorMessage(status: number | undefined, data: unknown): 
       : ''
   if (!status) return '连接失败，请检查网络后重试'
   if (status === 503) return message || '服务暂时不可用，请稍后重试'
+  if (status === 507) return '存储空间不足，暂时无法上传图片'
   if (status >= 500) return '服务器异常，请稍后重试'
   if (message) return message
   if (status === 401) return '身份验证失败，请重新登录'

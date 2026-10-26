@@ -1,4 +1,4 @@
-// api/profile.ts
+// 个人主页相关接口。
 import request from '@/utils/request'
 import type { Page } from '@/types/page.ts'
 import type { Result } from '@/types/result.ts'
@@ -95,6 +95,8 @@ export interface UserProfileArticleVO {
   viewCount: number
   createTime: string
   likeCount: number
+  scheduledPublishAt?: string | null
+  scheduleError?: string | null
   comments: number
 }
 

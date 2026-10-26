@@ -38,8 +38,8 @@ export const getRolesByUserIdApi = (userId: number) => {
 /**
  * 分页查询
  */
-export const getRolePageApi = (params: RolePageDto) => {
-  return request.get<Result<Page<RoleVO>>>('/roles/page', { params })
+export const getRolePageApi = (params: RolePageDto, signal?: AbortSignal) => {
+  return request.get<Result<Page<RoleVO>>>('/roles/page', { params, signal })
 }
 export const createRole = (params: CreateRoleDto) => {
   return request.post<Result<Boolean>>(`/roles/create`, params)

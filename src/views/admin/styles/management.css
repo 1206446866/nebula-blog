@@ -1,0 +1,61 @@
+/* 仅由后台管理页引入，专用类名隔离客户端及后台导航组件。 */
+.admin-management-page {
+  display: flex;
+  flex-direction: column;
+  min-height: 85vh;
+}
+
+.admin-management-content {
+  flex: 1;
+}
+
+.admin-management-content--column {
+  display: flex;
+  flex-direction: column;
+}
+
+.admin-management-header {
+  text-align: center;
+  margin-bottom: 24px;
+}
+
+.admin-management-header h1 {
+  font-size: 34px;
+  font-weight: bold;
+  background: linear-gradient(90deg, #38bdf8, #818cf8);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+}
+
+/* 保留文章、用户、角色及权限页面原有的大标题。 */
+.admin-management-header--large h1 {
+  font-size: 36px;
+  margin: 0;
+}
+
+.admin-management-subtitle {
+  color: #94a3b8;
+}
+
+.admin-management-header .admin-management-subtitle--small {
+  font-size: 14px;
+}
+
+.admin-management-subtitle--spaced {
+  margin-top: 4px;
+}
+
+.admin-management-filter {
+  display: flex;
+  justify-content: center;
+  margin-bottom: 16px;
+}
+
+/* 弹窗可能移动到 body，直接标记弹窗，避免依赖页面祖先节点。 */
+.admin-management-dialog.el-dialog {
+  background: #111827;
+}
+
+.admin-management-dialog .el-dialog__title {
+  color: white;
+}

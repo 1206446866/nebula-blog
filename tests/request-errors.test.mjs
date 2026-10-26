@@ -3,8 +3,10 @@ import { readFileSync } from 'node:fs'
 import { test } from 'node:test'
 import vm from 'node:vm'
 import ts from 'typescript'
+import { CanceledError } from 'axios'
 import { belongsToCurrentSession } from '../src/utils/auth-session.ts'
 import { getHttpErrorMessage, getRetryAfterSeconds } from '../src/utils/http-error.ts'
+import { loginLocation } from '../src/router/policy.ts'
 
 function loadTs(relative, dependencies) {
   const source = readFileSync(new URL(relative, import.meta.url), 'utf8')
@@ -24,12 +26,23 @@ function loadTs(relative, dependencies) {
 }
 
 function client() {
-  const state = { token: 'current-session', clears: 0, messages: [], routes: [] }
+  const state = {
+    token: 'current-session',
+    clears: 0,
+    messages: [],
+    routes: [],
+    location: { fullPath: '/article/7?categoryId=2#comments', meta: {} },
+  }
   let success
   let failure
+  let prepare
   const service = {
     interceptors: {
-      request: { use() {} },
+      request: {
+        use(handler) {
+          prepare = handler
+        },
+      },
       response: {
         use(onSuccess, onFailure) {
           success = onSuccess
@@ -39,9 +52,13 @@ function client() {
     },
   }
   loadTs('../src/utils/request.ts', {
-    axios: { create: () => service },
+    axios: { create: () => service, CanceledError },
     'element-plus': { ElMessage: { error: (message) => state.messages.push(message) } },
-    '@/router': { replace: async (path) => state.routes.push(path) },
+    '@/router': {
+      replace: async (path) => state.routes.push(path),
+      currentRoute: { value: state.location },
+    },
+    '@/router/policy': { loginLocation },
     '../stores/auth.ts': {
       useAuthStore: () => ({
         getToken: () => state.token,
@@ -54,8 +71,56 @@ function client() {
     './auth-session': { belongsToCurrentSession },
     './http-error': { getHttpErrorMessage },
   })
-  return { state, success, failure }
+  return { state, success, failure, prepare }
 }
+
+test('requests record their actual authentication, including explicit older tokens and anonymous logins', () => {
+  const { state, prepare } = client()
+  assert.equal(prepare({ headers: {} }).sessionToken, 'current-session')
+  assert.equal(
+    prepare({ headers: { Authorization: 'Bearer old-session' } }).sessionToken,
+    'old-session',
+  )
+  state.token = ''
+  assert.equal(prepare({ headers: {} }).sessionToken, '')
+})
+
+test('successful responses from an earlier session are discarded before reaching page callbacks', async () => {
+  const { state, prepare, success } = client()
+  const config = prepare({ headers: {} })
+  state.token = 'new-session'
+  await assert.rejects(success({ data: { code: 200, data: true }, config }), {
+    code: 'ERR_CANCELED',
+  })
+  assert.equal(state.token, 'new-session')
+  assert.deepEqual(state.messages, [])
+  assert.deepEqual(state.routes, [])
+})
+
+test('a late anonymous login cannot overwrite a newer login', async () => {
+  const { state, prepare, success } = client()
+  state.token = ''
+  const config = prepare({ headers: {} })
+  state.token = 'new-session'
+  await assert.rejects(success({ data: { code: 200, data: { token: 'late-login' } }, config }), {
+    code: 'ERR_CANCELED',
+  })
+  assert.equal(state.token, 'new-session')
+})
+
+test('a late failure from a previous account does not show an error for the new account', async () => {
+  const { state, prepare, failure } = client()
+  const config = prepare({ headers: {} })
+  state.token = 'new-session'
+  await assert.rejects(failure({ config, response: { status: 503 } }), { code: 'ERR_CANCELED' })
+  assert.deepEqual(state.messages, [])
+})
+
+test('the current account still receives successful responses', () => {
+  const { prepare, success } = client()
+  const data = { code: 200, data: 'avatar.png' }
+  assert.equal(success({ config: prepare({ headers: {} }), data }), data)
+})
 
 function error(status, message, config = {}) {
   return {
@@ -88,7 +153,7 @@ test('an expired protected request clears only the matching session', async () =
   await assert.rejects(failure(error(401, 'ignored')))
   assert.equal(state.clears, 1)
   assert.equal(state.token, '')
-  assert.deepEqual(state.routes, ['/login'])
+  assert.deepEqual(state.routes, [loginLocation(state.location.fullPath)])
 })
 
 test('a late unauthorized response cannot clear a newer session or show a misleading expiry', async () => {
@@ -100,6 +165,31 @@ test('a late unauthorized response cannot clear a newer session or show a mislea
   assert.equal(state.token, 'current-session')
   assert.deepEqual(state.routes, [])
   assert.deepEqual(state.messages, [])
+})
+
+test('a session verification rejection stays silent and leaves navigation to the guard', async () => {
+  const { state, failure } = client()
+  await assert.rejects(
+    failure(error(401, 'expired', { skipAuthRedirect: true, silentError: true })),
+  )
+  assert.equal(state.clears, 0)
+  assert.deepEqual(state.messages, [])
+  assert.deepEqual(state.routes, [])
+})
+
+test('public page credentials are not copied into a login return URL', async () => {
+  const { state, failure } = client()
+  state.location.fullPath = '/register?token=private-registration-token'
+  state.location.meta.public = true
+  await assert.rejects(failure(error(401, 'expired')))
+  assert.deepEqual(state.routes, ['/login'])
+})
+
+test('canceled navigation requests do not show connection errors', async () => {
+  const { state, failure } = client()
+  await assert.rejects(failure({ config: {}, code: 'ERR_CANCELED' }))
+  assert.deepEqual(state.messages, [])
+  assert.equal(state.clears, 0)
 })
 
 for (const [status, message] of [
