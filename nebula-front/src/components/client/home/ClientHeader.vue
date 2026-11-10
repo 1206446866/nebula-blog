@@ -56,6 +56,20 @@
 
         <div v-if="menuVisible" class="dropdown">
           <div class="item" @click="goProfile">个人主页</div>
+          <router-link
+            v-if="authStore.hasPermission('article:list')"
+            to="/library"
+            class="item"
+            @click="menuVisible = false"
+            >我的书架</router-link
+          >
+          <router-link
+            v-if="authStore.hasPermission('article:list')"
+            to="/series?mine=1"
+            class="item"
+            @click="menuVisible = false"
+            >我的系列</router-link
+          >
           <router-link to="/media" class="item" @click="menuVisible = false">媒体库</router-link>
           <router-link
             v-if="authStore.hasPermission('article:create')"

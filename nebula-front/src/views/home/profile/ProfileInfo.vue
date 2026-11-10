@@ -138,6 +138,10 @@
       <strong>确认离开 Nebula？</strong>
       <p>注销后，你将无法再登录此账号，个人主页也将关闭。此操作无法在页面中撤回。</p>
       <p>已发布的文章与评论会保留。</p>
+      <p>正式草稿、文章历史版本、公开系列和已上传图片也会保留。</p>
+      <p>
+        私人编辑备份、收藏、稍后读、阅读历史和私人系列会清除；公开系列会保留。本机编辑备份也会清除，请先保存或导出重要内容。
+      </p>
     </div>
     <el-form :model="cancellationForm" label-position="top" @submit.prevent="submitCancellation">
       <el-form-item label="当前密码">

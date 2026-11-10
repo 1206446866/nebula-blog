@@ -81,7 +81,7 @@ export function useProfileInfo(
         resetForm()
         passwordDialogVisible.value = false
         ElMessage.success('修改成功，请重新登录')
-        authStore.clearAuth()
+        authStore.clearAuth(true)
         await router.replace('/login')
       } else {
         ElMessage.error(res.message)

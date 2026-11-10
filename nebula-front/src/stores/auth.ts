@@ -5,6 +5,9 @@ import type { UserVO } from '@/api/user.ts'
 import { currentSessionApi, logoutApi, type LoginVO } from '@/api/auth.ts'
 import { revokeCurrentSession } from '@/utils/auth-session'
 import { Role } from '@/constants/role'
+import { ElMessageBox } from 'element-plus'
+import { clearWritingCache, hasWritingCache } from '@/utils/private-cache'
+import { flushSessionWriters } from '@/utils/session-exit'
 import {
   authorizationKey,
   normalizeRoles,
@@ -13,6 +16,7 @@ import {
   singleFlight,
   stringList,
   tokenPayload,
+  tokenAccountId,
 } from '@/utils/session-cache'
 
 const loadSession = singleFlight(async (token: string) => (await currentSessionApi(token)).data)
@@ -27,11 +31,18 @@ export const useAuthStore = defineStore('auth', {
 
   actions: {
     setAuth(data: LoginVO) {
+      const previousId = this.user?.id ?? tokenAccountId(this.token)
+      const changed = !!this.token && this.token !== data.token
       this.verifiedToken = ''
       this.token = data.token
       this.user = data.user
       this.roles = normalizeRoles(data.roles)
       this.permissions = stringList(data.permissions)
+      if (changed) {
+        // 先使旧标签页停写，再清旧账号备份，最后发布完整的新会话。
+        persistAuth(localStorage, { ...this, token: '' })
+        clearWritingCache(localStorage, previousId)
+      }
       persistAuth(localStorage, this)
     },
 
@@ -67,8 +78,12 @@ export const useAuthStore = defineStore('auth', {
     },
 
     syncFromStorage() {
+      const previousId = this.user?.id ?? tokenAccountId(this.token)
       this.verifiedToken = ''
-      Object.assign(this, readAuthCache(localStorage))
+      // 跨标签页通知只读取快照，不清理正在由另一个页面发布的新会话。
+      Object.assign(this, readAuthCache(localStorage, false))
+      // 同账号的新会话可能已经开始写入，迟到的通知不能清除它的新备份。
+      if (this.token && previousId !== this.user?.id) clearWritingCache(localStorage, previousId)
     },
 
     hasRole(role: string) {
@@ -97,11 +112,29 @@ export const useAuthStore = defineStore('auth', {
       if (this.loggingOut) return false
       this.loggingOut = true
       try {
+        const token = this.getToken()
+        await flushSessionWriters(token)
+        if (this.getToken() !== token) return false
+        if (hasWritingCache(localStorage, this.user?.id)) {
+          const accepted = await ElMessageBox.confirm(
+            '本机仍有编辑备份，退出后会清除，包括其他标签页的备份。请先确认重要内容已手动保存、同步云端或导出；未同步内容清除后无法恢复。',
+            '确认退出并清理本机备份？',
+            {
+              confirmButtonText: '清理并退出',
+              cancelButtonText: '返回保存或导出',
+              type: 'warning',
+            },
+          ).then(
+            () => true,
+            () => false,
+          )
+          if (!accepted || this.getToken() !== token) return false
+        }
         return await revokeCurrentSession({
-          token: this.getToken(),
+          token,
           revoke: logoutApi,
           currentToken: () => this.getToken(),
-          clear: () => this.clearAuth(),
+          clear: () => this.clearAuth(true),
         })
       } catch {
         // 服务端尚未确认会话撤销时保留当前会话，以便重试。
@@ -112,13 +145,15 @@ export const useAuthStore = defineStore('auth', {
       }
     },
 
-    clearAuth() {
+    clearAuth(clearPrivate = false) {
+      const previousId = this.user?.id ?? tokenAccountId(this.token)
       this.verifiedToken = ''
       this.token = ''
       this.user = null
       this.roles = []
       this.permissions = []
       persistAuth(localStorage, this)
+      if (clearPrivate) clearWritingCache(localStorage, previousId)
     },
 
     setUser(user: UserVO) {

@@ -15,6 +15,8 @@ export interface SearchItem {
 export interface SearchResult {
   page: Page<SearchItem>
   counts: Record<Exclude<SearchType, 'all'>, number>
+  countsExact?: boolean
+  windowLimited?: boolean
 }
 export const searchSite = (q: string, type: SearchType, current: number, signal?: AbortSignal) =>
   request.get<Result<SearchResult>>('/search', { params: { q, type, current, size: 12 }, signal })

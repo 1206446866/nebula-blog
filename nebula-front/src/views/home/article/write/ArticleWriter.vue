@@ -11,10 +11,14 @@ import {
 import ArticlePreview from '@/components/article/ArticlePreview.vue'
 import { formatDateTime } from '@/utils/date'
 import MediaLibrary from '@/components/media/MediaLibrary.vue'
+import ArticleRevisionPanel from './components/ArticleRevisionPanel.vue'
 
 import { useArticleWriter } from './logic/useArticleWriter'
 
 const {
+  backup,
+  restoreVersion,
+  transfer,
   auth,
   route,
   categories,
@@ -106,6 +110,11 @@ const {
             }}<span class="save-state" role="status">{{ saveState }}</span>
           </div>
           <div class="save-actions">
+            <ArticleRevisionPanel
+              :id="id"
+              :disabled="saving || uploadingImages || libraryBusy || !canEdit"
+              @restore="restoreVersion"
+            />
             <RouterLink
               v-if="status === 1 && id && auth.hasPermission('article:list')"
               :to="`/article/${id}`"
@@ -128,6 +137,75 @@ const {
           </div>
         </div>
         <p v-if="notice" class="notice" role="status">{{ notice }}</p>
+        <section class="publication-panel" aria-label="Markdown导入导出">
+          <div>
+            <strong>带走文字，也带回灵感</strong>
+            <p>
+              导入只替换标题和正文，不会发布。打包最多50张、合计40MiB本地文章图片；外部图片保留链接。
+            </p>
+          </div>
+          <div class="publication-actions">
+            <input
+              :ref="(element) => (transfer.fileInput.value = element as HTMLInputElement)"
+              type="file"
+              accept=".md,.markdown,text/markdown"
+              hidden
+              @change="transfer.importFile"
+            />
+            <el-button
+              :disabled="
+                saving ||
+                uploadingImages ||
+                libraryBusy ||
+                transfer.transferring.value ||
+                !canEdit ||
+                !!backup.recovery.value
+              "
+              @click="transfer.choose"
+              >导入Markdown</el-button
+            >
+            <el-button
+              :disabled="saving || uploadingImages || libraryBusy || transfer.transferring.value"
+              @click="transfer.exportFile"
+              >导出Markdown</el-button
+            >
+            <el-button
+              :loading="transfer.transferring.value"
+              :disabled="saving || uploadingImages || libraryBusy"
+              @click="transfer.exportArchive"
+              >打包正文与图片</el-button
+            >
+          </div>
+        </section>
+        <section class="publication-panel" aria-label="私人编辑备份">
+          <div>
+            <strong>灵感备份</strong>
+            <p role="status">{{ backup.backupState.value }}</p>
+            <p>仅本人可恢复，保留 30 天；自动备份不会发布或修改线上正文。</p>
+            <p v-if="backup.recovery.value">
+              {{ backup.recovery.value.label }}：{{
+                backup.recovery.value.draft.title || '未命名文章'
+              }}
+            </p>
+          </div>
+          <div class="publication-actions">
+            <template v-if="backup.recovery.value">
+              <el-button
+                :disabled="saving || uploadingImages || libraryBusy"
+                @click="backup.recover"
+                >恢复编辑</el-button
+              >
+              <el-button
+                :disabled="saving || uploadingImages || libraryBusy"
+                @click="backup.discard"
+                >放弃这份备份</el-button
+              >
+            </template>
+            <el-button v-else-if="backup.conflict.value" :disabled="saving" @click="backup.recheck"
+              >检查另一处备份</el-button
+            >
+          </div>
+        </section>
         <section v-if="canPublish" class="publication-panel" aria-label="定时发布设置">
           <div>
             <strong>定时发布</strong>

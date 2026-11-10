@@ -11,6 +11,9 @@ import * as textHistory from '../src/utils/text-history.ts'
 import * as publicationTime from '../src/utils/publication-time.ts'
 import { positiveId } from '../src/utils/article-query.ts'
 import { Role } from '../src/constants/role.ts'
+import * as markdownFile from '../src/utils/markdown-file.ts'
+import * as privateCache from '../src/utils/private-cache.ts'
+import * as sessionExit from '../src/utils/session-exit.ts'
 
 const dom = new JSDOM('<!doctype html><html><body></body></html>')
 for (const key of [
@@ -44,6 +47,16 @@ function mount(relative, props, dependencies = {}) {
       module,
       exports: module.exports,
       AbortController,
+      crypto: globalThis.crypto,
+      setTimeout,
+      clearTimeout,
+      localStorage: {
+        length: 0,
+        key: () => null,
+        getItem: () => null,
+        setItem() {},
+        removeItem() {},
+      },
       setInterval,
       clearInterval,
       window,
@@ -102,6 +115,17 @@ test('the rendered writer keeps its textarea selection and undo history after TS
       ),
       '@/components/article/ArticlePreview.vue': { render: () => null },
       '@/components/media/MediaLibrary.vue': { render: () => null },
+      './components/ArticleRevisionPanel.vue': { render: () => null },
+      '@/api/article-workspace': {
+        getWritingBackupApi: async () => ({ data: { revision: 0, draft: null, updatedAt: null } }),
+        saveWritingBackupApi: async (_key, revision, draft) => ({
+          data: { revision: revision + 1, draft, updatedAt: null },
+        }),
+      },
+      '@/api/article-export': {},
+      '@/utils/markdown-file': markdownFile,
+      '@/utils/private-cache': privateCache,
+      '@/utils/session-exit': sessionExit,
       '@/api/article': {
         getArticleForEditApi: async () => ({
           data: {

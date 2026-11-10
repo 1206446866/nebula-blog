@@ -18,6 +18,9 @@ import { computed, onBeforeUnmount, onMounted, reactive, ref, watch } from 'vue'
 import { onBeforeRouteLeave, onBeforeRouteUpdate, useRoute, useRouter } from 'vue-router'
 import { useWriterBody } from './useWriterBody'
 import { useWriterImages } from './useWriterImages'
+import { useWritingBackup } from './useWritingBackup'
+import type { WritingDraft } from '@/api/article-workspace'
+import { useMarkdownTransfer } from './useMarkdownTransfer'
 
 /** 协调文章加载、草稿保存、发布计划和离页保护。 */
 export function useArticleWriter() {
@@ -32,6 +35,7 @@ export function useArticleWriter() {
     tagIds: [] as number[],
   })
   const id = ref<number>()
+  const editVersion = ref(0)
   const status = ref(0)
   const scheduledPublishAt = ref<string | null>(null)
   const scheduleError = ref('')
@@ -153,6 +157,108 @@ export function useArticleWriter() {
     disposeImages,
   } = useWriterImages({ ...editorContext, applyEdit })
 
+  const backup = useWritingBackup({
+    userId: auth.user?.id,
+    sessionToken: entryToken,
+    id,
+    version: editVersion,
+    ready: computed(() => !loading.value && !loadError.value && canEdit.value),
+    dirty,
+    busy: computed(() => saving.value || uploadingImages.value || libraryBusy.value),
+    current: () => !runtime.disposed && auth.getToken() === entryToken,
+    draft: () => ({ ...form, tagIds: [...form.tagIds], sourceVersion: editVersion.value }),
+    restore: async (draft) => {
+      const run = runtime.generation
+      await applyEdit({ content: draft.content, selectionStart: 0, selectionEnd: 0 })
+      if (
+        runtime.disposed ||
+        runtime.generation !== run ||
+        auth.getToken() !== entryToken ||
+        !canEdit.value
+      )
+        return
+      form.title = draft.title
+      form.categoryId = draft.categoryId ?? undefined
+      form.tagIds = [...draft.tagIds]
+    },
+  })
+
+  async function restoreVersion(draft: WritingDraft) {
+    const run = runtime.generation
+    if (
+      saving.value ||
+      uploadingImages.value ||
+      libraryBusy.value ||
+      !canEdit.value ||
+      auth.getToken() !== entryToken
+    )
+      return
+    if (backup.recovery.value) return void ElMessage.warning('请先处理自动恢复备份，再选择历史版本')
+    if (dirty.value) {
+      const accepted = await ElMessageBox.confirm(
+        '恢复会替换编辑器当前内容，正文仍可撤销；线上文章不会立即改变。',
+        '恢复历史版本',
+        { confirmButtonText: '恢复到编辑器', cancelButtonText: '保留当前编辑', type: 'warning' },
+      ).then(
+        () => true,
+        () => false,
+      )
+      if (
+        !accepted ||
+        runtime.disposed ||
+        runtime.generation !== run ||
+        auth.getToken() !== entryToken
+      )
+        return
+    }
+    await applyEdit({ content: draft.content, selectionStart: 0, selectionEnd: 0 })
+    if (
+      runtime.disposed ||
+      runtime.generation !== run ||
+      auth.getToken() !== entryToken ||
+      !canEdit.value
+    )
+      return
+    form.title = draft.title
+    form.categoryId = draft.categoryId ?? undefined
+    form.tagIds = [...draft.tagIds]
+    notice.value = '历史版本已填回编辑器，检查目录关联后手动保存才会更新文章。'
+    backup.cache()
+  }
+
+  const transfer = useMarkdownTransfer({
+    current: () => !runtime.disposed && auth.getToken() === entryToken,
+    documentKey: () => runtime.generation,
+    busy: () =>
+      saving.value ||
+      uploadingImages.value ||
+      libraryBusy.value ||
+      loading.value ||
+      loadError.value,
+    dirty: () => dirty.value,
+    canEdit: () => canEdit.value,
+    draft: () => ({ ...form, tagIds: [...form.tagIds], sourceVersion: editVersion.value }),
+    replace: async (draft) => {
+      const run = runtime.generation
+      if (backup.recovery.value) {
+        ElMessage.warning('请先处理待恢复的编辑备份，再导入文件')
+        return false
+      }
+      await applyEdit({ content: draft.content, selectionStart: 0, selectionEnd: 0 })
+      if (
+        runtime.disposed ||
+        runtime.generation !== run ||
+        auth.getToken() !== entryToken ||
+        !canEdit.value
+      )
+        return false
+      form.title = draft.title
+      notice.value =
+        'Markdown已导入，分类和标签保持原选择；本地文件图片请另行上传。手动保存后才会更新正式内容。'
+      backup.cache()
+    },
+  })
+
   async function loadArticle() {
     const requestedId = positiveId(route.params.id) ? Number(route.params.id) : undefined
     if (requestedId && requestedId === id.value && !loadError.value) return
@@ -164,6 +270,7 @@ export function useArticleWriter() {
     loading.value = true
     loadError.value = false
     id.value = undefined
+    editVersion.value = 0
     status.value = 0
     scheduledPublishAt.value = null
     scheduleError.value = ''
@@ -180,6 +287,7 @@ export function useArticleWriter() {
         if (runtime.disposed || run !== runtime.generation || auth.getToken() !== entryToken) return
         const article = response.data
         id.value = article.id
+        editVersion.value = article.editVersion || 0
         status.value = article.status
         scheduledPublishAt.value = article.scheduledPublishAt || null
         scheduleError.value = article.scheduleError || ''
@@ -221,6 +329,7 @@ export function useArticleWriter() {
     if (
       uploadingImages.value ||
       libraryBusy.value ||
+      transfer.transferring.value ||
       saving.value ||
       loading.value ||
       loadError.value ||
@@ -229,6 +338,8 @@ export function useArticleWriter() {
     )
       return
     if ((publish || publishAt) && !canPublish.value) return
+    if (backup.recovery.value)
+      return void ElMessage.warning('请先恢复或放弃发现的编辑备份，再手动保存')
     if (!form.title.trim()) return void ElMessage.warning('先为文章写一个标题')
     if (!form.categoryId) return void ElMessage.warning('请选择文章分类')
     if (!form.content.trim()) return void ElMessage.warning('正文还没有内容')
@@ -238,6 +349,7 @@ export function useArticleWriter() {
       !runtime.disposed && runtime.generation === run && auth.getToken() === entryToken
     let contentSaved = false
     try {
+      await backup.beforeSave()
       if (publish || publishAt) {
         const confirmed = await ElMessageBox.confirm(
           publishAt
@@ -262,8 +374,13 @@ export function useArticleWriter() {
         tagIds: [...form.tagIds],
       }
       if (id.value) {
-        const result = await updateArticleApi({ id: id.value, ...data })
+        const result = await updateArticleApi({
+          id: id.value,
+          expectedEditVersion: editVersion.value,
+          ...data,
+        })
         if (!result.data) throw new Error('Save failed')
+        editVersion.value++
       } else {
         const result = await createDraftApi(data)
         if (!isCurrent()) return
@@ -279,6 +396,7 @@ export function useArticleWriter() {
       scheduledPublishAt.value = null
       scheduleError.value = ''
       contentSaved = true
+      await backup.afterSave()
       notice.value =
         status.value === 1
           ? '线上文章已更新。'
@@ -398,16 +516,21 @@ export function useArticleWriter() {
 
   async function confirmLeave() {
     if (auth.getToken() !== entryToken) return true
-    if (saving.value || uploadingImages.value || libraryBusy.value) {
+    if (saving.value || uploadingImages.value || libraryBusy.value || transfer.transferring.value) {
       ElMessage.info('正在保存或上传图片，请稍候')
       return false
     }
     if (!dirty.value) return true
-    return ElMessageBox.confirm('还有未保存的修改，离开后这些修改将丢失。', '离开写作页？', {
-      confirmButtonText: '放弃修改并离开',
-      cancelButtonText: '继续写作',
-      type: 'warning',
-    }).then(
+    backup.cache()
+    return ElMessageBox.confirm(
+      '还有未手动保存的修改。自动备份会尽力保留内容，回到写作页可检查恢复提示。',
+      '离开写作页？',
+      {
+        confirmButtonText: '保留备份并离开',
+        cancelButtonText: '继续写作',
+        type: 'warning',
+      },
+    ).then(
       () => true,
       () => false,
     )
@@ -418,7 +541,13 @@ export function useArticleWriter() {
   onBeforeRouteUpdate((to, from) => (to.params.id === from.params.id ? true : confirmLeave()))
 
   function beforeUnload(event: BeforeUnloadEvent) {
-    if (dirty.value || saving.value || uploadingImages.value || libraryBusy.value) {
+    if (
+      dirty.value ||
+      saving.value ||
+      uploadingImages.value ||
+      libraryBusy.value ||
+      transfer.transferring.value
+    ) {
       event.preventDefault()
       event.returnValue = ''
     }
@@ -451,6 +580,9 @@ export function useArticleWriter() {
     window.removeEventListener('beforeunload', beforeUnload)
   })
   return {
+    backup,
+    restoreVersion,
+    transfer,
     auth,
     route,
     categories,

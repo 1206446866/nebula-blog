@@ -31,7 +31,7 @@ npm run dev
 
 默认访问 `http://localhost:5173`；开发代理把 `/api` 和 `/upload` 转给 `http://localhost:8080`。实际业务接口需要后端及其依赖服务可用，服务未启动不等同于代码故障。客户端登录状态与权限由路由守卫和服务端共同校验，不通过修改本地缓存跳过验证。
 
-任务结束默认关闭项目前后端，不随之关闭 MySQL、Redis 或 Docker，也不操作 Windows 服务。
+任务结束默认关闭项目前后端，不随之关闭 MySQL、Redis、Elasticsearch 或 Docker，也不操作 Windows 服务；用户另有明确要求时按其范围处理。
 
 ## 页面入口
 
@@ -44,6 +44,8 @@ npm run dev
 | 全站搜索 | `/search` |
 | 写作与编辑 | `/write`、`/write/:id` |
 | 媒体管理 | `/media` |
+| 我的书架 | `/library` |
+| 系列发现、详情与个人编排 | `/series`、`/series/:id`、`/series?mine=1` |
 | 后台管理 | `/admin` |
 
 以上是路由入口，不代表匿名或任意账号均可访问；具体登录、角色和业务权限见 `src/router` 与对应服务端规则。

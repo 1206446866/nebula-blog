@@ -113,6 +113,24 @@ const staticRoutes: RouteRecordRaw[] = [
         meta: { title: '媒体库' },
       },
       {
+        path: 'library',
+        name: 'ReadingLibrary',
+        component: () => import('@/views/home/library/index.vue'),
+        meta: { title: '我的书架', permission: 'article:list' },
+      },
+      {
+        path: 'series',
+        name: 'ArticleSeries',
+        component: () => import('@/views/home/series/index.vue'),
+        meta: { title: '系列专题', permission: 'article:list' },
+      },
+      {
+        path: 'series/:id',
+        name: 'ArticleSeriesDetail',
+        component: () => import('@/views/home/series/SeriesDetail.vue'),
+        meta: { title: '系列篇章', permission: 'article:list', idParam: 'id' },
+      },
+      {
         path: 'write',
         name: 'ArticleCreate',
         component: () => import('@/views/home/article/write/ArticleWriter.vue'),

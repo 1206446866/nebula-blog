@@ -10,6 +10,9 @@ import * as markdownEdit from '../src/utils/markdown-edit.ts'
 import * as textHistory from '../src/utils/text-history.ts'
 import * as publicationTime from '../src/utils/publication-time.ts'
 import * as resource from '../src/utils/resource.ts'
+import * as markdownFile from '../src/utils/markdown-file.ts'
+import * as privateCache from '../src/utils/private-cache.ts'
+import * as sessionExit from '../src/utils/session-exit.ts'
 
 const source = readFileSync(
   new URL('../src/views/home/article/write/logic/useArticleWriter.ts', import.meta.url),
@@ -37,6 +40,8 @@ function harness(options = {}) {
     routes: [],
     confirms: 0,
     confirm: true,
+    backup: { revision: 0, draft: null, updatedAt: null },
+    backupCalls: [],
     ...options,
   }
   const route = vue.reactive({ params: options.id ? { id: String(options.id) } : {}, query: {} })
@@ -59,6 +64,19 @@ function harness(options = {}) {
     ...options.article,
   }
   const deps = {
+    '@/utils/private-cache': privateCache,
+    '@/utils/session-exit': sessionExit,
+    '@/api/article-export': { archiveWritingApi: async () => new Blob(['archive']) },
+    '@/utils/markdown-file': markdownFile,
+    '@/api/article-workspace': {
+      getWritingBackupApi: async () => ({ data: state.backup }),
+      saveWritingBackupApi: async (key, revision, draft) => {
+        state.backupCalls.push({ key, revision, draft })
+        if (state.backupError) throw state.backupError
+        state.backup = { revision: revision + 1, draft, updatedAt: null }
+        return { data: state.backup }
+      },
+    },
     vue: { ...vue, onMounted: () => {}, onBeforeUnmount: (callback) => cleanups.push(callback) },
     'vue-router': {
       useRoute: () => route,
@@ -139,13 +157,29 @@ function harness(options = {}) {
     '@/utils/publication-time': publicationTime,
   }
   const module = { exports: {} }
+  const values = new Map([['token', state.token]])
+  const storage = {
+    get length() {
+      return values.size
+    },
+    key: (i) => [...values.keys()][i] ?? null,
+    getItem: (key) => values.get(key) ?? null,
+    setItem: (key, value) => values.set(key, value),
+    removeItem: (key) => values.delete(key),
+  }
   vm.runInNewContext(
     code,
     {
       module,
       exports: module.exports,
       AbortController,
-      window: { removeEventListener() {} },
+      crypto: globalThis.crypto,
+      setTimeout,
+      clearTimeout,
+      setInterval,
+      clearInterval,
+      localStorage: storage,
+      window: { addEventListener() {}, removeEventListener() {} },
       require: (name) => {
         assert.ok(name in deps, name)
         return deps[name]
@@ -159,6 +193,7 @@ function harness(options = {}) {
   const view = scope.run(() => module.exports.useArticleWriter())
   return {
     state,
+    storage,
     route,
     hooks,
     view,
@@ -730,6 +765,151 @@ test('invalid or oversized image batches do not start any uploads', async () => 
     await h.view.uploadImages([{ ...imageFile, size: 10 * 1024 * 1024 + 1 }])
     await h.view.uploadImages(Array(6).fill(imageFile))
     assert.equal(h.state.calls.length, 0)
+  } finally {
+    h.dispose()
+  }
+})
+
+test('自动备份不调用正式文章保存或发布接口', async () => {
+  const h = harness({ id: 12, article: { status: 1 } })
+  try {
+    await settle()
+    await settle()
+    h.fill()
+    await settle()
+    await h.view.backup.backupNow()
+    assert.equal(h.state.backupCalls.length, 1)
+    assert.equal(h.state.backupCalls[0].key, 'article-12')
+    assert.equal(h.state.backupCalls[0].draft.content, '## Draft body')
+    assert.equal(
+      h.state.calls.filter(([kind]) => ['update', 'create', 'publish', 'schedule'].includes(kind))
+        .length,
+      0,
+    )
+  } finally {
+    h.dispose()
+  }
+})
+
+test('恢复备份由用户触发且正文支持撤销', async () => {
+  const h = harness({
+    id: 12,
+    backup: {
+      revision: 4,
+      updatedAt: null,
+      draft: {
+        title: '恢复标题',
+        content: '恢复正文',
+        categoryId: 3,
+        tagIds: [4],
+        sourceVersion: 0,
+      },
+    },
+  })
+  try {
+    await settle()
+    await settle()
+    assert.equal(h.view.form.content, 'Existing body')
+    assert.ok(h.view.backup.recovery.value)
+    await h.view.save()
+    assert.equal(
+      h.state.calls.some(([kind]) => kind === 'update'),
+      false,
+    )
+    await h.view.backup.recover()
+    assert.equal(h.view.form.content, '恢复正文')
+    assert.equal(h.view.canUndoBody.value, true)
+    await h.view.moveBodyHistory(false)
+    assert.equal(h.view.form.content, 'Existing body')
+  } finally {
+    h.dispose()
+  }
+})
+
+test('云端冲突暂停同步，换号后不再写入', async () => {
+  const h = harness({ id: 12, backupError: { response: { status: 409 } } })
+  try {
+    await settle()
+    await settle()
+    h.fill()
+    await settle()
+    await h.view.backup.backupNow()
+    assert.equal(h.view.backup.conflict.value, true)
+    await h.view.backup.backupNow()
+    assert.equal(h.state.backupCalls.length, 1)
+    h.state.token = 'another-account'
+    await h.view.backup.recheck()
+    await h.view.backup.backupNow()
+    assert.equal(h.state.backupCalls.length, 1)
+  } finally {
+    h.dispose()
+  }
+})
+
+test('恢复过程中切换文章，不会把旧备份的标题写进新文章', async () => {
+  const h = harness({
+    id: 12,
+    backup: {
+      revision: 1,
+      updatedAt: null,
+      draft: {
+        title: '旧备份标题',
+        content: '旧备份正文',
+        categoryId: 3,
+        tagIds: [4],
+        sourceVersion: 0,
+      },
+    },
+  })
+  try {
+    await settle()
+    await settle()
+    const restoring = h.view.backup.recover()
+    h.route.params = { id: '13' }
+    await restoring
+    await settle()
+    await settle()
+    assert.equal(h.view.id.value, 13)
+    assert.equal(h.view.form.title, 'Loaded article')
+    assert.equal(h.view.form.content, 'Existing body')
+  } finally {
+    h.dispose()
+  }
+})
+
+test('其他标签页退出后，旧写作页的同步和卸载都不能复写已清理备份', async () => {
+  const h = harness({ id: 12 })
+  let disposed = false
+  try {
+    await settle()
+    await settle()
+    h.fill()
+    await settle()
+    h.view.backup.cache()
+    assert.ok(h.storage.length > 1)
+    h.storage.removeItem('token')
+    privateCache.clearWritingCache(h.storage, 1)
+    await h.view.backup.backupNow()
+    assert.equal(h.state.backupCalls.length, 0)
+    assert.equal(h.storage.length, 0)
+    h.dispose()
+    disposed = true
+    assert.equal(h.storage.length, 0)
+  } finally {
+    if (!disposed) h.dispose()
+  }
+})
+
+test('退出前尝试云端同步，失败时本机编辑内容继续保留供提示保存或导出', async () => {
+  const h = harness({ id: 12, backupError: new Error('离线') })
+  try {
+    await settle()
+    await settle()
+    h.fill()
+    await settle()
+    await sessionExit.flushSessionWriters('owner')
+    assert.equal(h.state.backupCalls.length, 1)
+    assert.equal(privateCache.hasWritingCache(h.storage, 1), true)
   } finally {
     h.dispose()
   }
