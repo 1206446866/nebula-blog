@@ -14,6 +14,7 @@ function runInNewContext(code, sandbox, { entry } = {}) {
       if (!name.startsWith('.') || !parent) return fallback(name)
       const target = path.resolve(path.dirname(parent), name)
       const filename = [
+        ...(target.endsWith('.ts') ? [target] : []),
         target + '.ts',
         ...(target.endsWith('.js') ? [target.slice(0, -3) + '.ts'] : []),
       ].find(existsSync)

@@ -38,7 +38,7 @@ const { keyword, query, result, loading, error, labels, tabs, total, load, navig
         @click="navigate(type)"
       >
         {{ label }}
-        <span>{{
+        <span>{{ result?.countsExact === false ? '约' : '' }}{{
           type === 'all' ? total : (result?.counts[type as keyof SearchResult['counts']] ?? 0)
         }}</span>
       </button>
@@ -49,7 +49,11 @@ const { keyword, query, result, loading, error, labels, tabs, total, load, navig
     <p v-else-if="loading" class="search-status" role="status">正在搜索…</p>
     <p v-else-if="!query.q" class="search-status">输入关键词，开始探索站内内容。</p>
     <template v-else-if="result">
-      <p class="result-summary">“{{ query.q }}” · 当前分类共 {{ result.page.totalRow }} 条结果</p>
+      <p class="result-summary">
+        “{{ query.q }}” · 当前分类{{ result.countsExact === false ? '约' : '共' }} {{ result.page.totalRow }} 条结果
+        <span v-if="result.windowLimited"> · 仅展示前 {{ result.page.totalRow }} 条，请缩小关键词继续查找</span>
+        <span v-else-if="result.countsExact === false"> · 新内容可能需要短暂同步</span>
+      </p>
       <div v-if="result.page.records.length" class="result-list">
         <RouterLink
           v-for="item in result.page.records"

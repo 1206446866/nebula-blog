@@ -53,9 +53,7 @@ function preventNavigation(event: MouseEvent) {
         <p>文字落下，故事就开始了。</p>
         <small>左侧写下正文，这里会实时呈现。</small>
       </div>
-      <footer class="preview-footer">
-        <span>✦</span> 预览不会自动保存或发布 · 正文链接仅作展示
-      </footer>
+      <footer class="preview-footer"><span>✦</span> 预览不会发布内容 · 正文链接仅作展示</footer>
     </div>
   </article>
 </template>

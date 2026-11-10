@@ -11,6 +11,8 @@ import { revokeCurrentSession } from '../src/utils/auth-session.ts'
 import { Role } from '../src/constants/role.ts'
 import { clientFeatures } from '../src/constants/client-features.ts'
 import * as resource from '../src/utils/resource.ts'
+import * as privateCache from '../src/utils/private-cache.ts'
+import * as sessionExit from '../src/utils/session-exit.ts'
 import * as passwordPolicy from '../src/utils/password-policy.ts'
 
 const dom = new JSDOM('<!doctype html><html><body></body></html>', { url: 'http://localhost/' })
@@ -74,21 +76,47 @@ const settle = async () => {
 
 async function harness(path = '/user/1') {
   const storage = new Map()
-  const state = { server: identity(1), wait: null, mounts: 0, unmounts: 0 }
+  const state = {
+    server: identity(1),
+    wait: null,
+    mounts: 0,
+    unmounts: 0,
+    logouts: 0,
+    confirms: 0,
+    cancelExit: false,
+    logoutFailure: null,
+  }
   const { useAuthStore } = evaluate(
     readFileSync(new URL('../src/stores/auth.ts', import.meta.url), 'utf8'),
     {
       pinia: piniaModule,
       '@/api/auth.ts': {
         currentSessionApi: async () => ({ data: state.wait ? await state.wait : state.server }),
-        logoutApi: async () => {},
+        logoutApi: async () => {
+          state.logouts++
+          if (state.logoutFailure) throw state.logoutFailure
+        },
       },
       '@/utils/auth-session': { revokeCurrentSession },
       '@/constants/role': { Role },
       '@/utils/session-cache': cache,
+      '@/utils/private-cache': privateCache,
+      '@/utils/session-exit': sessionExit,
+      'element-plus': {
+        ElMessageBox: {
+          confirm: async () => {
+            state.confirms++
+            if (state.cancelExit) throw new Error('取消退出')
+          },
+        },
+      },
     },
     {
       localStorage: {
+        get length() {
+          return storage.size
+        },
+        key: (i) => [...storage.keys()][i] ?? null,
         getItem: (key) => storage.get(key),
         setItem: (key, value) => storage.set(key, value),
         removeItem: (key) => storage.delete(key),
@@ -141,6 +169,7 @@ async function harness(path = '/user/1') {
   return {
     state,
     auth,
+    storage,
     router,
     container,
     cleanup: () => {
@@ -366,6 +395,8 @@ function articleView() {
     './components/ArticleSidebar.vue': {},
     './components/ArticleNavigation.vue': {},
     './components/ArticleComment.vue': {},
+    './components/ReadingTools.vue': {},
+    './components/ArticleSeriesLinks.vue': {},
     '@/api/user.ts': {
       getUserById: async (id) => ({ code: 200, data: { id, username: 'author' } }),
     },
@@ -413,4 +444,120 @@ test('unmounting the article details cancels the pending request', () => {
   const h = articleView()
   h.dispose()
   assert.equal(h.requests[0].signal.aborted, true)
+})
+
+test('取消退出保留登录和本机备份，不调用服务端撤销', async () => {
+  const h = await harness()
+  try {
+    h.storage.set('nebula-writing-v1:1:new:tab', JSON.stringify({ time: Date.now(), draft: {} }))
+    h.state.cancelExit = true
+    const before = h.auth.getToken()
+    assert.equal(await h.auth.logout(), false)
+    assert.equal(h.auth.getToken(), before)
+    assert.equal(h.state.logouts, 0)
+    assert.equal(h.state.confirms, 1)
+    assert.ok(h.storage.has('nebula-writing-v1:1:new:tab'))
+  } finally {
+    h.cleanup()
+  }
+})
+
+test('确认退出清理本人所有文章备份，保留其他账号及其他本地设置', async () => {
+  const h = await harness()
+  try {
+    for (const key of [
+      'nebula-writing-v1:1:new:tab',
+      'nebula-writing-v1:1:article-9:other',
+      'nebula-writing-v1:2:new:tab',
+    ])
+      h.storage.set(key, JSON.stringify({ time: Date.now(), draft: {} }))
+    h.storage.set('theme', 'dark')
+    assert.equal(await h.auth.logout(), true)
+    assert.equal(h.auth.getToken(), '')
+    assert.equal(h.state.logouts, 1)
+    assert.equal(h.storage.has('nebula-writing-v1:1:new:tab'), false)
+    assert.equal(h.storage.has('nebula-writing-v1:1:article-9:other'), false)
+    assert.ok(h.storage.has('nebula-writing-v1:2:new:tab'))
+    assert.equal(h.storage.get('theme'), 'dark')
+  } finally {
+    h.cleanup()
+  }
+})
+
+test('撤销失败时保留会话及编辑备份，避免离线误清', async () => {
+  const h = await harness()
+  try {
+    h.storage.set('nebula-writing-v1:1:new:tab', JSON.stringify({ time: Date.now(), draft: {} }))
+    h.state.logoutFailure = new Error('离线')
+    const before = h.auth.getToken()
+    assert.equal(await h.auth.logout(), false)
+    assert.equal(h.auth.getToken(), before)
+    assert.ok(h.storage.has('nebula-writing-v1:1:new:tab'))
+  } finally {
+    h.cleanup()
+  }
+})
+
+test('换号清理原账号备份，但不清其他账号的恢复内容', async () => {
+  const h = await harness()
+  try {
+    h.storage.set('nebula-writing-v1:1:new:tab', JSON.stringify({ time: Date.now(), draft: {} }))
+    h.storage.set('nebula-writing-v1:2:new:tab', JSON.stringify({ time: Date.now(), draft: {} }))
+    h.auth.setAuth({ token: token(2), ...identity(2) })
+    assert.equal(h.storage.has('nebula-writing-v1:1:new:tab'), false)
+    assert.ok(h.storage.has('nebula-writing-v1:2:new:tab'))
+  } finally {
+    h.cleanup()
+  }
+})
+
+test('同步退出通知后不再显示旧身份，迟到的同账号登录通知不删除新备份', async () => {
+  const h = await harness()
+  try {
+    h.storage.set('nebula-writing-v1:1:new:tab', JSON.stringify({ time: Date.now(), draft: {} }))
+    h.storage.delete('token')
+    // 发起退出的标签页已清理共享备份，其他标签页只同步身份并停止写入。
+    privateCache.clearWritingCache(
+      {
+        get length() {
+          return h.storage.size
+        },
+        key: (i) => [...h.storage.keys()][i],
+        getItem: (key) => h.storage.get(key),
+        removeItem: (key) => h.storage.delete(key),
+      },
+      1,
+    )
+    h.auth.syncFromStorage()
+    assert.equal(h.auth.getToken(), '')
+    assert.equal(h.storage.has('nebula-writing-v1:1:new:tab'), false)
+    const next = token(1) + '-new'
+    h.storage.set('token', next)
+    h.storage.set('user', JSON.stringify(identity(1).user))
+    h.storage.set('roles', '["USER"]')
+    h.storage.set('permissions', '[]')
+    h.auth.token = token(1)
+    h.auth.user = identity(1).user
+    h.storage.set('nebula-writing-v1:1:new:tab', JSON.stringify({ time: Date.now(), draft: {} }))
+    h.auth.syncFromStorage()
+    assert.equal(h.auth.getToken(), next)
+    assert.ok(h.storage.has('nebula-writing-v1:1:new:tab'))
+  } finally {
+    h.cleanup()
+  }
+})
+
+test('自然过期只清登录凭据，同账号重新登录仍能恢复未同步稿件', async () => {
+  const h = await harness()
+  try {
+    h.storage.set('nebula-writing-v1:1:new:tab', JSON.stringify({ time: Date.now(), draft: {} }))
+    h.auth.clearAuth()
+    assert.equal(h.auth.getToken(), '')
+    assert.equal(h.storage.has('token'), false)
+    assert.ok(h.storage.has('nebula-writing-v1:1:new:tab'))
+    h.auth.setAuth({ token: token(1), ...identity(1) })
+    assert.ok(h.storage.has('nebula-writing-v1:1:new:tab'))
+  } finally {
+    h.cleanup()
+  }
 })

@@ -3,6 +3,7 @@ import type { Result } from '../types/result.ts'
 import type { Page } from '@/types/page.ts'
 
 export interface ArticleVO {
+  editVersion?: number
   id: number
   userId: number
   title: string
@@ -43,6 +44,7 @@ export interface CreateArticleDto {
  * 修改文章DTO
  */
 export interface UpdateArticleDto {
+  expectedEditVersion?: number
   id: number
   title: string
   content: string

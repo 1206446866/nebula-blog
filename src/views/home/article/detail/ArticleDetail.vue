@@ -23,9 +23,17 @@
           :category="currentCategory"
           :tags="currentTags"
         />
+        <ReadingTools
+          :key="article.id"
+          :article-id="article.id"
+          :title="article.title"
+          :enabled="article.status === 1"
+        />
         <div class="article-layout">
           <div class="reading-column">
-            <ArticleContent :content="article.content" /><ArticleNavigation :article="article" />
+            <ArticleContent :content="article.content" /><ArticleSeriesLinks
+              :article-id="article.id"
+            /><ArticleNavigation :article="article" />
           </div>
           <ArticleSidebar :article-id="article.id" :content="article.content" />
         </div>
@@ -46,6 +54,8 @@ import ArticleContent from './components/ArticleContent.vue'
 import ArticleSidebar from './components/ArticleSidebar.vue'
 import ArticleNavigation from './components/ArticleNavigation.vue'
 import ArticleComment from './components/ArticleComment.vue'
+import ReadingTools from './components/ReadingTools.vue'
+import ArticleSeriesLinks from './components/ArticleSeriesLinks.vue'
 
 import { useArticleDetail } from './logic/useArticleDetail'
 
