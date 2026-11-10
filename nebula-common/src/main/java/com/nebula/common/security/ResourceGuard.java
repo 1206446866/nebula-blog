@@ -17,7 +17,7 @@ import java.util.concurrent.atomic.AtomicBoolean;
 /** Redis 原子频率预算与本实例工作量上限，不依赖客户端自行节流。 */
 @Service
 public class ResourceGuard {
-    public enum Work { UPLOAD, SEARCH, READ, WRITE, DECODE }
+    public enum Work { UPLOAD, SEARCH, READ, WRITE, EXPORT, DECODE }
     private static final DefaultRedisScript<Long> ACQUIRE = new DefaultRedisScript<>("""
             local wait = 0
             for i,key in ipairs(KEYS) do
@@ -48,12 +48,13 @@ public class ResourceGuard {
         slots.put(Work.SEARCH, new Semaphore(properties.getSearch().getConcurrency()));
         slots.put(Work.READ, new Semaphore(properties.getRead().getConcurrency()));
         slots.put(Work.WRITE, new Semaphore(properties.getWrite().getConcurrency()));
+        slots.put(Work.EXPORT, new Semaphore(properties.getExport().getConcurrency()));
         slots.put(Work.DECODE, new Semaphore(properties.getDecodeConcurrency()));
     }
 
     /**
      * 同时消耗账号和可信IP的预算，并领取本实例工作名额；超限或Redis异常时拒绝放行。
-     * @param work 上传、搜索、图片读取或业务写入入口
+     * @param work 上传、搜索、读取、写入或文章导出入口
      * @param ip 服务端解析的可信来源IP
      * @param userId 当前认证账号；匿名图片请求传空，只使用IP预算
      * @return 必须在请求完成或异常时关闭的工作名额
@@ -64,6 +65,7 @@ public class ResourceGuard {
             case SEARCH -> properties.getSearch();
             case READ -> properties.getRead();
             case WRITE -> properties.getWrite();
+            case EXPORT -> properties.getExport();
             default -> throw new IllegalArgumentException("解码只能领取本地工作名额");
         };
         List<String> keys = new ArrayList<>(List.of(key(work, "ip", ip)));

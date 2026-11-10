@@ -21,6 +21,7 @@ import com.nebula.common.exception.BusinessException;
 import com.nebula.common.mail.service.MailService;
 import com.nebula.common.security.LoginUser;
 import com.nebula.common.util.SecurityUtils;
+import com.nebula.role.entity.Role;
 import com.nebula.role.service.PermissionService;
 import com.nebula.role.service.RoleService;
 import com.nebula.user.entity.User;
@@ -57,6 +58,8 @@ import static com.nebula.common.exception.code.UserErrorCode.USER_SELF_OPERATION
 @Service
 @RequiredArgsConstructor
 public class AuthServiceImpl implements AuthService {
+    @org.springframework.beans.factory.annotation.Value("${nebula.security.request.authentication-timeout-seconds:3}")
+    private int authenticationTimeoutSeconds = 3;
     private static final SecureRandom RANDOM = new SecureRandom();
 
     /**
@@ -142,7 +145,7 @@ public class AuthServiceImpl implements AuthService {
         boolean protectedTarget = bindings.stream().anyMatch(binding ->
                 Objects.equals(binding.getRoleId(), RoleEnum.SUPER_ADMIN.getRoleId())
                         || Objects.equals(binding.getRoleId(), RoleEnum.ADMIN.getRoleId()))
-                || roleService.getRolesByUserId(userId).stream().map(role -> role.getName())
+                || roleService.getRolesByUserId(userId).stream().map(Role::getName)
                 .anyMatch(name -> List.of("ADMIN", "ROLE_ADMIN", "SUPER_ADMIN", "ROLE_SUPER_ADMIN").contains(name));
         if (!SecurityUtils.isSuperAdmin() && protectedTarget) {
             throw new org.springframework.security.access.AccessDeniedException("不能重置同级或更高权限账号的密码");
@@ -158,21 +161,29 @@ public class AuthServiceImpl implements AuthService {
     @Override
     public LoginVO login(LoginDTO loginDTO) {
         loginDTO.setAccount(loginDTO.getAccount().strip());
-        User account = findUserByAccount(loginDTO.getAccount());
-        String subject = account == null ? "account:" + loginDTO.getAccount() : "user:" + account.getId();
-        abuseProtection.requireCredentialAttempt("login", subject);
+        User account;
+        String subject;
         Authentication authentication;
-        try {
-            if (loginDTO.getAccount().contains("@")) {
-                authentication = authenticationManager.authenticate(new EmailAuthenticationToken(loginDTO.getAccount(), loginDTO.getPassword()));
-            } else {
-                authentication = authenticationManager.authenticate(new UsernamePasswordAuthenticationToken(loginDTO.getAccount(), loginDTO.getPassword()));
+        // 凭据核验共用读取期限，成功后的日志和会话写入沿用原事务规则。
+        try (var budget = com.nebula.common.security.DatabaseReadBudget.open(authenticationTimeoutSeconds)) {
+            account = findUserByAccount(loginDTO.getAccount());
+            subject = account == null ? "account:" + loginDTO.getAccount() : "user:" + account.getId();
+            abuseProtection.requireCredentialAttempt("login", subject);
+            try {
+                if (loginDTO.getAccount().contains("@")) {
+                    authentication = authenticationManager.authenticate(new EmailAuthenticationToken(loginDTO.getAccount(), loginDTO.getPassword()));
+                } else {
+                    authentication = authenticationManager.authenticate(new UsernamePasswordAuthenticationToken(loginDTO.getAccount(), loginDTO.getPassword()));
+                }
+            } catch (AuthenticationException e) {
+                if (com.nebula.common.exception.DatabaseUnavailable.matches(e))
+                    throw new org.springframework.dao.QueryTimeoutException("登录依赖暂不可用", e);
+                Integer loginStatus = getLoginStatus(e);
+                // 只为已存在的账号记录登录失败。
+                if (Objects.nonNull(account)) loginLogService.recordLoginLog(account.getId(), loginStatus);
+                throw new AuthException(LoginStatus.fromCode(loginStatus));
             }
-        } catch (AuthenticationException e) {
-            Integer loginStatus = getLoginStatus(e);
-            //保证登录记录一定是已存账号，不存在的账号不记录
-            if (Objects.nonNull(account)) loginLogService.recordLoginLog(account.getId(), loginStatus);
-            throw new AuthException(LoginStatus.fromCode(loginStatus));
+            com.nebula.common.security.DatabaseReadBudget.remainingSeconds();
         }
         AuthLoginUser loginUser = (AuthLoginUser) authentication.getPrincipal();
         abuseProtection.credentialSucceeded("login", subject);

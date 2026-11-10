@@ -25,6 +25,10 @@ public class UpdateArticleDto {
     @Positive
     private Long id;
 
+    /** 新编辑器携带读取时的版本；旧客户端未提供时保持兼容。 */
+    @jakarta.validation.constraints.PositiveOrZero
+    private Long expectedEditVersion;
+
     /**
      * 文章标题
      */

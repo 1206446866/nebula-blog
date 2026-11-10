@@ -28,7 +28,7 @@ class LastSuperAdminProtectionTest {
     private final UserMapper users = mock(UserMapper.class);
     private final UserRoleMapper roles = mock(UserRoleMapper.class);
     private final SensitivePasswordVerifier passwords = mock(SensitivePasswordVerifier.class);
-    private final UserServiceImpl service = new UserServiceImpl(roles, passwords, mock(RoleCatalog.class), mock(com.nebula.media.service.MediaService.class));
+    private final UserServiceImpl service = new UserServiceImpl(roles, passwords, mock(RoleCatalog.class), mock(com.nebula.media.service.MediaService.class), mock(org.springframework.context.ApplicationEventPublisher.class));
     private User current;
     private CancelAccountDTO cancellation;
 

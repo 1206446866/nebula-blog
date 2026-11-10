@@ -39,9 +39,11 @@ public class GlobalExceptionHandler {
                 .header("Cache-Control", "no-store").body(Result.error(e.getHttpStatus(), e.getMessage()));
     }
 
-    @ExceptionHandler(org.springframework.dao.QueryTimeoutException.class)
-    public ResponseEntity<Result<Void>> handleQueryTimeout(org.springframework.dao.QueryTimeoutException e) {
-        return ResponseEntity.status(503).header("Retry-After", "2").body(Result.error(503, "查询耗时过长，请稍后重试"));
+    @ExceptionHandler({org.springframework.dao.QueryTimeoutException.class,
+            org.springframework.transaction.TransactionTimedOutException.class})
+    public ResponseEntity<Result<Void>> handleQueryTimeout(Exception e) {
+        return ResponseEntity.status(503).header("Retry-After", "2").header("Cache-Control", "no-store")
+                .body(Result.error(503, "查询耗时过长，请稍后重试"));
     }
 
     /**
@@ -49,8 +51,15 @@ public class GlobalExceptionHandler {
      */
     @ExceptionHandler(Exception.class)
     public ResponseEntity<Result<Void>> handleException(Exception e) {
+        if (DatabaseUnavailable.matches(e)) return handleDatabaseUnavailable(e);
         log.error("请求处理失败", e);
         return error(500, 500, "服务器异常，请稍后重试");
+    }
+
+    /** 连接获取和查询阶段统一给出可重试响应，不暴露连接地址及SQL。 */
+    public ResponseEntity<Result<Void>> handleDatabaseUnavailable(Exception e) {
+        return ResponseEntity.status(503).header("Retry-After", "2").header("Cache-Control", "no-store")
+                .body(Result.error(503, "数据库繁忙，请稍后重试"));
     }
 
     @ExceptionHandler(BaseException.class)
@@ -101,6 +110,7 @@ public class GlobalExceptionHandler {
 
     @ExceptionHandler(AuthenticationException.class)
     public ResponseEntity<Result<Void>> handleAuthenticationException(AuthenticationException e) {
+        if (DatabaseUnavailable.matches(e)) return handleDatabaseUnavailable(e);
         return error(401, 401, "未登录或登录状态已失效，请重新登录");
     }
 

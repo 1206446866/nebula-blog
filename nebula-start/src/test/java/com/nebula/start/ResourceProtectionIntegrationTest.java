@@ -282,9 +282,11 @@ class ResourceProtectionIntegrationTest extends JwtIntegrationTestSupport {
             type=org.apache.ibatis.executor.statement.StatementHandler.class,method="prepare",args={java.sql.Connection.class,Integer.class}))
     static class DeadlineObserver implements org.apache.ibatis.plugin.Interceptor {
         @Override public Object intercept(org.apache.ibatis.plugin.Invocation invocation) throws Throwable {
-            var handler=(org.apache.ibatis.executor.statement.StatementHandler)invocation.getTarget();
             Object statement=invocation.proceed();
-            if(handler.getBoundSql().getSql().contains(") hits")) TimeoutProbe.timeouts.add(((java.sql.Statement)statement).getQueryTimeout());
+            // 采集实际只读事务内的所有语句，覆盖搜索及摘要读取，不依赖某一版SQL的别名。
+            if (org.springframework.transaction.support.TransactionSynchronizationManager.isActualTransactionActive()
+                    && org.springframework.transaction.support.TransactionSynchronizationManager.isCurrentTransactionReadOnly())
+                TimeoutProbe.timeouts.add(((java.sql.Statement)statement).getQueryTimeout());
             return statement;
         }
     }

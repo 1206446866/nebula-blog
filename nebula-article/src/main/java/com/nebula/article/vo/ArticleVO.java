@@ -9,6 +9,8 @@ import java.util.List;
 @Data
 @Accessors(chain = true)
 public class ArticleVO {
+    /** 正文编辑版本，与浏览量及发布状态无关。 */
+    private Long editVersion;
 
     /**
      * 文章ID

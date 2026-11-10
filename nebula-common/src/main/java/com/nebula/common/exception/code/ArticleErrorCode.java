@@ -59,7 +59,15 @@ public enum ArticleErrorCode implements ErrorCode {
     ARTICLE_STATUS_INVALID(40024, "文章状态非法"),
     SCHEDULE_TIME_INVALID(40025, "请选择未来的发布时间，并提供时区"),
     SCHEDULE_DRAFT_REQUIRED(40026, "仅草稿可以安排定时发布，请先撤回已发布文章"),
-    SCHEDULE_CONTENT_INVALID(40027, "请先完善文章标题、正文和有效分类");
+    SCHEDULE_CONTENT_INVALID(40027, "请先完善文章标题、正文和有效分类"),
+    ARTICLE_EDIT_CONFLICT(40902, "内容已在另一处保存，请先检查最新版本，当前编辑内容仍保留"),
+    ARTICLE_WORKSPACE_INVALID(40028, "编辑备份标识无效"),
+    ARTICLE_WORKSPACE_LIMIT(40029, "编辑备份数量已达上限，请整理已有草稿"),
+    ARTICLE_SERIES_INVALID(40030, "系列文章必须属于作者本人，且不能重复"),
+    ARTICLE_SERIES_LIMIT(40031, "每个账号最多创建100个系列"),
+    ARTICLE_READING_LIMIT(40032, "书架已满，请先整理收藏或稍后读"),
+    ARTICLE_EXPORT_LIMIT(40033, "打包最多支持20万字、50张本地图片和40MiB图片总量"),
+    ARTICLE_EXPORT_IMAGE_MISSING(40034, "部分本地图片已不存在或无法读取，可先导出Markdown正文");
 
 
     private final Integer code;
@@ -71,7 +79,8 @@ public enum ArticleErrorCode implements ErrorCode {
         return switch (this) {
             case ARTICLE_NOT_FOUND, ARTICLE_NOT_PUBLISHED -> 404;
             case ARTICLE_ACCESS_DENIED -> 403;
-            case ARTICLE_LIKE_FAILED -> 409;
+            case ARTICLE_LIKE_FAILED, ARTICLE_EDIT_CONFLICT -> 409;
+            case ARTICLE_WORKSPACE_INVALID, ARTICLE_WORKSPACE_LIMIT, ARTICLE_SERIES_INVALID, ARTICLE_SERIES_LIMIT, ARTICLE_READING_LIMIT, ARTICLE_EXPORT_LIMIT, ARTICLE_EXPORT_IMAGE_MISSING -> 400;
             case ARTICLE_STATUS_INVALID, SCHEDULE_TIME_INVALID, SCHEDULE_DRAFT_REQUIRED, SCHEDULE_CONTENT_INVALID -> 400;
             default -> 500;
         };

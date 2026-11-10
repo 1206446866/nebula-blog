@@ -1,5 +1,6 @@
 param(
-    [string]$ComposeDirectory = 'D:\DockerData\nebula-docker'
+    [string]$ComposeDirectory = 'D:\DockerData\nebula-docker',
+    [ValidateRange(0,65535)][int]$Port = 0
 )
 
 $ErrorActionPreference = 'Stop'
@@ -7,6 +8,11 @@ $projectDirectory = [System.IO.Path]::GetFullPath((Join-Path $PSScriptRoot '..')
 $composePath = Join-Path $ComposeDirectory 'docker-compose.yml'
 $credentialDirectory = Join-Path $projectDirectory 'nebula-start\.secrets'
 $passwordPath = Join-Path $credentialDirectory 'NEBULA_REDIS_PASSWORD'
+$portPath = Join-Path $credentialDirectory 'NEBULA_REDIS_PORT'
+if ($Port -eq 0) {
+    $Port = if (Test-Path -LiteralPath $portPath) { [int][System.IO.File]::ReadAllText($portPath).Trim() } else { 6379 }
+}
+if ($Port -lt 1 -or $Port -gt 65535) { throw '本地Redis端口无效' }
 $redisDirectory = Join-Path $ComposeDirectory '.secrets'
 $redisConfigPath = Join-Path $redisDirectory 'redis.conf'
 $backupPath = Join-Path $projectDirectory 'nebula-start\target\review-fixes-20261024\external.before\docker-compose.yml'
@@ -46,8 +52,8 @@ if (Test-Path -LiteralPath $passwordPath) {
 Protect-LocalSecretFile $passwordPath
 Protect-LocalSecretFile $redisConfigPath
 
-$redisBlock = [regex]::Replace($redisBlock, '(?m)^      - "(?:127\.0\.0\.1:)?6379:6379"\r?$', '      - "127.0.0.1:6379:6379"')
-if ($redisBlock -notmatch '127\.0\.0\.1:6379:6379') { throw 'Redis端口格式不符合预期，停止以免保留外部监听。' }
+$redisBlock = [regex]::Replace($redisBlock, '(?m)^      - "(?:127\.0\.0\.1:)?[0-9]+:6379"\r?$', "      - `"127.0.0.1:${Port}:6379`"")
+if ($redisBlock -notmatch "127\.0\.0\.1:${Port}:6379") { throw 'Redis端口格式不符合预期，停止以免保留外部监听。' }
 if ($redisBlock -notmatch '\.secrets/redis\.conf:') {
     $redisBlock = [regex]::Replace($redisBlock, '(?m)^(      - redis-data:/data)\r?$', '$1' + "`n      - ./.secrets/redis.conf:/usr/local/etc/redis/nebula.conf:ro")
 }
@@ -60,4 +66,6 @@ if ($LASTEXITCODE -ne 0) { throw 'Compose配置检查失败，尚未重建容器
 # 仅重建Redis，命名卷继续挂载；不启动或操作Elasticsearch。
 & docker compose -f $composePath up -d --no-deps redis
 if ($LASTEXITCODE -ne 0) { throw 'Redis配置应用失败，请检查容器状态；数据卷未删除。' }
+[System.IO.File]::WriteAllText($portPath,[string]$Port,$utf8)
+Protect-LocalSecretFile $portPath
 Write-Output 'Redis已启用本机绑定与认证，应用凭据已保存到本地秘密目录；数据卷保持原有挂载。'

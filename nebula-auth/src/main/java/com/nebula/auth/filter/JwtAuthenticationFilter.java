@@ -33,6 +33,9 @@ import static com.nebula.user.entity.table.UserTableDef.USER;
 @RequiredArgsConstructor
 public class JwtAuthenticationFilter extends OncePerRequestFilter {
 
+    @org.springframework.beans.factory.annotation.Value("${nebula.security.request.authentication-timeout-seconds:3}")
+    private int authenticationTimeoutSeconds = 3;
+
     private final JwtUtil jwtUtil;
 
     private final UserMapper userMapper;
@@ -68,35 +71,22 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
             return;
         }
 
-        // 查询用户
-        User user = userMapper.selectOneByCondition(USER.ID.eq(userId));
-
-        if (user == null || !UserStatus.NORMAL.matches(user.getStatus())
-                || Integer.valueOf(1).equals(user.getDeleted())) {
-            filterChain.doFilter(request, response);
-            return;
-        }
-
-        boolean active;
+        AuthLoginUser authLoginUser;
         try {
-            active = jwtUtil.isSessionActive(claims, user);
+            authLoginUser = authenticate(claims, userId);
         } catch (TokenSessionUnavailableException e) {
             response.setStatus(HttpServletResponse.SC_SERVICE_UNAVAILABLE);
+            response.setHeader("Retry-After", "2");
+            response.setHeader("Cache-Control", "no-store");
             response.setContentType("application/json;charset=UTF-8");
             response.getWriter().write(new ObjectMapper().writeValueAsString(Result.error(503, e.getMessage())));
             return;
         }
-        if (!active) {
+        if (authLoginUser == null) {
             filterChain.doFilter(request, response);
             return;
         }
 
-        // 查询用户权限
-        List<String> roles = roleService.getRolesByUserId(userId).stream().map(role -> role.getName()).toList();
-         // 查询用户权限
-        List<String> permissions = permissionService.getPermissionsByUserId(userId);
-        // 构建登录用户
-        AuthLoginUser authLoginUser = new AuthLoginUser(user,roles, permissions);
         // 创建认证对象
         UsernamePasswordAuthenticationToken authentication = new UsernamePasswordAuthenticationToken(authLoginUser, null, authLoginUser.getAuthorities());
 
@@ -108,5 +98,19 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
         filterChain.doFilter(request, response);
     }
 
+    /** 用户、会话和权限核验共用认证期限；失败时不建立身份，期限不延续到写业务。 */
+    private AuthLoginUser authenticate(Claims claims, Long userId) {
+        try (var budget = com.nebula.common.security.DatabaseReadBudget.open(authenticationTimeoutSeconds)) {
+            User user = userMapper.selectOneByCondition(USER.ID.eq(userId));
+            if (user == null || !UserStatus.NORMAL.matches(user.getStatus())
+                    || Integer.valueOf(1).equals(user.getDeleted())) return null;
+            if (!jwtUtil.isSessionActive(claims, user)) return null;
+            com.nebula.common.security.DatabaseReadBudget.remainingSeconds();
+            List<String> roles = roleService.getRolesByUserId(userId).stream().map(role -> role.getName()).toList();
+            List<String> permissions = permissionService.getPermissionsByUserId(userId);
+            com.nebula.common.security.DatabaseReadBudget.remainingSeconds();
+            return new AuthLoginUser(user, roles, permissions);
+        }
+    }
 
 }

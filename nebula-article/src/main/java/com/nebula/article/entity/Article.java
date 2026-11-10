@@ -28,6 +28,9 @@ public class Article extends Model<Article> {
      * 内容
      */
     private String content;
+    /** 正文编辑版本，防止旧编辑页面覆盖新内容。 */
+    @Column(onInsertValue = "0")
+    private Long editVersion;
     /**
      * 作者ID
      */

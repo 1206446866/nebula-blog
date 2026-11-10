@@ -53,7 +53,7 @@ public interface UserService extends IService<User> {
     Boolean deleteUserById(Long id);
 
     /**
-     * 使用共享失败预算校验当前密码和明确确认后注销本人账号，保留已发表内容；兼容历史短密码。
+     * 校验当前密码和明确确认后注销本人账号，同事务清理私人编辑备份、书架和私人系列，保留已发表内容；兼容历史短密码。
      *
      * @param dto 当前密码与注销确认
      * @return 是否注销成功

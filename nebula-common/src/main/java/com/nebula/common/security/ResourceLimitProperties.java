@@ -21,8 +21,9 @@ public class ResourceLimitProperties {
     @Min(1) private int searchTimeoutSeconds = 3;
     @Valid private Rate upload = new Rate(12, 40, 4, 1, 2);
     @Valid private Rate search = new Rate(30, 120, 8, 1, 3);
-    @Valid private Rate read = new Rate(240, 600, 16, 4, 8);
+    @Valid private Rate read = new Rate(240, 600, 16, 8, 16);
     @Valid private Rate write = new Rate(60, 180, 8, 2, 4);
+    @Valid private Rate export = new Rate(4, 12, 2, 1, 2);
 
     @Data
     public static class Rate {

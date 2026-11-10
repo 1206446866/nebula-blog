@@ -26,7 +26,8 @@ class AccountCancellationServiceTest {
     private final UserMapper users = mock(UserMapper.class);
     private final UserRoleMapper roles = mock(UserRoleMapper.class);
     private final SensitivePasswordVerifier passwords = mock(SensitivePasswordVerifier.class);
-    private final UserServiceImpl service = new UserServiceImpl(roles, passwords, mock(RoleCatalog.class), mock(com.nebula.media.service.MediaService.class));
+    private final org.springframework.context.ApplicationEventPublisher events = mock(org.springframework.context.ApplicationEventPublisher.class);
+    private final UserServiceImpl service = new UserServiceImpl(roles, passwords, mock(RoleCatalog.class), mock(com.nebula.media.service.MediaService.class), events);
     private User current;
     private CancelAccountDTO request;
 
@@ -52,11 +53,18 @@ class AccountCancellationServiceTest {
     @Test
     void deletesOnlyTheAuthenticatedAccountAfterVerifyingTheCurrentDatabasePassword() {
         assertTrue(service.cancelCurrentAccount(request));
-        var ordered = inOrder(users, passwords, roles);
+        var ordered = inOrder(users, passwords, roles, events);
         ordered.verify(users).selectOneById(42L);
         ordered.verify(passwords).matches("current-password", "current-db-hash");
         ordered.verify(users).deleteByQuery(any());
         ordered.verify(roles).deleteByCondition(any());
+        ordered.verify(events).publishEvent(new com.nebula.common.security.AccountCancelledEvent(42L));
+    }
+
+    @Test
+    void privateCleanupFailureMustPropagateToTheCancellationTransaction() {
+        doThrow(new IllegalStateException("模拟私人数据清理失败")).when(events).publishEvent(any(Object.class));
+        assertThrows(IllegalStateException.class, () -> service.cancelCurrentAccount(request));
     }
 
     @Test

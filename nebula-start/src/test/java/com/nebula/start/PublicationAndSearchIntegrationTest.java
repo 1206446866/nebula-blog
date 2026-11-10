@@ -29,7 +29,7 @@ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilder
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*;
 
 /** 专用已提交账号用于跨事务轮询测试；仅清理本测试创建且校验过归属的ID。 */
-@SpringBootTest(properties = "nebula.publication.enabled=false")
+@SpringBootTest(properties = {"nebula.publication.enabled=false", "nebula.search.backend=mysql"})
 @AutoConfigureMockMvc
 class PublicationAndSearchIntegrationTest extends JwtIntegrationTestSupport {
     @Autowired MockMvc mvc;
@@ -95,6 +95,7 @@ class PublicationAndSearchIntegrationTest extends JwtIntegrationTestSupport {
             assertEquals(owner.getId(), row.getLong("user_id"));
             Db.deleteBySql("DELETE FROM article_category WHERE article_id=?", id);
             Db.deleteBySql("DELETE FROM article_tag WHERE article_id=?", id);
+            Db.deleteBySql("DELETE FROM article_revision WHERE article_id=?", id);
             Db.deleteBySql("DELETE FROM article WHERE id=? AND user_id=?", id, owner.getId());
         }
         if (category != null) Db.deleteBySql("DELETE FROM category WHERE id=? AND name=?", category.getId(), category.getName());

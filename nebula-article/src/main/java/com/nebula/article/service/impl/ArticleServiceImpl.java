@@ -57,10 +57,12 @@ public class ArticleServiceImpl extends ServiceImpl<ArticleMapper, Article> impl
     private final RedisService redisService;
     private final ArticleReadAccess articleReadAccess;
     private final ArticleCatalogReferences references;
+    private final com.nebula.article.service.ArticleRevisionService revisions;
     private final com.nebula.media.service.MediaService mediaService;
     private static final ZoneId ZONE_ID = ZoneId.of("Asia/Shanghai");
 
     @Override
+    @Transactional(readOnly = true)
     public Page<ArticleVO> pageArticles(ArticlePageDTO dto, String orderBy, boolean asc) {
         PageLimits.requireValid(dto.getCurrent(), dto.getSize());
         QueryWrapper queryWrapper = QueryWrapper.create()
@@ -74,7 +76,7 @@ public class ArticleServiceImpl extends ServiceImpl<ArticleMapper, Article> impl
         } else {
             queryWrapper.orderBy(ARTICLE.CREATE_TIME.desc(), ARTICLE.ID.desc());
         }
-        return pageAs(Page.of(dto.getCurrent(), dto.getSize()), queryWrapper, ArticleVO.class);
+        return pageWithoutWideSort(dto.getCurrent(), dto.getSize(), queryWrapper).map(a -> BeanUtil.copyProperties(a, ArticleVO.class));
     }
 
 
@@ -163,6 +165,7 @@ public class ArticleServiceImpl extends ServiceImpl<ArticleMapper, Article> impl
         if (mapper.insertSelective(article) != 1) throw new BusinessException(ARTICLE_CREATE_FAILED);
         articleCategoryService.bindCategories(article.getId(), dto.getCategoryId());
         articleTagService.bindTags(article.getId(), tagIds);
+        revisions.capture(mapper.selectOneById(article.getId()));
         return article.getId();
     }
 
@@ -189,18 +192,25 @@ public class ArticleServiceImpl extends ServiceImpl<ArticleMapper, Article> impl
     public boolean updateArticle(UpdateArticleDto dto) {
         references.lockCategory(dto.getCategoryId());
         var tagIds = references.lockTags(dto.getTagIds());
-        checkOwnerOrAdmin(dto.getId(), "article:update");
+        Article previous = checkOwnerOrAdmin(dto.getId(), "article:update");
+        long version = previous.getEditVersion() == null ? 0 : previous.getEditVersion();
+        if (dto.getExpectedEditVersion() != null && dto.getExpectedEditVersion() != version) {
+            throw new BusinessException(ARTICLE_EDIT_CONFLICT);
+        }
+        revisions.capture(previous);
         mediaService.lockArticleImages(dto.getContent());
         boolean res = updateById(Article.create()
                 .setId(dto.getId())
                 .setTitle(dto.getTitle())
                 .setContent(dto.getContent())
+                .setEditVersion(version + 1)
         );
         if (!res) throw new BusinessException(ARTICLE_UPDATE_FAILED);
         // 修改正文需重新确认发布计划，防止尚未确认的新内容按旧计划公开。
         Db.updateBySql("UPDATE article SET scheduled_publish_at=NULL, scheduled_by=NULL, schedule_error=NULL WHERE id=?", dto.getId());
         articleCategoryService.bindCategories(dto.getId(), dto.getCategoryId());
         articleTagService.bindTags(dto.getId(), tagIds);
+        revisions.capture(mapper.selectOneById(dto.getId()));
         evictDetailAfterCommit(dto.getId());
         return true;
     }
@@ -224,6 +234,7 @@ public class ArticleServiceImpl extends ServiceImpl<ArticleMapper, Article> impl
     }
 
     @Override
+    @Transactional(readOnly = true)
     public Page<ArticleVO> pagePublishedArticles(ArticlePageDTO dto) {
         PageLimits.requireValid(dto.getCurrent(), dto.getSize());
         QueryWrapper query = QueryWrapper.create()
@@ -233,7 +244,17 @@ public class ArticleServiceImpl extends ServiceImpl<ArticleMapper, Article> impl
                 .and(ARTICLE.USER_ID.eq(dto.getUserId(), Objects::nonNull));
         applyCatalogFilters(query, dto);
         query.orderBy(ARTICLE.CREATE_TIME.desc(), ARTICLE.ID.desc());
-        return pageAs(Page.of(dto.getCurrent(), dto.getSize()), query, ArticleVO.class);
+        return pageWithoutWideSort(dto.getCurrent(), dto.getSize(), query).map(a -> BeanUtil.copyProperties(a, ArticleVO.class));
+    }
+
+    /** 先按覆盖索引分页编号，再取本页完整数据，避免跳页时读取和排序整批正文；调用方须使用只读事务。 */
+    private Page<Article> pageWithoutWideSort(int current, int size, QueryWrapper query) {
+        Page<Article> ids = page(Page.of(current, size), query.select(ARTICLE.ID));
+        if (ids.getRecords().isEmpty()) return ids;
+        var ordered = ids.getRecords().stream().map(Article::getId).toList();
+        var records = mapper.selectListByQuery(QueryWrapper.create().where(ARTICLE.ID.in(ordered)));
+        var indexed = records.stream().collect(java.util.stream.Collectors.toMap(Article::getId, a -> a));
+        return ids.map(a -> indexed.get(a.getId()));
     }
 
     /** 用子查询追加分类与标签筛选，组内任选其一、两组同时满足，避免分页重复。 */
@@ -277,10 +298,11 @@ public class ArticleServiceImpl extends ServiceImpl<ArticleMapper, Article> impl
     }
 
     @Override
+    @Transactional(readOnly = true)
     public Page<Article> pageArticleProfile(Long userId, Integer status, int currentPage, int pageSize) {
         QueryWrapper query = QueryWrapper.create().where(ARTICLE.USER_ID.eq(userId).and(ARTICLE.STATUS.eq(status)))
                 .orderBy(ARTICLE.CREATE_TIME.desc(), ARTICLE.ID.desc());
-        return page(Page.of(currentPage, pageSize), query);
+        return pageWithoutWideSort(currentPage, pageSize, query);
     }
 
 
@@ -332,6 +354,10 @@ public class ArticleServiceImpl extends ServiceImpl<ArticleMapper, Article> impl
     public Boolean delete(Long id) {
         checkOwnerOrAdmin(id, "article:delete");
         if (mapper.deleteById(id) != 1) throw new BusinessException(ARTICLE_DELETE_FAILED);
+        Db.deleteBySql("DELETE FROM article_workspace WHERE document_key=?", "article-" + id);
+        Db.deleteBySql("DELETE FROM article_revision WHERE article_id=?", id);
+        Db.deleteBySql("DELETE FROM article_reading WHERE article_id=?", id);
+        Db.deleteBySql("DELETE FROM article_series_item WHERE article_id=?", id);
         evictDetailAfterCommit(id);
         return true;
     }
@@ -344,7 +370,7 @@ public class ArticleServiceImpl extends ServiceImpl<ArticleMapper, Article> impl
     }
 
     /** 校验文章操作权限并锁定记录，仅允许作者本人或管理员继续修改。 */
-    private void checkOwnerOrAdmin(Long articleId, String permission) {
+    private Article checkOwnerOrAdmin(Long articleId, String permission) {
         var actor = SecurityUtils.getLoginUser();
         if (actor == null || actor.getUserId() == null || !SecurityUtils.hasPermission(permission)) {
             throw new AccessDeniedException("需要对应的文章操作权限");
@@ -356,5 +382,6 @@ public class ArticleServiceImpl extends ServiceImpl<ArticleMapper, Article> impl
         // Writing a draft never publishes it; publication has its own guarded endpoint.
         if (!SecurityUtils.isAdmin() && !SecurityUtils.isSelf(article.getUserId()))
             throw new BusinessException(ARTICLE_ACCESS_DENIED);
+        return article;
     }
 }

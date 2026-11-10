@@ -35,6 +35,8 @@ public class SecurityConfig {
     @Bean
     public SecurityFilterChain securityFilterChain(HttpSecurity http,
             com.nebula.common.security.ResourceGuard resources,
+            com.nebula.common.security.RequestAdmissionGuard admission,
+            com.nebula.common.security.RequestProtectionProperties requestLimits,
             com.nebula.common.util.ClientIpResolver ips,
             com.fasterxml.jackson.databind.ObjectMapper json) throws Exception {
         http
@@ -49,6 +51,8 @@ public class SecurityConfig {
 
                 // 接口权限配置
                 .authorizeHttpRequests(auth -> auth
+                        // 容器错误转发只返回公开错误，不能把正文超时改写成未登录。
+                        .dispatcherTypeMatchers(jakarta.servlet.DispatcherType.ERROR).permitAll()
                         // 登录接口放行
                         .requestMatchers("/auth/login",
                                 "/auth/register",
@@ -64,12 +68,21 @@ public class SecurityConfig {
                 .exceptionHandling(exception -> exception.authenticationEntryPoint(jwtAuthenticationEntryPoint).accessDeniedHandler(jwtAccessDeniedHandler))
                 // 添加JWT过滤器
                 .addFilterBefore(jwtAuthenticationFilter, UsernamePasswordAuthenticationFilter.class)
+                .addFilterBefore(new RequestAdmissionFilter(admission, requestLimits, ips, json), JwtAuthenticationFilter.class)
                 .addFilterAfter(new ResourceProtectionFilter(resources, ips, json), JwtAuthenticationFilter.class)
 //               Security的表单登陆
                 .formLogin(AbstractHttpConfigurer::disable)
 //                HTTP 头基础认证入口Authorization: Basic base64(username:password)
                 .httpBasic(AbstractHttpConfigurer::disable);
         return http.build();
+    }
+
+    @Bean
+    public org.springframework.boot.web.servlet.FilterRegistrationBean<JwtAuthenticationFilter> jwtFilterRegistration() {
+        // JWT仅在Security链内执行，避免容器自动注册后越过认证前保护再次执行。
+        var registration = new org.springframework.boot.web.servlet.FilterRegistrationBean<>(jwtAuthenticationFilter);
+        registration.setEnabled(false);
+        return registration;
     }
 
     @Bean

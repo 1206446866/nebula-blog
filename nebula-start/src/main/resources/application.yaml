@@ -1,6 +1,11 @@
 server:
   port: 8080
   forward-headers-strategy: none
+  tomcat:
+    # 同时约束请求头和正文读取的空闲等待；JSON另有累计读取期限。
+    connection-timeout: 5s
+    # 已拒绝的正文直接关闭连接，避免响应后继续吞读占用线程。
+    max-swallow-size: 0B
 
 spring:
   servlet:
@@ -30,15 +35,20 @@ spring:
     Hikari:
       maximum-pool-size: 20
       minimum-idle: 8
-      connection-timeout: 30000
+      connection-timeout: 1000
+      validation-timeout: 500
+      data-source-properties:
+        connectTimeout: 2000
+        socketTimeout: 5000
 
   data:
     redis:
-      host: localhost
-      port: 6379
+      host: ${NEBULA_REDIS_HOST:127.0.0.1}
+      port: ${NEBULA_REDIS_PORT:6379}
       database: 0
       password: ${NEBULA_REDIS_PASSWORD:}
-      timeout: 10s
+      timeout: 2s
+      connect-timeout: 2s
 
   mail:
     host: smtp.qq.com
@@ -67,10 +77,17 @@ jwt:
   expire: ${NEBULA_JWT_EXPIRE:7200000}
 
 nebula:
+  search:
+    backend: ${NEBULA_SEARCH_BACKEND:elasticsearch}
+    endpoint: ${NEBULA_ES_ENDPOINT:http://127.0.0.1:9200}
+    username: ${NEBULA_ES_USERNAME:nebula_search}
+    password: ${NEBULA_ES_PASSWORD:}
   registration:
     confirmation-url: ${NEBULA_REGISTRATION_CONFIRMATION_URL:http://localhost:5173/register}
 
 springdoc:
+  # 将分页筛选对象展开为实际查询参数，便于直接填写和调试接口。
+  default-flat-param-object: true
   api-docs:
     enabled: ${NEBULA_API_DOCS_ENABLED:false}
   swagger-ui:

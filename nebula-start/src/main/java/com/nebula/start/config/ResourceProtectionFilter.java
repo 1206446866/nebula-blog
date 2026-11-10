@@ -15,14 +15,15 @@ import org.springframework.web.util.pattern.PathPattern;
 import org.springframework.web.util.pattern.PathPatternParser;
 import java.io.IOException;
 
-/** 认证后、Multipart解析前限制高成本入口；只在Security过滤链注册一次。 */
+/** 认证后、Multipart解析前限制业务读写；只在Security过滤链注册一次。 */
 public class ResourceProtectionFilter extends OncePerRequestFilter {
     private static final PathPattern ARTICLE_UPLOAD = pattern("/media/images");
     private static final PathPattern AVATAR_UPLOAD = pattern("/users/upload/avatar");
     private static final PathPattern SEARCH = pattern("/search");
-    private static final PathPattern MEDIA_LIST = pattern("/media");
     private static final PathPattern MEDIA_FILE = pattern("/media/{*path}");
     private static final PathPattern PUBLIC_FILE = pattern("/upload/{*path}");
+    private static final PathPattern ARTICLE_EXPORT = pattern("/articles/{id}/export");
+    private static final PathPattern WRITING_EXPORT = pattern("/article-export");
     private final ResourceGuard guard;
     private final ClientIpResolver ips;
     private final ObjectMapper json;
@@ -53,11 +54,14 @@ public class ResourceProtectionFilter extends OncePerRequestFilter {
     }
     /** 对实际路由分类，匿名私有接口仍由后续认证链返回401。 */
     private ResourceGuard.Work work(String method, PathContainer path) {
+        if ((method.equals("GET") || method.equals("HEAD")) && ARTICLE_EXPORT.matches(path)
+                || method.equals("POST") && WRITING_EXPORT.matches(path)) return ResourceGuard.Work.EXPORT;
         if (method.equals("POST") && (ARTICLE_UPLOAD.matches(path) || AVATAR_UPLOAD.matches(path))) return ResourceGuard.Work.UPLOAD;
         if (method.equals("DELETE") && MEDIA_FILE.matches(path)) return ResourceGuard.Work.READ;
         if (method.equals("GET") || method.equals("HEAD")) {
             if (SEARCH.matches(path)) return ResourceGuard.Work.SEARCH;
-            if (MEDIA_LIST.matches(path) || MEDIA_FILE.matches(path) || PUBLIC_FILE.matches(path)) return ResourceGuard.Work.READ;
+            // 普通文章、个人主页、账号资料、后台分页及新增读取入口统一领取读取预算。
+            return ResourceGuard.Work.READ;
         }
         // 评论、点赞、草稿、关注及管理操作共用写入预算，换入口不会重置额度。
         if (java.util.Set.of("POST", "PUT", "PATCH", "DELETE").contains(method)) return ResourceGuard.Work.WRITE;

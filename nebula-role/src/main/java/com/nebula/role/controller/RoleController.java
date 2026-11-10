@@ -1,5 +1,8 @@
 package com.nebula.role.controller;
 
+import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.Parameter;
+import io.swagger.v3.oas.annotations.tags.Tag;
 import com.mybatisflex.core.paginate.Page;
 import com.nebula.common.result.Result;
 import com.nebula.role.dto.CreateRoleDto;
@@ -18,57 +21,58 @@ import java.util.List;
 @RestController
 @RequestMapping("/roles")
 @RequiredArgsConstructor
+@Tag(name = "角色管理", description = "角色查询与超级管理员维护入口。")
 public class RoleController {
 
     private final RoleService roleService;
 
 
-    /**
-     * 获取角色列表
-     */
+    @Operation(summary = "查询角色列表",
+            description = "需user:list权限，返回可查询的角色列表。")
     @PreAuthorize("@securityUtils.hasPermission('user:list')")
     @GetMapping
     public Result<List<RoleVO>> getAllRoles() {
         return Result.success(roleService.findAll());
     }
 
-    /**
-     * 获取角色分页
-     */
+    @Operation(summary = "分页查询角色",
+            description = "需user:list权限，可按角色描述筛选。")
     @PreAuthorize("@securityUtils.hasPermission('user:list')")
     @GetMapping("/page")
     public Result<Page<RoleVO>> getPageRoles(@Valid RolePageDto dto) {
         return Result.success(roleService.pageRoles(dto));
     }
 
-    /**
-     * 查询用户的所有角色
-     */
+    @Operation(summary = "查询用户角色",
+            description = "需user:list权限，返回目标用户当前关联的角色。")
     @PreAuthorize("@securityUtils.hasPermission('user:list')")
     @GetMapping("/{userId}")
-    public Result<List<Role>> getRolesByUserId(@PathVariable Long userId) {
+    public Result<List<Role>> getRolesByUserId(@Parameter(description = "用户编号") @PathVariable Long userId) {
         List<Role> roles = roleService.getRolesByUserId(userId);
         return Result.success(roles);
     }
 
+    @Operation(summary = "创建角色",
+            description = "仅超级管理员可操作，按角色名称、描述及边界规则创建。")
     @PreAuthorize("@securityUtils.isSuperAdmin()")
     @PostMapping("/create")
     public Result<Boolean> createRole(@RequestBody @Valid CreateRoleDto dto) {
         return  Result.success(roleService.createRole(dto));
     }
 
+    @Operation(summary = "修改角色",
+            description = "仅超级管理员可操作，检查内置角色及权限层级限制。")
     @PreAuthorize("@securityUtils.isSuperAdmin()")
     @PutMapping("/update")
     public Result<Boolean> updateRole(@RequestBody @Valid UpdateRoleDto dto) {
         return Result.success(roleService.updateRole(dto));
     }
 
-    /**
-     * 移除角色
-     */
+    @Operation(summary = "删除角色",
+            description = "仅超级管理员可操作，检查内置角色保护并清理关联。")
     @PreAuthorize("@securityUtils.isSuperAdmin()")
     @DeleteMapping("/remove/{roleId}")
-    public Result<Boolean> removeRole(@PathVariable Long roleId) {
+    public Result<Boolean> removeRole(@Parameter(description = "角色编号") @PathVariable Long roleId) {
         return Result.success(roleService.removeRole(roleId));
     }
 

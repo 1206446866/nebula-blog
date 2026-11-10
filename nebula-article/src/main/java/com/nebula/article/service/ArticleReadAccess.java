@@ -44,7 +44,10 @@ public class ArticleReadAccess {
 
     /** 构造有效已发布文章ID的子查询，供个人主页等公开数据查询使用。 */
     public QueryWrapper publishedArticleIds() {
-        return QueryWrapper.create().select(ARTICLE.ID).from(ARTICLE).where(publishedCondition());
+        // 显式物化窄编号集合，避免热点评论统计逐条回查含正文的文章聚簇行。
+        var published = QueryWrapper.create().select(com.mybatisflex.core.query.QueryMethods.distinct(ARTICLE.ID))
+                .from(ARTICLE).where(publishedCondition());
+        return QueryWrapper.create().select("published_ids.id").from(published).as("published_ids");
     }
 
     /** 从数据库确认文章当前可读，不可见与不存在统一按文章不存在处理。 */

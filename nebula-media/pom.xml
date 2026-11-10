@@ -4,6 +4,11 @@
   <parent><groupId>com.nebula</groupId><artifactId>nebula-blog</artifactId><version>1.0.0</version></parent>
   <artifactId>nebula-media</artifactId>
   <dependencies>
+    <!-- 控制器OpenAPI说明注解。 -->
+    <dependency>
+        <groupId>io.swagger.core.v3</groupId>
+        <artifactId>swagger-annotations-jakarta</artifactId>
+    </dependency>
     <dependency><groupId>com.nebula</groupId><artifactId>nebula-common</artifactId><version>${project.version}</version></dependency>
     <dependency><groupId>com.mybatis-flex</groupId><artifactId>mybatis-flex-spring-boot3-starter</artifactId></dependency>
     <dependency><groupId>org.sejda.imageio</groupId><artifactId>webp-imageio</artifactId><version>0.1.6</version></dependency>

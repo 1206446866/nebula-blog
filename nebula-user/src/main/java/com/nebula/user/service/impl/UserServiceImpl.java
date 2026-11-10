@@ -52,6 +52,7 @@ public class UserServiceImpl extends ServiceImpl<UserMapper, User> implements Us
     private final com.nebula.common.security.SensitivePasswordVerifier sensitivePasswords;
     private final RoleCatalog roleCatalog;
     private final com.nebula.media.service.MediaService mediaService;
+    private final org.springframework.context.ApplicationEventPublisher events;
 
     @Override
     public Page<UserVO> pageUsers(String role, String username, int page, int size) {
@@ -161,6 +162,7 @@ public class UserServiceImpl extends ServiceImpl<UserMapper, User> implements Us
             throw new BusinessException(UserErrorCode.USER_DELETE_FAILED);
         }
         userRoleMapper.deleteByCondition(USER_ROLE.USER_ID.eq(viewer.getUserId()));
+        events.publishEvent(new com.nebula.common.security.AccountCancelledEvent(viewer.getUserId()));
         return true;
     }
 

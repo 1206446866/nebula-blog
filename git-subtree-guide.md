@@ -1,179 +1,70 @@
-# Git Subtree 前后端项目管理说明
+# Git subtree 前后端管理指南
 
-## 1. 项目结构
+## 目录与分工
 
-Nebula 项目采用前后端分离开发，同时使用 Git Subtree
-将前端同步到后端主仓库。
+| 用途 | 路径 | 当前分支 |
+| --- | --- | --- |
+| 后端主仓库 | `D:/IDEA_project/nebula-blog` | `main` |
+| 实际前端仓库 | `D:/Webstorm_project/nebula_blog` | `master` |
+| 前端子树镜像 | 后端内的 `nebula-front` | 随后端仓库维护 |
 
-    nebula-blog
-    ├── nebula-start
-    ├── nebula-common
-    ├── nebula-auth
-    ├── nebula-user
-    ├── nebula-role
-    ├── nebula-article
-    └── nebula-front
+前后端保持两个独立开发路径。前端始终在实际前端仓库修改，`nebula-front` 只接收子树同步，不直接开发。后端的 `frontend` remote 当前指向实际前端本地目录，因此本地同步不依赖先推送前端远端。
 
-后端主仓库：
+问题、修复及功能记录分别见 [ISSUES.md](ISSUES.md)、[FIXES.md](FIXES.md) 和 [更新日志.md](更新日志.md)；环境与运行入口见 [LOCAL_ENVIRONMENT.md](LOCAL_ENVIRONMENT.md)。
 
-    D:\IDEA_project\nebula-blog
+## 提交顺序与授权
 
-前端独立仓库：
+用户要求提交时，顺序为：**提交实际前端 → 合入前端子树 → 提交后端**。提交说明使用中文；只有明确要求推送时，才执行远端推送。
 
-    D:\Webstorm_project\nebula_blog
+本文命令是操作参考，不代表获得提交、同步或推送授权。操作前检查两个仓库的分支、差异和未跟踪文件，保留已有成果，按本次授权范围选择文件；不要直接套用 `git add .`。
 
-------------------------------------------------------------------------
+## 操作参考
 
-## 2. Git Subtree 作用
+### 1. 检查两个工作区
 
-前后端最初独立维护：
-
--   后端：Spring Boot 项目
--   前端：Vue3 项目
-
-通过 Git Subtree，将前端同步到主仓库：
-
-    前端仓库
-        |
-        | git subtree pull
-        ↓
-    nebula-blog/nebula-front
-        |
-        ↓
-    GitHub 主仓库
-
-这样可以：
-
--   保持前端独立开发
--   保留完整项目展示
--   不需要移动原项目目录
-
-------------------------------------------------------------------------
-
-## 3. 日常开发流程
-
-### 前端开发
-
-使用 WebStorm：
-
-    D:\Webstorm_project\nebula_blog
-
-修改代码后：
-
-``` bash
-git add .
-git commit -m "feat: update frontend feature"
-git push
+```powershell
+git -C D:\Webstorm_project\nebula_blog status --short
+git -C D:\Webstorm_project\nebula_blog branch --show-current
+git -C D:\IDEA_project\nebula-blog status --short
+git -C D:\IDEA_project\nebula-blog branch --show-current
+git -C D:\IDEA_project\nebula-blog remote -v
 ```
 
-提交到前端独立仓库。
+核对差异后，在实际前端仓库暂存本次需要提交的文件，再提交：
 
-------------------------------------------------------------------------
-
-## 4. 同步前端到主仓库
-
-进入后端根目录：
-
-``` powershell
-cd D:\IDEA_project\nebula-blog
+```powershell
+git -C D:\Webstorm_project\nebula_blog diff --cached
+git -C D:\Webstorm_project\nebula_blog commit -m "完善前端功能与页面交互"
 ```
 
-执行：
+说明应改为本次实际改动的中文概括。未提交的前端修改不会进入子树。
 
-``` powershell
-git subtree pull --prefix nebula-front frontend master --squash
+### 2. 合入前端子树
+
+`git subtree pull` 要求后端工作区和暂存区干净。后端有未提交成果时，不直接执行下方命令，也不要为满足条件而清理、恢复文件或抢先提交后端。应先在临时集成工作区合入子树，再把后端成果纳入最终提交；具体步骤按当次差异制定，并保留原工作区及未跟踪文件。
+
+后端工作区干净，且已核对 `frontend` remote 和前端分支后，使用：
+
+```powershell
+git -C D:\IDEA_project\nebula-blog subtree pull --prefix nebula-front frontend master --squash -m "同步前端子树"
 ```
 
-参数：
+此命令会创建子树同步提交。随后检查镜像与已提交前端内容是否一致；需要处理冲突时保留双方有效改动，不整目录覆盖。
 
--   `--prefix nebula-front`：同步目标目录
--   `frontend`：前端仓库 remote 名称
--   `master`：前端分支
--   `--squash`：压缩前端历史提交
+### 3. 提交后端并按授权推送
 
-------------------------------------------------------------------------
+子树合入后，检查并暂存后端本次改动，使用中文说明提交，再核对两个仓库的最终状态。示例：
 
-## 5. 推送主仓库
-
-同步完成：
-
-``` powershell
-git status
+```powershell
+git -C D:\IDEA_project\nebula-blog diff --cached
+git -C D:\IDEA_project\nebula-blog commit -m "完善后端功能与维护记录"
 ```
 
-确认无误：
+仅在用户要求推送、分支和远端均已核对时执行：
 
-``` powershell
-git push origin main
+```powershell
+git -C D:\Webstorm_project\nebula_blog push origin master
+git -C D:\IDEA_project\nebula-blog push origin main
 ```
 
-GitHub 中最终结构：
-
-    nebula-blog
-
-    ├── Backend
-    │
-    └── nebula-front
-
-------------------------------------------------------------------------
-
-## 6. 注意事项
-
-不要直接开发：
-
-    D:\IDEA_project\nebula-blog\nebula-front
-
-这里是 subtree 同步目录。
-
-正确开发位置：
-
-    D:\Webstorm_project\nebula_blog
-
-修改完成后：
-
-    前端 commit/push
-            ↓
-    subtree pull
-            ↓
-    主仓库 push
-
-------------------------------------------------------------------------
-
-## 7. 查看远程仓库
-
-查看 Git remote：
-
-``` bash
-git remote -v
-```
-
-示例：
-
-    frontend D:\Webstorm_project\nebula_blog
-    origin https://github.com/1206446866/nebula-blog.git
-
-------------------------------------------------------------------------
-
-## 8. 当前项目 Git 架构
-
-    WebStorm
-        |
-        | commit/push
-        ↓
-    前端独立仓库
-
-        |
-        | subtree pull
-        ↓
-
-    IDEA 主仓库
-
-    ├── Spring Boot Backend
-    └── nebula-front
-
-        |
-        | push
-
-        ↓
-
-    GitHub
+没有后端独立改动时，不为凑步骤创建空提交；保留子树同步提交即可。

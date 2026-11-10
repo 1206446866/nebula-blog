@@ -112,6 +112,7 @@ class AdminManagementConcurrencyIntegrationTest extends JwtIntegrationTestSuppor
             Db.deleteByMap("article_category", Map.of("article_id", id));
             Db.deleteByMap("article_tag", Map.of("article_id", id));
             Db.deleteByMap("article_like", Map.of("article_id", id));
+            Db.deleteByMap("article_revision", Map.of("article_id", id));
             Db.deleteById("article", "id", id);
         }
         for (Long id : commentIds) { Db.deleteByMap("comment_like", Map.of("comment_id", id)); Db.deleteById("comment", "id", id); }

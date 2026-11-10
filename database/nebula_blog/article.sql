@@ -3,7 +3,7 @@ create table if not exists article
     id          bigint auto_increment comment '文章ID'
         primary key,
     title       varchar(255)                       not null comment '文章标题',
-    content     text                               not null comment '文章内容',
+    content     mediumtext                         not null comment '文章内容',
     author      varchar(100)                       null comment '作者',
     create_time datetime default CURRENT_TIMESTAMP null comment '创建时间',
     update_time datetime default CURRENT_TIMESTAMP null on update CURRENT_TIMESTAMP comment '更新时间',
