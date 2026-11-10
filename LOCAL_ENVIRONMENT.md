@@ -15,7 +15,7 @@
 | Maven | `D:/develop/apache-maven-3.9.5/bin/mvn.cmd`，本地依赖在 `D:/MavenRepository` |
 | Node.js | `D:/nodejs` |
 
-前后端保持两个独立目录。用户要求提交时，按 [Git subtree指南](git-subtree-guide.md) 先合入前端子树，再提交后端；未要求时不自动提交、推送或同步。
+前后端保持两个独立目录。提交、子树同步与推送顺序见 [Git subtree指南](git-subtree-guide.md)。
 
 前端启动、验证命令、客户端页面入口和代码目录见 [前端使用说明](../../Webstorm_project/nebula_blog/README.md)。首页由 `src/views/home/index.vue` 组合，介绍组件及其脚本位于实际前端的 `src/components/client/home` 和同级 `logic` 目录；界面调整历史统一见 [更新日志](更新日志.md)。
 

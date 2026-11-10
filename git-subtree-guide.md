@@ -8,15 +8,15 @@
 | 实际前端仓库 | `D:/Webstorm_project/nebula_blog` | `master` |
 | 前端子树镜像 | 后端内的 `nebula-front` | 随后端仓库维护 |
 
-前后端保持两个独立开发路径。前端始终在实际前端仓库修改，`nebula-front` 只接收子树同步，不直接开发。后端的 `frontend` remote 当前指向实际前端本地目录，因此本地同步不依赖先推送前端远端。
+前后端保持两个独立开发路径。前端始终在实际前端仓库修改，`nebula-front` 只接收子树同步，不直接开发。后端的 `frontend` remote 指向实际前端本地目录。实际前端目前未配置远端，前端内容随 `nebula-front` 一起推送到后端 `origin/main`。
 
 问题、修复及功能记录分别见 [ISSUES.md](ISSUES.md)、[FIXES.md](FIXES.md) 和 [更新日志.md](更新日志.md)；环境与运行入口见 [LOCAL_ENVIRONMENT.md](LOCAL_ENVIRONMENT.md)。
 
 ## 提交顺序与授权
 
-用户要求提交时，顺序为：**提交实际前端 → 合入前端子树 → 提交后端**。提交说明使用中文；只有明确要求推送时，才执行远端推送。
+用户要求提交时，按 **提交实际前端 → 合入前端子树 → 提交后端 → 核对并推送** 的顺序处理，提交说明使用中文。用户明确要求仅本地提交时，止于提交。
 
-本文命令是操作参考，不代表获得提交、同步或推送授权。操作前检查两个仓库的分支、差异和未跟踪文件，保留已有成果，按本次授权范围选择文件；不要直接套用 `git add .`。
+用户的提交请求决定本次操作范围。操作前检查两个仓库的分支、差异和未跟踪文件，保留已有成果，按范围明确选择暂存文件。
 
 ## 操作参考
 
@@ -51,7 +51,7 @@ git -C D:\IDEA_project\nebula-blog subtree pull --prefix nebula-front frontend m
 
 此命令会创建子树同步提交。随后检查镜像与已提交前端内容是否一致；需要处理冲突时保留双方有效改动，不整目录覆盖。
 
-### 3. 提交后端并按授权推送
+### 3. 提交后端并推送
 
 子树合入后，检查并暂存后端本次改动，使用中文说明提交，再核对两个仓库的最终状态。示例：
 
@@ -60,11 +60,12 @@ git -C D:\IDEA_project\nebula-blog diff --cached
 git -C D:\IDEA_project\nebula-blog commit -m "完善后端功能与维护记录"
 ```
 
-仅在用户要求推送、分支和远端均已核对时执行：
+核对镜像和目标分支后，推送后端 `main`：
 
 ```powershell
-git -C D:\Webstorm_project\nebula_blog push origin master
 git -C D:\IDEA_project\nebula-blog push origin main
 ```
+
+将来若为实际前端配置独立远端，先核对该远端和目标分支，推送前端后再推送后端。
 
 没有后端独立改动时，不为凑步骤创建空提交；保留子树同步提交即可。

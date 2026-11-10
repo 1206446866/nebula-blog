@@ -32,5 +32,5 @@
 ## 项目约束
 
 - 实际前端在 `D:/Webstorm_project/nebula_blog`，`nebula-front` 是 subtree 镜像，不直接在镜像里开发。
-- 数据库操作使用 MyBatis-Flex。用户要求提交时按 `git-subtree-guide.md` 先合并前端子树，再提交后端；未要求时不擅自提交或同步子树。
+- 数据库操作使用 MyBatis-Flex。用户要求提交时按 `git-subtree-guide.md` 提交前端、合入子树、提交后端，核对后默认一并推送；用户明确要求仅本地提交时，止于提交。前端当前通过后端子树推送到远端。
 - 任务结束默认关闭项目前后端服务；不操作 Windows 服务，也不随之关闭 MySQL、Redis 或 Docker。
