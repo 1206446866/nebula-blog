@@ -281,6 +281,7 @@ for (const action of ['password', 'cancellation']) {
       const { view, dispose } = setupComponent(
         '../src/views/home/profile/ProfileInfo.vue',
         {
+          './components/DeviceSessionsDialog.vue': { default: {} },
           '@/stores/auth.ts': { useAuthStore: () => auth },
           'element-plus': {
             ElMessage: {
