@@ -41,6 +41,11 @@
             <span>修改密码</span>
           </button>
 
+          <button type="button" class="action-card" @click="deviceSessionsVisible = true">
+            <ion-icon name="desktop-outline" />
+            <span>登录设备</span>
+          </button>
+
           <button
             type="button"
             class="action-card"
@@ -89,6 +94,8 @@
       </div>
     </div>
   </div>
+
+  <DeviceSessionsDialog v-if="isSelf && deviceSessionsVisible" @close="deviceSessionsVisible = false" />
 
   <el-dialog
     v-model="passwordDialogVisible"
@@ -183,6 +190,10 @@ import type { UserProfileVO } from '@/api/profile.ts'
 import { formatDateTime } from '@/utils/date.ts'
 
 import { useProfileInfo } from './logic/useProfileInfo'
+import { ref } from 'vue'
+import DeviceSessionsDialog from './components/DeviceSessionsDialog.vue'
+
+const deviceSessionsVisible = ref(false)
 
 defineOptions({
   name: 'ProfileInfo',

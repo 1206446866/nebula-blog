@@ -3,6 +3,7 @@ import { defineCustomElement } from 'ionicons/components/ion-icon'
 import {
   chatbubbleEllipsesOutline,
   chatbubbleOutline,
+  desktopOutline,
   documentTextOutline,
   eyeOutline,
   folderOutline,
@@ -21,6 +22,7 @@ import {
 addIcons({
   'chatbubble-ellipses-outline': chatbubbleEllipsesOutline,
   'chatbubble-outline': chatbubbleOutline,
+  'desktop-outline': desktopOutline,
   'document-text-outline': documentTextOutline,
   'eye-outline': eyeOutline,
   'folder-outline': folderOutline,

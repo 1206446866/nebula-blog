@@ -10,6 +10,22 @@ export interface LoginVO {
 }
 
 export type CurrentSessionVO = Omit<LoginVO, 'token'>
+
+export interface DeviceSessionVO {
+  id: string
+  browser: string
+  os: string
+  signedInAt: string
+  expiresAt: string
+  current: boolean
+}
+
+export const listDeviceSessionsApi = (signal: AbortSignal) =>
+  request.get<Result<DeviceSessionVO[]>>('/auth/sessions', { signal, silentError: true })
+
+export const revokeDeviceSessionApi = (id: string) =>
+  request.delete<Result<boolean>>(`/auth/sessions/${encodeURIComponent(id)}`, { silentError: true })
+
 export const currentSessionApi = (token: string) =>
   request.get<Result<CurrentSessionVO>>('/auth/session', {
     headers: { Authorization: `Bearer ${token}` },
