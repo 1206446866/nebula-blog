@@ -86,7 +86,7 @@ class JwtSecretConfigurationTest {
             assertEquals("42", parsed.getPayload().getSubject());
             assertNotNull(parsed.getPayload().getId());
             assertTrue(jwt.validateToken(token));
-            verify(sessions).register(eq(parsed.getPayload().getId()), same(user), any());
+            verify(sessions).register(eq(parsed.getPayload().getId()), same(user), any(), any(), isNull());
         });
     }
 
@@ -123,5 +123,27 @@ class JwtSecretConfigurationTest {
     private static Throwable rootCause(Throwable cause) {
         while (cause.getCause() != null) cause = cause.getCause();
         return cause;
+    }
+
+    @Test
+    void changingAccountVersionRejectsOldAndLegacyTokensEvenIfRedisStillHasThem() {
+        String secret = randomKey(32);
+        var jwt = new JwtUtil(sessions, secret, 60_000);
+        var user = User.create().setId(42L).setPassword("hash").setSessionVersion(0L);
+        var old = jwt.parseToken(jwt.createToken(user));
+        var legacy = jwt.parseToken(Jwts.builder().subject("42").id(old.getId())
+                .expiration(old.getExpiration())
+                .signWith(Keys.hmacShaKeyFor(Base64.getDecoder().decode(secret)), Jwts.SIG.HS256).compact());
+        when(sessions.isActive(anyString(), same(user))).thenReturn(true);
+        assertTrue(jwt.isSessionActive(old, user));
+        assertTrue(jwt.isSessionActive(legacy, user));
+        user.setSessionVersion(2L);
+        clearInvocations(sessions);
+        assertFalse(jwt.isSessionActive(old, user));
+        assertFalse(jwt.isSessionActive(legacy, user));
+        verifyNoInteractions(sessions);
+        var current = jwt.parseToken(jwt.createToken(user));
+        assertEquals(2, ((Number) current.get("sv")).intValue());
+        assertTrue(jwt.isSessionActive(current, user));
     }
 }

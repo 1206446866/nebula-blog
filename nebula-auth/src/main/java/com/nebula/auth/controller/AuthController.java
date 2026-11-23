@@ -6,6 +6,7 @@ import io.swagger.v3.oas.annotations.tags.Tag;
 import com.nebula.auth.dto.*;
 import com.nebula.auth.service.AuthService;
 import com.nebula.auth.vo.LoginVO;
+import com.nebula.auth.vo.DeviceSessionVO;
 import com.nebula.auth.service.AuthAbuseProtection;
 import com.nebula.common.result.Result;
 import jakarta.validation.Valid;
@@ -38,7 +39,21 @@ public class AuthController {
     @PostMapping("/login")
     public Result<LoginVO> login(@Valid @RequestBody LoginDTO loginDTO, @Parameter(hidden = true) HttpServletRequest request) {
         abuseProtection.requireLoginIp(request);
-        return Result.success(authService.login(loginDTO));
+        return Result.success(authService.login(loginDTO, request.getHeader("User-Agent")));
+    }
+
+    @Operation(summary = "查看登录设备", description = "仅返回当前账号仍有效的设备会话，并标记当前会话。")
+    @GetMapping("/sessions")
+    @PreAuthorize("isAuthenticated()")
+    public Result<List<DeviceSessionVO>> listDevices() {
+        return Result.success(authService.listDevices());
+    }
+
+    @Operation(summary = "撤销另一条登录会话", description = "仅可撤销本人其他设备的活动会话。会话不存在或已失效时返回否。")
+    @DeleteMapping("/sessions/{sessionId}")
+    @PreAuthorize("isAuthenticated()")
+    public Result<Boolean> revokeDevice(@Parameter(description = "要撤销的会话标识") @PathVariable String sessionId) {
+        return Result.success(authService.revokeDevice(sessionId));
     }
 
     @Operation(summary = "退出当前登录会话",

@@ -23,7 +23,7 @@ class TokenSessionEndpointTest {
 
     @Test
     void loginMustNotReturnATokenWhenSessionRegistrationFails() throws Exception {
-        when(auth.login(any())).thenThrow(new TokenSessionUnavailableException());
+        when(auth.login(any(), any())).thenThrow(new TokenSessionUnavailableException());
         mvc.perform(post("/auth/login").contentType(MediaType.APPLICATION_JSON)
                         .content("{\"account\":\"fixture\",\"password\":\"test-password\"}"))
                 .andExpect(status().isServiceUnavailable()).andExpect(jsonPath("$.code").value(503))

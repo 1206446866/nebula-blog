@@ -46,7 +46,7 @@ public class UserController {
     }
 
     @Operation(summary = "修改用户状态",
-            description = "需user:update权限，并检查目标账号权限层级及最后一名超级管理员保护。")
+            description = "需user:update权限，并检查目标账号权限层级及最后一名超级管理员保护。状态变更会使旧会话失效。")
     @PreAuthorize("@securityUtils.hasPermission('user:update')")
     @PutMapping("/switchStatusById/{id}")
     public Result<Boolean> switchStatusById(@Parameter(description = "用户编号") @PathVariable @Min(1) Long id, @Parameter(description = "用户状态：0正常、1禁用、2锁定") @RequestParam @Min(0) @Max(2) Integer status) {

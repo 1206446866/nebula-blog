@@ -92,7 +92,12 @@ public class UserServiceImpl extends ServiceImpl<UserMapper, User> implements Us
         if (!UserStatus.NORMAL.matches(status) && hasSuperAdminRole(userId)) {
             ensureAnotherActiveSuperAdmin(userId);
         }
-        return updateById(User.create().setId(userId).setStatus(status));
+        var account = mapper.selectOneByQuery(QueryWrapper.create().where(USER.ID.eq(userId)).forUpdate());
+        if (account == null) return false;
+        if (java.util.Objects.equals(account.getStatus(), status)) return true;
+        // 锁定后在同一条更新中变更状态和会话版本，保证恢复账号时旧会话也不能恢复。
+        return updateById(User.create().setId(userId).setStatus(status)
+                .setSessionVersion(Math.incrementExact(account.currentSessionVersion())));
     }
 
     @Transactional(rollbackFor = Exception.class)

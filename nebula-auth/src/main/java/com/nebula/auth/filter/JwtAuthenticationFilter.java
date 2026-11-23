@@ -109,7 +109,9 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
             List<String> roles = roleService.getRolesByUserId(userId).stream().map(role -> role.getName()).toList();
             List<String> permissions = permissionService.getPermissionsByUserId(userId);
             com.nebula.common.security.DatabaseReadBudget.remainingSeconds();
-            return new AuthLoginUser(user, roles, permissions);
+            var principal = new AuthLoginUser(user, roles, permissions);
+            principal.setSessionId(claims.getId());
+            return principal;
         }
     }
 

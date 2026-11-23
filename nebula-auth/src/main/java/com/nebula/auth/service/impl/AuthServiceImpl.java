@@ -7,12 +7,14 @@ import com.nebula.auth.security.AuthLoginUser;
 import com.nebula.auth.service.AuthService;
 import com.nebula.auth.service.LoginLogService;
 import com.nebula.auth.service.RegistrationTokenService;
+import com.nebula.auth.service.TokenSessionService;
 import com.nebula.auth.service.AuthAbuseProtection;
 import com.nebula.auth.security.RegistrationUnavailableException;
 import com.nebula.auth.util.RegistrationEmail;
 import com.nebula.auth.token.EmailAuthenticationToken;
 import com.nebula.auth.util.JwtUtil;
 import com.nebula.auth.vo.LoginVO;
+import com.nebula.auth.vo.DeviceSessionVO;
 import com.nebula.common.constant.LoginStatus;
 import com.nebula.common.constant.RoleEnum;
 import com.nebula.common.constant.UserStatus;
@@ -80,6 +82,7 @@ public class AuthServiceImpl implements AuthService {
      * JWT 工具类
      */
     private final JwtUtil jwtUtil;
+    private final TokenSessionService sessions;
 
     private final PasswordEncoder passwordEncoder;
 
@@ -96,7 +99,7 @@ public class AuthServiceImpl implements AuthService {
     @Transactional(rollbackFor = Exception.class)
     public Boolean changePassword(ChangePasswordDTO dto) {
         LoginUser lu = SecurityUtils.getLoginUser();
-        if (Objects.isNull(lu) || Objects.isNull(lu.getPassword())) {
+        if (lu == null || lu.getPassword() == null) {
             throw new AuthenticationCredentialsNotFoundException("Authentication required");
         }
         if (dto == null) throw new BusinessException(PASSWORD_POLICY_INVALID);
@@ -108,10 +111,13 @@ public class AuthServiceImpl implements AuthService {
         User user = User.create();
         user.setId(lu.getUserId());
         user.setPassword(passwordEncoder.encode(dto.getNewPassword()));
-        // 同时匹配认证时的密码哈希，已通过认证的并发请求也不能重复修改旧密码。
+        long version = lu instanceof AuthLoginUser authenticated ? authenticated.getUser().currentSessionVersion() : 0L;
+        user.setSessionVersion(Math.incrementExact(version));
+        // 同时匹配认证时的密码和会话版本，拒绝迟到的旧请求。
         int affected = userMapper.updateByQuery(user, QueryWrapper.create()
                 .where(USER.ID.eq(lu.getUserId()))
                 .and(USER.PASSWORD.eq(lu.getPassword()))
+                .and(USER.SESSION_VERSION.eq(version))
                 .and(USER.STATUS.eq(UserStatus.NORMAL.getCode())));
         if (affected != 1) throw new BusinessException(PASSWORD_CHANGE_CONFLICT);
         return true;
@@ -152,14 +158,15 @@ public class AuthServiceImpl implements AuthService {
         }
         User target = userMapper.selectOneByQuery(QueryWrapper.create().where(USER.ID.eq(userId)).forUpdate());
         if (target == null) throw new BusinessException(com.nebula.common.exception.code.UserErrorCode.USER_NOT_FOUND);
-        int changed = userMapper.updateByQuery(User.create().setPassword(passwordEncoder.encode(dto.getNewPassword())),
+        int changed = userMapper.updateByQuery(User.create().setPassword(passwordEncoder.encode(dto.getNewPassword()))
+                        .setSessionVersion(Math.incrementExact(target.currentSessionVersion())),
                 QueryWrapper.create().where(USER.ID.eq(userId)).and(USER.PASSWORD.eq(target.getPassword())));
         if (changed != 1) throw new BusinessException(PASSWORD_CHANGE_CONFLICT);
         return true;
     }
 
     @Override
-    public LoginVO login(LoginDTO loginDTO) {
+    public LoginVO login(LoginDTO loginDTO, String userAgent) {
         loginDTO.setAccount(loginDTO.getAccount().strip());
         User account;
         String subject;
@@ -189,8 +196,29 @@ public class AuthServiceImpl implements AuthService {
         abuseProtection.credentialSucceeded("login", subject);
         loginLogService.recordLoginLog(loginUser.getUserId(), LoginStatus.SUCCESS.getCode());
         User user = loginUser.getUser();
-        String token = jwtUtil.createToken(user);
+        String token = jwtUtil.createToken(user, userAgent);
         return LoginVO.create().setToken(token).setUser(BeanUtil.copyProperties(user, UserVO.class)).setRoles(loginUser.getRoles()).setPermissions(loginUser.getPermissions());
+    }
+
+    @Override
+    public List<DeviceSessionVO> listDevices() {
+        var viewer = requireSessionViewer();
+        return sessions.listDevices(viewer.getUser(), viewer.getSessionId());
+    }
+
+    @Override
+    public boolean revokeDevice(String sessionId) {
+        var viewer = requireSessionViewer();
+        if (Objects.equals(viewer.getSessionId(), sessionId)) return false;
+        return sessions.revokeDevice(viewer.getUser(), sessionId);
+    }
+
+    /** 只允许通过当前请求的已认证主体管理本人会话。 */
+    private AuthLoginUser requireSessionViewer() {
+        if (SecurityUtils.getLoginUser() instanceof AuthLoginUser viewer && viewer.getSessionId() != null) {
+            return viewer;
+        }
+        throw new org.springframework.security.access.AccessDeniedException("请先登录");
     }
 
 

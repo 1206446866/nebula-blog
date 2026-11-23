@@ -9,7 +9,9 @@ import com.nebula.auth.dto.ChangePasswordDTO;
 import com.nebula.auth.security.AuthLoginUser;
 import com.nebula.common.constant.LoginStatus;
 import com.nebula.user.entity.User;
+import com.nebula.user.entity.UserRole;
 import com.nebula.user.mapper.UserMapper;
+import com.nebula.user.mapper.UserRoleMapper;
 import io.jsonwebtoken.Jwts;
 import io.jsonwebtoken.security.Keys;
 import org.junit.jupiter.api.AfterEach;
@@ -43,6 +45,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 @Transactional
 class TokenRevocationIntegrationTest extends JwtIntegrationTestSupport {
     @Autowired UserMapper users;
+    @Autowired UserRoleMapper userRoles;
     @Autowired PasswordEncoder passwords;
     @Autowired JwtUtil jwt;
     @Autowired MockMvc mvc;
@@ -119,6 +122,54 @@ class TokenRevocationIntegrationTest extends JwtIntegrationTestSupport {
         SecurityContextHolder.clearContext();
         mvc.perform(post("/auth/logout").header("Authorization", "Bearer " + first))
                 .andExpect(status().isUnauthorized());
+    }
+
+    @Test
+    void restoredAccountRequiresANewSessionAfterDisableOrLock() throws Exception {
+        User admin = fixture();
+        userRoles.insert(UserRole.create().setUserId(admin.getId()).setRoleId(1L));
+        String adminToken = issue(admin);
+        User owner = fixture();
+        String old = login(owner, "fixture-old-password");
+        for (String restricted : List.of("1", "2")) {
+            for (String status : List.of(restricted, "0")) {
+                SecurityContextHolder.clearContext();
+                mvc.perform(put("/users/switchStatusById/" + owner.getId()).param("status", status)
+                                .header("Authorization", "Bearer " + adminToken))
+                        .andExpect(status().isOk()).andExpect(jsonPath("$.data").value(true));
+                accessible(owner, old, false);
+            }
+            old = login(owner, "fixture-old-password");
+            accessible(owner, old, true);
+        }
+    }
+
+    @Test
+    void deviceListingAndRevocationAreScopedToTheCurrentAccountAndSession() throws Exception {
+        User owner = fixture();
+        User other = fixture();
+        String first = login(owner, "fixture-old-password");
+        String second = login(owner, "fixture-old-password");
+        String foreign = issue(other);
+        String firstId = jwt.parseToken(first).getId();
+        String secondId = jwt.parseToken(second).getId();
+        String foreignId = jwt.parseToken(foreign).getId();
+        String header = "Bearer " + first;
+        mvc.perform(get("/auth/sessions").header("Authorization", header)).andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.length()").value(2))
+                .andExpect(jsonPath("$.data[?(@.current == true)].id").value(org.hamcrest.Matchers.contains(firstId)))
+                .andExpect(jsonPath("$.data[*].token").isEmpty());
+        for (String sessionId : List.of(foreignId, firstId)) {
+            mvc.perform(delete("/auth/sessions/" + sessionId).header("Authorization", header))
+                    .andExpect(status().isOk()).andExpect(jsonPath("$.data").value(false));
+        }
+        mvc.perform(delete("/auth/sessions/" + secondId).header("Authorization", header))
+                .andExpect(status().isOk()).andExpect(jsonPath("$.data").value(true));
+        accessible(owner, second, false);
+        accessible(owner, first, true);
+        accessible(other, foreign, true);
+        mvc.perform(get("/auth/sessions").header("Authorization", header)).andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.length()").value(1));
     }
 
     @Test

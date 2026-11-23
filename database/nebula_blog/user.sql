@@ -4,6 +4,7 @@ create table if not exists user
         primary key,
     username    varchar(50)       not null,
     password    varchar(100)      not null,
+    session_version bigint default 0 not null comment '账号会话版本',
     status      tinyint default 0 null comment '状态',
     deleted     tinyint default 0 not null comment '逻辑删除 0未删除 1已删除',
     create_time datetime          null comment '创建时间',

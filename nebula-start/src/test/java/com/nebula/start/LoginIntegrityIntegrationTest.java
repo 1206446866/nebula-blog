@@ -112,7 +112,7 @@ class LoginIntegrityIntegrationTest extends JwtIntegrationTestSupport {
         assertEquals(expectedCode, body.path("code").asInt());
         assertTrue(body.path("data").path("token").isMissingNode());
         assertEquals("Unknown", log(user, expectedCode).getUserAgent());
-        verify(jwt, never()).createToken(any(User.class));
+        verify(jwt, never()).createToken(any(User.class), any());
     }
 
     @ParameterizedTest
@@ -166,7 +166,7 @@ class LoginIntegrityIntegrationTest extends JwtIntegrationTestSupport {
         var body = login(user, email, "wrong-password", null);
         assertEquals(3, body.path("code").asInt());
         assertEquals("Unknown", log(user, 3).getBrowser());
-        verify(jwt, never()).createToken(any(User.class));
+        verify(jwt, never()).createToken(any(User.class), any());
     }
 
     @ParameterizedTest
@@ -178,7 +178,7 @@ class LoginIntegrityIntegrationTest extends JwtIntegrationTestSupport {
         assertNotEquals(200, body.path("code").asInt());
         assertTrue(body.path("data").path("token").isMissingNode());
         assertEquals(0, logs.selectCountByCondition(LOGIN_LOG.USER_ID.eq(user.getId())));
-        verify(jwt, never()).createToken(any(User.class));
+        verify(jwt, never()).createToken(any(User.class), any());
     }
 
     @ParameterizedTest
@@ -195,6 +195,6 @@ class LoginIntegrityIntegrationTest extends JwtIntegrationTestSupport {
         } else {
             assertThrows(DisabledException.class, () -> authenticationManager.authenticate(request));
         }
-        verify(jwt, never()).createToken(any(User.class));
+        verify(jwt, never()).createToken(any(User.class), any());
     }
 }

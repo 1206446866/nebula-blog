@@ -5,6 +5,7 @@ import com.nebula.auth.dto.EmailVerifyDTO;
 import com.nebula.auth.dto.LoginDTO;
 import com.nebula.auth.dto.RegisterDTO;
 import com.nebula.auth.vo.LoginVO;
+import com.nebula.auth.vo.DeviceSessionVO;
 
 import java.util.List;
 
@@ -16,9 +17,23 @@ public interface AuthService {
      * 校验账号、密码和账号状态，登记会话并返回登录信息。
      *
      * @param loginDTO 账号与密码
+     * @param userAgent 浏览器标头，仅用于展示登录设备，可为空
      * @return Token、用户公开资料、角色和权限
      */
-    LoginVO login(LoginDTO loginDTO);
+    LoginVO login(LoginDTO loginDTO, String userAgent);
+
+    /**
+     * 查询当前登录账号的有效设备会话，并标识发起请求的会话。
+     * @return 本人可见的活动会话列表
+     */
+    List<DeviceSessionVO> listDevices();
+
+    /**
+     * 撤销当前账号的另一条设备会话，当前会话使用退出入口撤销。
+     * @param sessionId 要撤销的设备会话标识
+     * @return 是否撤销了仍有效且属于本人的会话
+     */
+    boolean revokeDevice(String sessionId);
 
     /**
      * 返回当前有效会话的用户、角色和权限，不返回密码或Token。

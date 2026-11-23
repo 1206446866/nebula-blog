@@ -28,11 +28,11 @@ public interface UserService extends IService<User> {
     Page<UserVO> pageUsers(String role, String username, int page, int size);
 
     /**
-     * 校验操作层级后修改用户状态，保护最后一位可用超级管理员。
+     * 校验操作层级后修改用户状态，保护最后一位可用超级管理员。状态变更会使旧会话失效。
      *
      * @param userId 目标用户ID
      * @param status 目标状态：0正常、1禁用、2锁定
-     * @return 是否修改成功
+     * @return 账号存在且已处于目标状态时返回 true
      */
     Boolean switchStatusById(Long userId, Integer status);
 

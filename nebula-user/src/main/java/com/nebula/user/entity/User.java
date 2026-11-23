@@ -29,6 +29,15 @@ public class User extends Model<User> {
 
     private String password;
 
+    /** 账号会话版本，更新后此前签发的会话统一失效。 */
+    @Column(onInsertValue = "0")
+    private Long sessionVersion;
+
+    /** 数据库默认版本为零，新建对象尚未回读时也使用该版本。 */
+    public long currentSessionVersion() {
+        return sessionVersion == null ? 0L : sessionVersion;
+    }
+
 
     /**
      * 头像

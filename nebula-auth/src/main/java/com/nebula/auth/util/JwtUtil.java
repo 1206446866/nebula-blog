@@ -64,7 +64,11 @@ public class JwtUtil {
      * @return JWT Token
      */
     public String createToken(User user) {
+        return createToken(user, null);
+    }
 
+    /** 签发账号当前版本的令牌，同时登记该会话的设备信息。 */
+    public String createToken(User user, String userAgent) {
         Date now = new Date();
 
         Date expireDate = new Date(now.getTime() + expire);
@@ -74,6 +78,7 @@ public class JwtUtil {
                 .id(sessionId)
                 // 用户唯一标识
                 .subject(String.valueOf(user.getId()))
+                .claim("sv", user.currentSessionVersion())
                 // 签发时间
                 .issuedAt(now)
                 // 过期时间
@@ -81,13 +86,22 @@ public class JwtUtil {
                 // 签名
                 .signWith(key, Jwts.SIG.HS256)
                 .compact();
-        sessions.register(sessionId, user, expireDate.toInstant());
+        sessions.register(sessionId, user, now.toInstant(), expireDate.toInstant(), userAgent);
         return token;
     }
 
     public boolean isSessionActive(Claims claims, User user) {
         return claims.getExpiration() != null && claims.getExpiration().after(new Date())
+                && matchesSessionVersion(claims, user)
                 && sessions.isActive(claims.getId(), user);
+    }
+
+    /** 升级前签发的令牌视为版本零，账号版本改变后立即失效。 */
+    private boolean matchesSessionVersion(Claims claims, User user) {
+        Object version = claims.get("sv");
+        if (version == null) return user.currentSessionVersion() == 0;
+        return (version instanceof Integer || version instanceof Long)
+                && ((Number) version).longValue() == user.currentSessionVersion();
     }
 
     public void revokeToken(String token) {

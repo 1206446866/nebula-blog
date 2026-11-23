@@ -104,7 +104,7 @@ class RequestProtectionSecurityTest {
         verifyNoInteractions(auth);
         mvc.perform(post("/auth/login").contentType("application/json").content("{\"account\":\"42\",\"password\":\"1\"}"))
                 .andExpect(status().isOk());
-        verify(auth).login(argThat(dto -> dto.getAccount().equals("42") && dto.getPassword().equals("1")));
+        verify(auth).login(argThat(dto -> dto.getAccount().equals("42") && dto.getPassword().equals("1")), any());
     }
 
     @Test void maximumEditorContentAndUnicodeSurviveTheFullChain() throws Exception {

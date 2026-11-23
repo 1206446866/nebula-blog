@@ -62,6 +62,11 @@ docker compose -f D:\DockerData\nebula-docker\docker-compose.yml ps
 - 前端生产构建使用本地图标和内容安全策略；开发模式保留热更新，正式部署仍需正确配置前端入口、API代理及HTTPS。
 - 不把密码、Token、邮箱验证码或密钥值写入文档、截图、日志及提交内容。
 
+## 会话版本迁移
+
+- 已有数据库升级时，先通过 MyBatis-Flex 应用 [会话版本迁移](database/migrations/20261123_user_session_version.sql)，再统一升级后端实例。新库的 `database/nebula_blog/user.sql` 已包含该列。
+- 登录设备记录依赖现有 Redis 服务，随会话到期。新建会话才生成设备记录，升级前的会话继续按原过期时间及账号版本校验。
+
 ## 图片与媒体配置
 
 - 默认上传根目录为后端项目的 `upload`；`file.upload-root` 可通过 `NEBULA_UPLOAD_ROOT` 设置为指定目录。从 `nebula-start` 启动时仍定位到项目根目录。

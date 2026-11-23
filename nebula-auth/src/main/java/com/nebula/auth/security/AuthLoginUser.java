@@ -25,6 +25,9 @@ public class AuthLoginUser implements LoginUser {
      */
     private User user;
 
+    /** 服务端验证通过的会话标识。 */
+    private String sessionId;
+
     /**
      * 角色标识集合
      */
