@@ -1,0 +1,96 @@
+name: 构建 Nebula 前端发布产物
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  build-frontend:
+    name: 类型检查和前端打包
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    env:
+      RELEASE_COMMIT: e82de9a204f14fbd78c4b3a6572be3514f09b9a7
+      FRONTEND_TREE: 871600d73f1039d9e8b09574d2821e734f1c5b16
+      FRONTEND_LOCK_SHA256: 0234acaa0f4aebe87024a9ad44fd37ed3cfe906f6f6477649b71212c234ec71d
+    defaults:
+      run:
+        shell: bash
+        working-directory: nebula-front
+    steps:
+      - name: 检出与后端发布一致的版本
+        uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+        with:
+          ref: ${{ env.RELEASE_COMMIT }}
+          persist-credentials: false
+
+      - name: 配置 Node.js
+        uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38 # v6
+        with:
+          node-version: '22.22.2'
+          package-manager-cache: false
+
+      - name: 核对发布提交和锁文件
+        run: |
+          test "$(git rev-parse HEAD)" = "$RELEASE_COMMIT"
+          test "$(git rev-parse HEAD:nebula-front)" = "$FRONTEND_TREE"
+          printf '%s  package-lock.json\n' "$FRONTEND_LOCK_SHA256" | sha256sum --check --strict -
+          node --version
+          npm --version
+
+      - name: 安装锁文件依赖
+        run: npm ci --no-audit --no-fund
+
+      - name: 完整 Vue 类型检查
+        env:
+          NODE_OPTIONS: --max-old-space-size=4096
+        run: /usr/bin/time -f 'vue-tsc 峰值常驻内存：%M KiB' npm run type-check
+
+      - name: 构建 Vite 静态产物
+        run: npm run build-only
+
+      - name: 核对公开静态产物并生成摘要
+        run: |
+          # 上传前检查入口、构建资源、私密文件名和可能误打包的连接配置。
+          test -s dist/index.html
+          mapfile -t assets < <(grep -oE '/assets/[A-Za-z0-9_.-]+' dist/index.html | sort -u)
+          test "${#assets[@]}" -gt 0
+          for asset in "${assets[@]}"; do
+            test -s "dist$asset"
+          done
+          if [[ -n $(find dist \( -type l -o -name '.*' -o -iname '*.pem' -o -iname '*.key' \
+              -o -iname '*.p12' -o -iname '*.pfx' -o -iname '*.map' \) -print -quit) ]]; then
+            echo '静态产物包含需人工检查的文件。' >&2
+            exit 1
+          fi
+          patterns='BEGIN (RSA |EC |OPENSSH )?PRIVATE KEY|jdbc:mysql:|(mysql|rediss?)://|gh[pousr]_[A-Za-z0-9_]{36,}|https?://[^/"[:space:]@]+:[^/"[:space:]@]+@|https?://(127\.0\.0\.1|localhost|10\.[0-9]+\.[0-9]+\.[0-9]+|192\.168\.[0-9]+\.[0-9]+|172\.(1[6-9]|2[0-9]|3[01])\.[0-9]+\.[0-9]+)([:/"[:space:]]|$)'
+          set +e
+          grep -rIEq -- "$patterns" dist
+          scan_status=$?
+          set -e
+          if [[ "$scan_status" -ne 1 ]]; then
+            echo '静态产物的凭据或内部连接检查未通过。' >&2
+            exit 1
+          fi
+
+          output="$RUNNER_TEMP/nebula-frontend-release"
+          mkdir -p "$output"
+          tar -czf "$output/nebula-frontend-dist.tar.gz" dist
+          (
+            cd "$output"
+            sha256sum nebula-frontend-dist.tar.gz > SHA256SUMS
+            printf 'source_commit=%s\nfrontend_tree=%s\npackage_lock_sha256=%s\nnode=%s\nnpm=%s\nworkflow_run_id=%s\ntype_check=passed\nvite_build=passed\n' \
+              "$RELEASE_COMMIT" "$FRONTEND_TREE" "$FRONTEND_LOCK_SHA256" "$(node --version)" "$(npm --version)" "$GITHUB_RUN_ID" \
+              > release-info.txt
+          )
+
+      - name: 上传已验收的前端产物
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7
+        with:
+          name: nebula-frontend-e82de9a-linux-x64
+          path: ${{ runner.temp }}/nebula-frontend-release/
+          if-no-files-found: error
+          compression-level: 0
+          retention-days: 14
