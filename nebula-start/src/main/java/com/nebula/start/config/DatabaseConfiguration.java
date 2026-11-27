@@ -1,6 +1,6 @@
 package com.nebula.start.config;
 
-import com.mybatisflex.spring.boot.MybatisFlexProperties;
+import com.mybatisflex.spring.boot.v4.MybatisFlexProperties;
 import org.apache.ibatis.session.SqlSessionFactory;
 import org.mybatis.spring.MyBatisExceptionTranslator;
 import org.mybatis.spring.SqlSessionTemplate;

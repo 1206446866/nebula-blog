@@ -5,16 +5,26 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 import org.springframework.boot.autoconfigure.AutoConfigurations;
 import org.springframework.boot.autoconfigure.context.PropertyPlaceholderAutoConfiguration;
-import org.springframework.boot.autoconfigure.mail.MailSenderAutoConfiguration;
+import org.springframework.boot.http.converter.autoconfigure.HttpMessageConvertersAutoConfiguration;
+import org.springframework.boot.jackson.autoconfigure.JacksonAutoConfiguration;
+import org.springframework.boot.jackson2.autoconfigure.Jackson2AutoConfiguration;
+import org.springframework.boot.mail.autoconfigure.MailSenderAutoConfiguration;
 import org.springframework.boot.test.context.ConfigDataApplicationContextInitializer;
 import org.springframework.boot.test.context.runner.ApplicationContextRunner;
+import org.springframework.boot.test.context.runner.WebApplicationContextRunner;
+import org.springframework.boot.webmvc.autoconfigure.WebMvcAutoConfiguration;
 import org.springframework.core.env.SystemEnvironmentPropertySource;
+import org.springframework.http.MediaType;
+import org.springframework.http.converter.json.MappingJackson2HttpMessageConverter;
 import org.springframework.mail.javamail.JavaMailSenderImpl;
+import org.springframework.web.servlet.mvc.method.annotation.RequestMappingHandlerAdapter;
 
 import java.io.PrintWriter;
 import java.io.StringWriter;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.time.Instant;
+import java.util.Date;
 import java.util.Map;
 import java.util.UUID;
 
@@ -102,6 +112,24 @@ class DeploymentConfigurationTest {
             assertFalse(sender.getSession().getDebug());
             assertNotNull(sender.createMimeMessage());
         });
+    }
+
+    @Test
+    void httpJsonKeepsTheExistingDateFormatWithBothJacksonVersionsPresent() {
+        new WebApplicationContextRunner()
+                .withPropertyValues("spring.config.location=classpath:application.yaml")
+                .withInitializer(new ConfigDataApplicationContextInitializer())
+                .withConfiguration(AutoConfigurations.of(JacksonAutoConfiguration.class, Jackson2AutoConfiguration.class,
+                        HttpMessageConvertersAutoConfiguration.class, WebMvcAutoConfiguration.class))
+                .run(ctx -> {
+                    assertNull(ctx.getStartupFailure());
+                    var selected = ctx.getBean(RequestMappingHandlerAdapter.class).getMessageConverters().stream()
+                            .filter(converter -> converter.canWrite(Date.class, MediaType.APPLICATION_JSON))
+                            .findFirst().orElseThrow();
+                    var converter = assertInstanceOf(MappingJackson2HttpMessageConverter.class, selected);
+                    var date = Date.from(Instant.parse("2026-11-26T00:00:00Z"));
+                    assertEquals("\"2026-11-26 08:00:00\"", converter.getObjectMapper().writeValueAsString(date));
+                });
     }
 
     private static void assertFailure(Throwable failure, String safeMessage) {
