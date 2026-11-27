@@ -8,6 +8,11 @@ import org.springframework.core.io.ClassPathResource;
 import org.springframework.stereotype.Service;
 
 import java.io.IOException;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.nio.file.StandardCopyOption;
+import java.util.ArrayList;
+import java.util.List;
 
 @Service
 public class Ip2RegionLocationServiceImpl implements LocationService {
@@ -15,19 +20,31 @@ public class Ip2RegionLocationServiceImpl implements LocationService {
     private Searcher v4Searcher;
 
     private Searcher v6Searcher;
+    private final List<Path> temporaryDatabases = new ArrayList<>(2);
 
     @PostConstruct
     public void init() throws IOException {
-        ClassPathResource v4 = new ClassPathResource("ip/ip2region_v4.xdb");
-        ClassPathResource v6 = new ClassPathResource("ip/ip2region_v6.xdb");
+        try {
+            v4Searcher = openSearcher("ip/ip2region_v4.xdb");
+            v6Searcher = openSearcher("ip/ip2region_v6.xdb");
+        } catch (IOException | RuntimeException e) {
+            destroy();
+            throw e;
+        }
+    }
 
-        v4Searcher = Searcher.newWithFileOnly(
-                v4.getFile().getAbsolutePath()
-        );
-
-        v6Searcher = Searcher.newWithFileOnly(
-                v6.getFile().getAbsolutePath()
-        );
+    /** 查询器需要随机读取磁盘文件，打包后的资源先复制到临时文件。 */
+    private Searcher openSearcher(String resourcePath) throws IOException {
+        var resource = new ClassPathResource(resourcePath);
+        if (resource.isFile()) {
+            return Searcher.newWithFileOnly(resource.getFile().getAbsolutePath());
+        }
+        Path file = Files.createTempFile("nebula-ip2region-", ".xdb");
+        temporaryDatabases.add(file);
+        try (var input = resource.getInputStream()) {
+            Files.copy(input, file, StandardCopyOption.REPLACE_EXISTING);
+        }
+        return Searcher.newWithFileOnly(file.toString());
     }
 
 
@@ -104,6 +121,14 @@ public class Ip2RegionLocationServiceImpl implements LocationService {
     public void destroy() {
         close(v4Searcher);
         close(v6Searcher);
+        for (Path file : temporaryDatabases) {
+            try {
+                Files.deleteIfExists(file);
+            } catch (IOException ignored) {
+                file.toFile().deleteOnExit();
+            }
+        }
+        temporaryDatabases.clear();
     }
 
 

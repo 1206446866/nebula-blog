@@ -4,6 +4,7 @@ import org.springframework.security.authentication.AbstractAuthenticationToken;
 import org.springframework.security.core.GrantedAuthority;
 
 import java.util.Collection;
+import java.util.List;
 
 public class PhoneAuthenticationToken extends AbstractAuthenticationToken {
 
@@ -16,7 +17,7 @@ public class PhoneAuthenticationToken extends AbstractAuthenticationToken {
      * 未认证状态
      */
     public PhoneAuthenticationToken(String phone, String password) {
-        super(null);
+        super(List.of());
         this.principal = phone;
         this.credentials = password;
         setAuthenticated(false);

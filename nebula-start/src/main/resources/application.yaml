@@ -1,6 +1,9 @@
 server:
   port: 8080
-  forward-headers-strategy: none
+  request:
+    header:
+      forwarded:
+        strategy: none
   tomcat:
     # 同时约束请求头和正文读取的空闲等待；JSON另有累计读取期限。
     connection-timeout: 5s
@@ -19,8 +22,11 @@ spring:
   application:
     name: nebula-start
 
-  #    时间格式化
-  jackson:
+  http:
+    converters:
+      # 保留现有接口的 JSON 格式。
+      preferred-json-mapper: jackson2
+  jackson2:
     date-format: yyyy-MM-dd HH:mm:ss
     time-zone: Asia/Shanghai
     serialization:
