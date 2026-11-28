@@ -10,7 +10,8 @@ public record PublicUserVO(Long id, String username, String avatar,
     /** 保留公开的外链头像，本地头像通过用户编号读取。 */
     public static String avatarUrl(Long id, String avatar) {
         if (avatar == null || avatar.isBlank()) return null;
-        if (avatar.startsWith("upload/avatar/") || avatar.startsWith("/upload/avatar/")) {
+        if (avatar.startsWith("upload/avatar/") || avatar.startsWith("/upload/avatar/")
+                || avatar.matches("[A-Za-z0-9_-]+\\.(?i:jpg|jpeg|png|gif|webp)")) {
             return "upload/public-avatar/" + id;
         }
         return avatar;

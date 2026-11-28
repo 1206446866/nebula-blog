@@ -88,6 +88,7 @@ public class MediaController {
         String path = owners.findPublicAvatar(userId);
         if (path == null) throw new BusinessException(MediaError.NOT_FOUND);
         if (path.startsWith("/")) path = path.substring(1);
+        if (!path.contains("/")) path = "upload/avatar/" + path;
         if (!path.startsWith("upload/avatar/")) throw new BusinessException(MediaError.NOT_FOUND);
         return servePublicPath(path);
     }

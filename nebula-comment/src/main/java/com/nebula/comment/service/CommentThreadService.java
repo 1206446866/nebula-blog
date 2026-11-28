@@ -14,6 +14,7 @@ import com.nebula.comment.vo.CommentVO;
 import com.nebula.common.exception.BusinessException;
 import com.nebula.common.util.PageLimits;
 import com.nebula.common.util.SecurityUtils;
+import com.nebula.user.vo.PublicUserVO;
 import lombok.RequiredArgsConstructor;
 import org.springframework.security.access.AccessDeniedException;
 import org.springframework.stereotype.Service;
@@ -68,8 +69,11 @@ public class CommentThreadService {
         Set<Long> liked = viewer == null ? Set.of() : new HashSet<>(likes.selectListByCondition(
                 COMMENT_LIKE.COMMENT_ID.in(roots).and(COMMENT_LIKE.USER_ID.eq(viewer.getUserId())))
                 .stream().map(com.nebula.comment.entity.CommentLike::getCommentId).toList());
-        result.getRecords().forEach(comment -> comment.setRootId(comment.getId())
-                .setReplyCount(totals.getOrDefault(comment.getId(), 0L)).setLiked(liked.contains(comment.getId())));
+        result.getRecords().forEach(comment -> {
+            comment.setRootId(comment.getId()).setReplyCount(totals.getOrDefault(comment.getId(), 0L))
+                    .setLiked(liked.contains(comment.getId()));
+            if (viewer == null) usePublicAvatar(comment);
+        });
         return result;
     }
 
@@ -96,9 +100,17 @@ public class CommentThreadService {
                 + "LEFT JOIN user ru ON ru.id=p.user_id AND ru.deleted=0 "
                 + "WHERE c.id<>? ORDER BY c.create_time ASC,c.id ASC LIMIT ? OFFSET ?",
                 rootId, root.getArticleId(), viewerId, rootId, size, (long) (page - 1) * size);
-        result.setRecords(rows.stream().map(row -> BeanUtil.toBean(row, CommentVO.class)
-                .setRootId(rootId).setReplyCount(0L)).toList());
+        result.setRecords(rows.stream().map(row -> {
+            var reply = BeanUtil.toBean(row, CommentVO.class).setRootId(rootId).setReplyCount(0L);
+            if (viewer == null) usePublicAvatar(reply);
+            return reply;
+        }).toList());
         return result;
+    }
+
+    /** 游客使用按用户编号读取的头像链接，避免响应携带历史上传目录。 */
+    private void usePublicAvatar(CommentVO comment) {
+        comment.setAvatar(PublicUserVO.avatarUrl(comment.getUserId(), comment.getAvatar()));
     }
 
     @Transactional(rollbackFor = Exception.class)

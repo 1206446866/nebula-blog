@@ -346,15 +346,22 @@ class ContentVisibilityIntegrationTest extends JwtIntegrationTestSupport {
 
     @Test
     void guestCommentPagesFollowArticleVisibilityAndEqualizeHiddenRootResponses() throws Exception {
+        String storageAvatar = "upload/avatar/" + reader.getNid() + "/20261128/0123456789abcdef0123456789abcdef.png";
+        String publicAvatar = "upload/public-avatar/" + reader.getId();
+        users.update(User.create().setId(reader.getId()).setAvatar(storageAvatar));
         var reply = Comment.create().setArticleId(published.getId()).setUserId(reader.getId())
                 .setParentId(publicComment.getId()).setContent(marker + " reply").setStatus(0).setLikeCount(1L);
         comments.insert(reply);
         mvc.perform(get("/comments/threads").param("articleId", published.getId().toString()))
                 .andExpect(status().isOk()).andExpect(jsonPath("$.data.records[0].liked").value(false))
+                .andExpect(jsonPath("$.data.records[0].avatar").value(publicAvatar))
                 .andExpect(jsonPath("$.data.records[0].replyCount").value(1));
         var replies = data(mvc.perform(get("/comments/{id}/replies", publicComment.getId())).andExpect(status().isOk()));
         assertEquals(List.of(reply.getId()), ids(replies));
         assertFalse(replies.path("records").get(0).path("liked").booleanValue());
+        assertEquals(publicAvatar, replies.path("records").get(0).path("avatar").asText());
+        as(reader, get("/comments/{id}/replies", publicComment.getId()))
+                .andExpect(jsonPath("$.data.records[0].avatar").value(storageAvatar));
         for (Article hidden : List.of(draft, offline, deleted)) {
             mvc.perform(get("/comments/threads").param("articleId", hidden.getId().toString()))
                     .andExpect(status().isNotFound()).andExpect(jsonPath("$.code").value(40401));

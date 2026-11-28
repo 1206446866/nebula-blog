@@ -163,6 +163,15 @@ class MediaIntegrationTest extends JwtIntegrationTestSupport {
         var list = mvc.perform(get("/media").param("business", "avatar").header("Authorization", auth)).andReturn();
         long id = json.readTree(list.getResponse().getContentAsString()).at("/data/records/0/asset/id").asLong();
         mvc.perform(delete("/media/" + id).header("Authorization", auth)).andExpect(status().isConflict());
+        String legacy = owner.getNid() + ".png";
+        var legacyFile = storage.legacyAvatar(legacy);
+        Files.createDirectories(legacyFile.getParent());
+        Files.write(legacyFile, png());
+        users.update(User.create().setId(owner.getId()).setAvatar(legacy));
+        mvc.perform(get("/users/{id}", owner.getId())).andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.avatar").value(publicPath));
+        mvc.perform(get("/" + publicPath)).andExpect(status().isOk())
+                .andExpect(content().contentType(MediaType.IMAGE_PNG));
         users.update(User.create().setId(owner.getId()).setStatus(1));
         mvc.perform(get("/" + publicPath)).andExpect(status().isNotFound());
     }
