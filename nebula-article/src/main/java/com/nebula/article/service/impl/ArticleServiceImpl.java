@@ -97,12 +97,17 @@ public class ArticleServiceImpl extends ServiceImpl<ArticleMapper, Article> impl
                 ARTICLE_LIKE.ARTICLE_ID.eq(id).and(ARTICLE_LIKE.USER_ID.eq(viewerId))) != null);
         // 互动状态和计数使用本次数据库记录，不能由历史缓存覆盖。
         articleVO.setLikeCount(article.getLikeCount() == null ? 0 : article.getLikeCount());
-        return articleVO;
+        return viewer == null ? forGuest(articleVO) : articleVO;
     }
 
     /** 将文章实体转换为详情展示对象，关联分类与标签由后续步骤补充。 */
     private ArticleVO toDetailVO(Article article) {
         return BeanUtil.copyProperties(article, ArticleVO.class);
+    }
+
+    /** 游客只读取展示字段，互动状态返回未点赞。 */
+    private ArticleVO forGuest(ArticleVO article) {
+        return article.setEditVersion(null).setScheduledPublishAt(null).setScheduleError(null).setLiked(false);
     }
 
     /** 重新读取有效分类和标签，避免详情缓存继续返回已删除的目录关联。 */
@@ -244,7 +249,11 @@ public class ArticleServiceImpl extends ServiceImpl<ArticleMapper, Article> impl
                 .and(ARTICLE.USER_ID.eq(dto.getUserId(), Objects::nonNull));
         applyCatalogFilters(query, dto);
         query.orderBy(ARTICLE.CREATE_TIME.desc(), ARTICLE.ID.desc());
-        return pageWithoutWideSort(dto.getCurrent(), dto.getSize(), query).map(a -> BeanUtil.copyProperties(a, ArticleVO.class));
+        boolean guest = SecurityUtils.getLoginUser() == null;
+        return pageWithoutWideSort(dto.getCurrent(), dto.getSize(), query).map(article -> {
+            ArticleVO view = toDetailVO(article);
+            return guest ? forGuest(view) : view;
+        });
     }
 
     /** 先按覆盖索引分页编号，再取本页完整数据，避免跳页时读取和排序整批正文；调用方须使用只读事务。 */

@@ -36,7 +36,7 @@ public class ResourceProtectionFilter extends OncePerRequestFilter {
         PathContainer path = PathContainer.parsePath(request.getRequestURI().substring(request.getContextPath().length()));
         var work = work(request.getMethod(), path);
         Long user = SecurityUtils.getLoginUser() == null ? null : SecurityUtils.getUserId();
-        if (work == null || user == null && !PUBLIC_FILE.matches(path)) {
+        if (work == null || user == null && !PUBLIC_FILE.matches(path) && !GuestReadRequests.MATCHER.matches(request)) {
             chain.doFilter(request, response); return;
         }
         ResourceGuard.Permit permit;

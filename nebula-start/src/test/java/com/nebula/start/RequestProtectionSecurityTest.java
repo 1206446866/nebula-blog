@@ -89,6 +89,36 @@ class RequestProtectionSecurityTest {
         assertEquals(3,count.get());
     }
 
+    @Test void publicReadsUseAnonymousBudgetAndReleaseItForLaterRequests() throws Exception {
+        var permits = new AtomicInteger();
+        var released = new AtomicInteger();
+        when(resources.enter(eq(ResourceGuard.Work.READ), anyString(), isNull())).thenAnswer(call -> {
+            if (permits.incrementAndGet() == 2) throw new ResourceLimitException(429, 3, "读取繁忙");
+            return (ResourceGuard.Permit) () -> released.incrementAndGet();
+        });
+        mvc.perform(get("/articles/published")).andExpect(status().isOk());
+        mvc.perform(head("/articles/1")).andExpect(status().isTooManyRequests())
+                .andExpect(header().string("Retry-After", "3"));
+        mvc.perform(head("/articles/1")).andExpect(status().isOk());
+        assertEquals(3, permits.get());
+        assertEquals(2, released.get());
+        verifyNoInteractions(users);
+    }
+
+    @Test void invalidTokensReadOnlyPublicRoutesAndGuestWritesStayProtected() throws Exception {
+        mvc.perform(get("/articles/published").header("Authorization", "Bearer invalid-token"))
+                .andExpect(status().isOk());
+        for (var request : List.of(get("/articles"), get("/articles/1/edit"), get("/articles/1/export"),
+                get("/comments"), get("/reading/1"), get("/search"), post("/articles/drafts"),
+                put("/articles/edit"), delete("/articles/1"), put("/articles/like"), put("/comments/release"))) {
+            mvc.perform(request.header("Authorization", "Bearer invalid-token")).andExpect(status().isUnauthorized());
+        }
+        verifyNoInteractions(users);
+        var service = context.getBean(ArticleService.class);
+        verify(service).pagePublishedArticles(any());
+        verifyNoMoreInteractions(service);
+    }
+
     @Test void giantJsonIsRejectedBeforeJwtOrLoginService() throws Exception {
         mvc.perform(post("/auth/login").contentType("application/json").content(" ".repeat(limits.getLoginBytes()+1))
                         .header("Authorization","Bearer "+token).with(request -> {request.removeHeader("Content-Length"); return request;}))

@@ -33,8 +33,8 @@ public class ArticleController {
     }
 
     @Operation(summary = "查询文章详情",
-            description = "需article:list权限，检查文章可见性；正常详情读取可记录浏览量。")
-    @PreAuthorize("hasAuthority('article:list')")
+            description = "游客仅可读已发布且未删除的文章。登录后需article:list权限，按当前账号检查可见性及记录浏览量。")
+    @PreAuthorize("isAnonymous() || hasAuthority('article:list')")
     @GetMapping("/{id}")
     public Result<ArticleVO> getArticleById(@Parameter(description = "文章编号") @PathVariable @Min(value = 1, message = "文章ID非法") Long id) {
         return Result.success(articleService.getArticleById(id));
@@ -90,8 +90,8 @@ public class ArticleController {
     }
 
     @Operation(summary = "分页查询已发布文章",
-            description = "需article:list权限，只返回当前可见的已发布文章。")
-    @PreAuthorize("hasAuthority('article:list')")
+            description = "游客可读。登录后需article:list权限。只返回已发布且未删除的文章。")
+    @PreAuthorize("isAnonymous() || hasAuthority('article:list')")
     @GetMapping("/published")
     public Result<Page<ArticleVO>> pagePublished(@Valid ArticlePageDTO dto) {
         return Result.success(articleService.pagePublishedArticles(dto));

@@ -27,7 +27,7 @@ public class CommentController {
     private final CommentService commentService;
 
     @Operation(summary = "分页查询文章评论主题",
-            description = "检查目标文章读取权限，返回顶层评论及回复摘要。")
+            description = "游客可读已发布且未删除的文章评论。检查目标文章可见性，返回顶层评论及回复摘要。")
     @GetMapping("/threads")
     public Result<Page<CommentVO>> pageThreads(@Parameter(description = "文章编号") @RequestParam @Min(1) Long articleId,
                                                @Parameter(description = "页码，从1开始") @RequestParam(defaultValue = "1") @Min(1) Integer currentPage,
@@ -36,7 +36,7 @@ public class CommentController {
     }
 
     @Operation(summary = "分页查询评论回复",
-            description = "检查所属文章读取权限，返回指定根评论的回复。")
+            description = "游客可读已发布且未删除的文章回复。检查所属文章可见性，返回指定根评论的回复。")
     @GetMapping("/{rootId}/replies")
     public Result<Page<CommentVO>> pageReplies(@Parameter(description = "根评论编号") @PathVariable @Min(1) Long rootId,
                                                @Parameter(description = "页码，从1开始") @RequestParam(defaultValue = "1") @Min(1) Integer currentPage,

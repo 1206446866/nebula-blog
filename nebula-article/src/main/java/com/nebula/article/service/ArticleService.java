@@ -23,10 +23,10 @@ public interface ArticleService extends IService<Article> {
 
 
     /**
-     * 读取有权查看的文章详情，已发布文章按规则记录浏览量。
+     * 读取有权查看的文章详情。游客只能读取已发布且未删除的文章，不记录浏览量。
      *
      * @param id 文章ID
-     * @return 文章详情及当前用户的点赞状态
+     * @return 文章详情及当前用户的点赞状态，游客返回未点赞
      */
     ArticleVO getArticleById(Long id);
 
@@ -71,7 +71,7 @@ public interface ArticleService extends IService<Article> {
     boolean changeArticleStatus(ChangeArticleStatusDto dto);
 
     /**
-     * 按分类、标签等条件分页查询已发布且未删除的文章。
+     * 按分类、标签等条件分页查询已发布且未删除的文章，游客可以读取。
      *
      * @param dto 分页与筛选条件
      * @return 已发布文章分页结果

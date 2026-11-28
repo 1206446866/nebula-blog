@@ -9,11 +9,15 @@ import com.nebula.article.service.ArticleService;
 import com.nebula.article.vo.ArticleVO;
 import com.nebula.auth.security.AuthLoginUser;
 import com.nebula.auth.util.JwtUtil;
+import com.nebula.category.entity.Category;
+import com.nebula.category.mapper.CategoryMapper;
 import com.nebula.comment.entity.Comment;
 import com.nebula.comment.mapper.CommentLikeMapper;
 import com.nebula.comment.mapper.CommentMapper;
 import com.nebula.comment.service.CommentService;
 import com.nebula.common.redis.RedisService;
+import com.nebula.tag.entity.Tag;
+import com.nebula.tag.mapper.TagMapper;
 import com.nebula.user.entity.User;
 import com.nebula.user.entity.UserRole;
 import com.nebula.user.mapper.UserMapper;
@@ -36,6 +40,7 @@ import org.springframework.test.web.servlet.request.MockHttpServletRequestBuilde
 import org.springframework.transaction.annotation.Transactional;
 
 import java.util.ArrayList;
+import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
@@ -61,6 +66,8 @@ class ContentVisibilityIntegrationTest extends JwtIntegrationTestSupport {
     @Autowired ArticleMapper articles;
     @Autowired CommentMapper comments;
     @Autowired CommentLikeMapper commentLikes;
+    @Autowired CategoryMapper categories;
+    @Autowired TagMapper tags;
     @Autowired ArticleService articleService;
     @Autowired CommentService commentService;
     @Autowired JwtUtil jwt;
@@ -313,6 +320,75 @@ class ContentVisibilityIntegrationTest extends JwtIntegrationTestSupport {
                 .getRecords().stream().map(comment -> comment.getId()).toList());
         mvc.perform(get("/articles")).andExpect(status().isUnauthorized());
         mvc.perform(get("/comments")).andExpect(status().isUnauthorized());
+    }
+
+    @Test
+    void guestsReadOnlyPublishedArticlesAndDoNotRecordPersonalActivity() throws Exception {
+        articles.update(Article.create().setId(draft.getId()).setScheduledPublishAt(LocalDateTime.now().plusDays(1)));
+        var visible = data(mvc.perform(get("/articles/published").param("title", marker)).andExpect(status().isOk()));
+        assertEquals(List.of(published.getId()), ids(visible));
+        assertEquals(1, visible.path("totalRow").asInt());
+        assertFalse(visible.path("records").get(0).path("liked").booleanValue());
+        mvc.perform(get("/articles/{id}", published.getId())).andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.content").value(published.getContent()))
+                .andExpect(jsonPath("$.data.liked").value(false))
+                .andExpect(jsonPath("$.data.editVersion").isEmpty());
+        for (Article hidden : List.of(draft, ownDraft, offline, deleted)) {
+            mvc.perform(get("/articles/{id}", hidden.getId())).andExpect(status().isNotFound())
+                    .andExpect(jsonPath("$.code").value(40401));
+        }
+        assertEquals(0L, articles.selectOneById(published.getId()).getViewCount());
+        verifyNoInteractions(redis);
+    }
+
+    @Test
+    void guestCommentPagesFollowArticleVisibilityAndEqualizeHiddenRootResponses() throws Exception {
+        var reply = Comment.create().setArticleId(published.getId()).setUserId(reader.getId())
+                .setParentId(publicComment.getId()).setContent(marker + " reply").setStatus(0).setLikeCount(1L);
+        comments.insert(reply);
+        mvc.perform(get("/comments/threads").param("articleId", published.getId().toString()))
+                .andExpect(status().isOk()).andExpect(jsonPath("$.data.records[0].liked").value(false))
+                .andExpect(jsonPath("$.data.records[0].replyCount").value(1));
+        var replies = data(mvc.perform(get("/comments/{id}/replies", publicComment.getId())).andExpect(status().isOk()));
+        assertEquals(List.of(reply.getId()), ids(replies));
+        assertFalse(replies.path("records").get(0).path("liked").booleanValue());
+        for (Article hidden : List.of(draft, offline, deleted)) {
+            mvc.perform(get("/comments/threads").param("articleId", hidden.getId().toString()))
+                    .andExpect(status().isNotFound()).andExpect(jsonPath("$.code").value(40401));
+        }
+        for (long id : List.of(privateComment.getId(), offlineComment.getId(), deletedArticleComment.getId(), Long.MAX_VALUE)) {
+            mvc.perform(get("/comments/{id}/replies", id)).andExpect(status().isNotFound())
+                    .andExpect(jsonPath("$.code").value(5001)).andExpect(jsonPath("$.data").isEmpty());
+        }
+        articles.update(Article.create().setId(published.getId()).setStatus(2));
+        mvc.perform(get("/comments/{id}/replies", publicComment.getId())).andExpect(status().isNotFound())
+                .andExpect(jsonPath("$.code").value(5001));
+    }
+
+    @Test
+    void guestsReadActiveCatalogsAndAuthenticatedPermissionsStillApply() throws Exception {
+        var category = Category.create().setName(marker);
+        var deletedCategory = Category.create().setName(marker + "_hidden");
+        var tag = Tag.create().setName(marker);
+        var deletedTag = Tag.create().setName(marker + "_hidden");
+        categories.insert(category);
+        categories.insert(deletedCategory);
+        tags.insert(tag);
+        tags.insert(deletedTag);
+        categories.deleteById(deletedCategory.getId());
+        tags.deleteById(deletedTag.getId());
+        assertEquals(List.of(category.getId()), ids(data(mvc.perform(get("/categories").param("name", marker)))));
+        assertEquals(List.of(tag.getId()), ids(data(mvc.perform(get("/tags").param("name", marker)))));
+        for (String endpoint : List.of("/categories/list", "/tags/list")) {
+            var names = StreamSupport.stream(data(mvc.perform(get(endpoint))).spliterator(), false)
+                    .map(item -> item.path("name").asText()).toList();
+            assertTrue(names.contains(marker));
+            assertFalse(names.contains(marker + "_hidden"));
+        }
+        User noPermissions = user(null);
+        as(noPermissions, get("/categories/list")).andExpect(status().isForbidden());
+        as(noPermissions, get("/tags/list")).andExpect(status().isForbidden());
+        as(noPermissions, get("/articles/{id}", published.getId())).andExpect(status().isForbidden());
     }
 
     @Test

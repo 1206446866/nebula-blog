@@ -29,16 +29,16 @@ public class TagController {
     private final TagService tagService;
 
     @Operation(summary = "分页查询标签",
-            description = "需tag:list权限，支持名称筛选。")
-    @PreAuthorize("hasAuthority('tag:list')")
+            description = "游客可读。登录后需tag:list权限。支持按名称筛选有效标签。")
+    @PreAuthorize("isAnonymous() || hasAuthority('tag:list')")
     @GetMapping
     public Result<Page<TagVO>> pageTags(@Parameter(description = "名称筛选条件") @RequestParam(required = false) String name, @Parameter(description = "页码，从1开始") @RequestParam(defaultValue = "1") @Min(1) int current, @Parameter(description = "每页数量，以当前接口校验上限为准") @RequestParam(defaultValue = "10") @Min(1) @Max(100) int size) {
         return Result.success(tagService.pageTags(name, current, size, null, false));
     }
 
     @Operation(summary = "查询标签列表",
-            description = "需tag:list权限，返回标签列表。")
-    @PreAuthorize("hasAuthority('tag:list')")
+            description = "游客可读。登录后需tag:list权限。返回有效标签。")
+    @PreAuthorize("isAnonymous() || hasAuthority('tag:list')")
     @GetMapping("list")
     public Result<List<TagVO>> listTags() {
         return Result.success(tagService.listTags());

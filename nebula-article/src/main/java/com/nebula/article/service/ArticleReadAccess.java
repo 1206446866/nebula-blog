@@ -24,16 +24,17 @@ public class ArticleReadAccess {
         return ARTICLE.DELETED.eq(0).and(ARTICLE.STATUS.eq(ArticleStatus.PUBLISHED.getCode()));
     }
 
-    /** 生成当前用户的文章可见范围，统一保护草稿与逻辑删除数据。 */
+    /** 游客只读取已发布文章，登录后按现有角色和文章归属计算可见范围。 */
     public QueryCondition readableCondition() {
+        var viewer = SecurityUtils.getLoginUser();
+        if (viewer == null || viewer.getUserId() == null) {
+            return publishedCondition();
+        }
         if (SecurityUtils.isAdmin() && SecurityUtils.hasPermission("article:list")) {
             return ARTICLE.DELETED.eq(0);
         }
-        var viewer = SecurityUtils.getLoginUser();
-        QueryCondition visibility = ARTICLE.STATUS.eq(ArticleStatus.PUBLISHED.getCode());
-        if (viewer != null && viewer.getUserId() != null) {
-            visibility = visibility.or(ARTICLE.USER_ID.eq(viewer.getUserId()));
-        }
+        QueryCondition visibility = ARTICLE.STATUS.eq(ArticleStatus.PUBLISHED.getCode())
+                .or(ARTICLE.USER_ID.eq(viewer.getUserId()));
         return ARTICLE.DELETED.eq(0).and(visibility);
     }
 

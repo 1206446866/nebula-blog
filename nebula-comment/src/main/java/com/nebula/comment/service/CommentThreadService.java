@@ -76,12 +76,14 @@ public class CommentThreadService {
     @Transactional(readOnly = true)
     public Page<CommentVO> pageReplies(Long rootId, int page, int size) {
         PageLimits.requireValid(page, size);
-        Comment root = requireComment(rootId);
-        readAccess.requireReadableArticle(root.getArticleId());
-        if (root.getParentId() != null && root.getParentId() != 0) throw new BusinessException(COMMENT_REPLY_INVALID);
+        var viewer = SecurityUtils.getLoginUser();
+        Comment root = viewer == null ? requirePublicRoot(rootId) : requireComment(rootId);
+        if (viewer != null) {
+            readAccess.requireReadableArticle(root.getArticleId());
+            if (root.getParentId() != null && root.getParentId() != 0) throw new BusinessException(COMMENT_REPLY_INVALID);
+        }
         long count = Db.selectOneBySql(THREAD + "SELECT COUNT(*)-1 AS total FROM thread", rootId, root.getArticleId()).getLong("total");
         Page<CommentVO> result = Page.of(page, size, Math.max(0, count));
-        var viewer = SecurityUtils.getLoginUser();
         Long viewerId = viewer == null ? -1L : viewer.getUserId();
         var rows = Db.selectListBySql(THREAD
                 + "SELECT c.id,c.article_id AS articleId,c.user_id AS userId,c.parent_id AS parentId,"
@@ -162,6 +164,17 @@ public class CommentThreadService {
         Comment comment = comments.selectOneById(id);
         if (comment == null) throw new BusinessException(COMMENT_NOT_FOUND);
         return comment;
+    }
+
+    /** 游客只能按公开文章的根评论分页，隐藏评论与不存在的评论返回相同结果。 */
+    private Comment requirePublicRoot(Long id) {
+        if (id == null || id < 1) throw new BusinessException(COMMENT_NOT_FOUND);
+        Comment root = comments.selectOneByQuery(QueryWrapper.create()
+                .where(COMMENT.ID.eq(id))
+                .and(COMMENT.PARENT_ID.eq(0).or(COMMENT.PARENT_ID.isNull()))
+                .and(COMMENT.ARTICLE_ID.in(readAccess.readableArticleIds())));
+        if (root == null) throw new BusinessException(COMMENT_NOT_FOUND);
+        return root;
     }
 
     /** 锁定当前可读文章，使评论写入与文章撤回、删除按顺序执行。 */

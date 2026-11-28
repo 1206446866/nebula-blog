@@ -60,6 +60,7 @@ public class SecurityConfig {
                                 "/auth/email/verify").permitAll()
                         // 静态资源放行
                         .requestMatchers("/upload/**").permitAll()
+                        .requestMatchers(GuestReadRequests.MATCHER).permitAll()
                         // 文档默认关闭；显式开启后也仅允许超级管理员携带有效Token访问。
                         .requestMatchers("/swagger-ui.html", "/swagger-ui/**", "/v3/api-docs/**").hasRole("SUPER_ADMIN")
                         // 其他请求需要认证

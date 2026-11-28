@@ -29,8 +29,8 @@ public class CategoryController {
     private final CategoryService categoryService;
 
     @Operation(summary = "分页查询分类",
-            description = "需category:list权限，支持名称筛选。")
-    @PreAuthorize("hasAuthority('category:list')")
+            description = "游客可读。登录后需category:list权限。支持按名称筛选有效分类。")
+    @PreAuthorize("isAnonymous() || hasAuthority('category:list')")
     @GetMapping
     public Result<Page<CategoryVO>> pageCategories(@Parameter(description = "名称筛选条件") @RequestParam(required = false) String name,
                                                    @Parameter(description = "页码，从1开始") @RequestParam(defaultValue = "1") @Min(1) int currentPage,
@@ -39,8 +39,8 @@ public class CategoryController {
     }
 
     @Operation(summary = "查询分类列表",
-            description = "需category:list权限，返回分类列表。")
-    @PreAuthorize("hasAuthority('category:list')")
+            description = "游客可读。登录后需category:list权限。返回有效分类。")
+    @PreAuthorize("isAnonymous() || hasAuthority('category:list')")
     @GetMapping("/list")
     public Result<List<CategoryVO>> listCategories(){
         return Result.success(categoryService.listCategories());

@@ -535,7 +535,7 @@ class AdminManagementIntegrityIntegrationTest extends JwtIntegrationTestSupport 
         request(reader, get("/comments/threads").param("articleId", article.getId().toString()), 404);
         request(reader, get("/comments/" + parent.getId() + "/replies"), 404);
         request(reader, body(put("/comments/release"), Map.of("articleId", article.getId(), "parentId", parent.getId(), "content", marker + " rejected")), 404);
-        request(null, get("/comments/" + parent.getId() + "/replies"), 401);
+        request(null, get("/comments/" + parent.getId() + "/replies"), 404);
     }
 
     @Test void replyInputAndPaginationAreValidated() throws Exception {
