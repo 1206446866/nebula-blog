@@ -73,7 +73,7 @@ export const useAuthStore = defineStore('auth', {
       this.roles = roles
       this.permissions = permissions
       this.verifiedToken = token
-      persistAuth(localStorage, this)
+      // 复核结果只更新当前页面，避免旧响应改写另一个标签页刚发布的会话。
       return true
     },
 
@@ -157,9 +157,9 @@ export const useAuthStore = defineStore('auth', {
       this.user = null
       this.roles = []
       this.permissions = []
-      // 迟到的过期处理不能移除另一个标签页刚保存的新会话。
+      // 只清理本人令牌。空令牌时，另一个标签页可能正在写入新会话。
       try {
-        if ((localStorage.getItem('token') ?? '') === previousToken) persistAuth(localStorage, this)
+        if (previousToken && localStorage.getItem('token') === previousToken) persistAuth(localStorage, this)
       } catch {
         /* 存储不可用时，内存会话仍会清理。 */
       }

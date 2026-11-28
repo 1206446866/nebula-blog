@@ -76,9 +76,12 @@ const settle = async () => {
 
 async function harness(path = '/user/1', guest = false) {
   const storage = new Map()
+  const rechecks = new Set()
+  const page = Object.assign(new EventTarget(), { hidden: false })
   const state = {
     server: identity(1),
     wait: null,
+    sessionError: null,
     mounts: 0,
     unmounts: 0,
     logouts: 0,
@@ -91,7 +94,10 @@ async function harness(path = '/user/1', guest = false) {
     {
       pinia: piniaModule,
       '@/api/auth.ts': {
-        currentSessionApi: async () => ({ data: state.wait ? await state.wait : state.server }),
+        currentSessionApi: async () => {
+          if (state.sessionError) throw state.sessionError
+          return { data: state.wait ? await state.wait : state.server }
+        },
         logoutApi: async () => {
           state.logouts++
           if (state.logoutFailure) throw state.logoutFailure
@@ -162,7 +168,16 @@ async function harness(path = '/user/1', guest = false) {
     '@/stores/auth': { useAuthStore },
     '@/router/policy': policy,
     '@/utils/session-cache': cache,
-  }, { setTimeout, clearTimeout }).default
+  }, {
+    setTimeout,
+    clearTimeout,
+    setInterval: (check) => {
+      rechecks.add(check)
+      return check
+    },
+    clearInterval: (check) => rechecks.delete(check),
+    document: page,
+  }).default
   await router.push(path)
   const container = document.createElement('div')
   document.body.append(container)
@@ -175,6 +190,11 @@ async function harness(path = '/user/1', guest = false) {
     storage,
     router,
     container,
+    page,
+    async recheck() {
+      await Promise.all([...rechecks].map((check) => check()))
+      await settle()
+    },
     cleanup: () => {
       app.unmount()
       container.remove()
@@ -192,6 +212,81 @@ test('公开页面退出后卸载旧账号内容并在同一路径加载游客�
     assert.doesNotMatch(h.container.textContent, /private-user-1/)
     assert.match(h.container.textContent, /guest-public/)
     assert.equal(h.state.unmounts, 1)
+  } finally {
+    h.cleanup()
+  }
+})
+
+test('服务端撤销后原地降为游客并卸载已加载的私人内容', async () => {
+  const h = await harness('/user/1?tab=comments#latest', true)
+  try {
+    assert.match(h.container.textContent, /private-user-1/)
+    h.storage.set('nebula-writing-v1:1:new:tab', JSON.stringify({ time: Date.now(), draft: {} }))
+    h.state.sessionError = { response: { status: 401 } }
+    await h.recheck()
+    assert.equal(h.router.currentRoute.value.fullPath, '/user/1?tab=comments#latest')
+    assert.equal(h.storage.has('token'), false)
+    assert.match(h.container.textContent, /guest-public/)
+    assert.doesNotMatch(h.container.textContent, /private-user-1/)
+    assert.ok(h.storage.has('nebula-writing-v1:1:new:tab'))
+  } finally {
+    h.cleanup()
+  }
+})
+
+test('服务暂不可用时保留会话，下一次复核仍能识别撤销', async () => {
+  const h = await harness('/user/1', true)
+  try {
+    h.state.sessionError = { response: { status: 503 } }
+    await h.recheck()
+    assert.ok(h.auth.getToken())
+    assert.match(h.container.textContent, /private-user-1/)
+
+    h.state.sessionError = { response: { status: 401 } }
+    await h.recheck()
+    assert.equal(h.auth.getToken(), '')
+    assert.match(h.container.textContent, /guest-public/)
+  } finally {
+    h.cleanup()
+  }
+})
+
+test('后台标签页暂停复核，恢复可见时回到私人页面的登录入口', async () => {
+  const h = await harness('/user/1?tab=comments#latest')
+  try {
+    h.state.sessionError = { code: 401 }
+    h.page.hidden = true
+    await h.recheck()
+    assert.match(h.container.textContent, /private-user-1/)
+
+    h.page.hidden = false
+    h.page.dispatchEvent(new Event('visibilitychange'))
+    await new Promise(setImmediate)
+    assert.equal(h.router.currentRoute.value.path, '/login')
+    assert.equal(h.router.currentRoute.value.query.redirect, '/user/1?tab=comments#latest')
+    assert.doesNotMatch(h.container.textContent, /private-user-1/)
+  } finally {
+    h.cleanup()
+  }
+})
+
+test('旧会话复核迟到的 401 不会清除新会话', async () => {
+  const h = await harness('/user/1', true)
+  try {
+    let revokeOld
+    h.state.wait = new Promise((_, reject) => { revokeOld = reject })
+    void h.state.wait.catch(() => {})
+    const oldCheck = h.recheck()
+    await settle()
+    h.state.wait = null
+    h.state.server = identity(2)
+    const newToken = token(2)
+    h.auth.setAuth({ token: newToken, ...identity(2) })
+    await h.router.replace({ path: '/user/1', force: true })
+    revokeOld({ response: { status: 401 } })
+    await oldCheck
+    assert.equal(h.auth.getToken(), newToken)
+    assert.match(h.container.textContent, /private-user-2/)
   } finally {
     h.cleanup()
   }
@@ -216,6 +311,53 @@ test('switching accounts removes the old mounted private view before the new ses
     await settle()
     assert.match(h.container.textContent, /private-user-2/)
     assert.equal(h.state.mounts, 2)
+  } finally {
+    h.cleanup()
+  }
+})
+
+test('跨标签页换号尚未写入新令牌时，游客导航不会清除新账号资料', async () => {
+  const h = await harness('/user/1', true)
+  try {
+    const next = identity(2)
+    const nextToken = token(2)
+    h.storage.delete('token')
+    h.storage.set('user', JSON.stringify(next.user))
+    h.storage.set('roles', JSON.stringify(next.roles))
+    h.storage.set('permissions', JSON.stringify(next.permissions))
+    h.auth.syncFromStorage()
+    await h.router.replace({ path: '/user/1', force: true })
+    assert.match(h.container.textContent, /guest-public/)
+    assert.deepEqual(JSON.parse(h.storage.get('user')), next.user)
+
+    h.storage.set('token', nextToken)
+    h.state.server = next
+    h.auth.syncFromStorage()
+    await h.router.replace({ path: '/user/1', force: true })
+    assert.equal(h.auth.getToken(), nextToken)
+    assert.match(h.container.textContent, /private-user-2/)
+  } finally {
+    h.cleanup()
+  }
+})
+
+test('当前标签页尚未收到换号通知时，旧会话响应也不能覆盖新账号缓存', async () => {
+  const h = await harness('/user/1', true)
+  try {
+    let resolveOld
+    h.state.wait = new Promise((resolve) => { resolveOld = resolve })
+    const oldCheck = h.recheck()
+    await settle()
+    const next = identity(2)
+    const nextToken = token(2)
+    h.storage.set('user', JSON.stringify(next.user))
+    h.storage.set('roles', JSON.stringify(next.roles))
+    h.storage.set('permissions', JSON.stringify(next.permissions))
+    h.storage.set('token', nextToken)
+    resolveOld(identity(1))
+    await oldCheck
+    assert.equal(h.storage.get('token'), nextToken)
+    assert.deepEqual(JSON.parse(h.storage.get('user')), next.user)
   } finally {
     h.cleanup()
   }
