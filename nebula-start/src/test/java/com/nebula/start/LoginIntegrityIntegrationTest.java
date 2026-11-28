@@ -100,8 +100,8 @@ class LoginIntegrityIntegrationTest extends JwtIntegrationTestSupport {
         assertFalse(token.isBlank());
         assertTrue(jwt.isSessionActive(jwt.parseToken(token), user));
         SecurityContextHolder.clearContext();
-        mvc.perform(get("/users/" + user.getId()).header("Authorization", "Bearer " + token))
-                .andExpect(status().isOk()).andExpect(jsonPath("$.code").value(200));
+        mvc.perform(get("/auth/session").header("Authorization", "Bearer " + token))
+                .andExpect(status().isOk()).andExpect(jsonPath("$.data.user.id").value(user.getId()));
     }
 
     @ParameterizedTest

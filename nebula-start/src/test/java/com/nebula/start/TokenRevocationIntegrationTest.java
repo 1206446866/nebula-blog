@@ -90,8 +90,9 @@ class TokenRevocationIntegrationTest extends JwtIntegrationTestSupport {
 
     private void accessible(User user, String token, boolean allowed) throws Exception {
         SecurityContextHolder.clearContext();
-        mvc.perform(get("/users/" + user.getId()).header("Authorization", "Bearer " + token))
+        var response = mvc.perform(get("/auth/session").header("Authorization", "Bearer " + token))
                 .andExpect(allowed ? status().isOk() : status().isUnauthorized());
+        if (allowed) response.andExpect(jsonPath("$.data.user.id").value(user.getId()));
     }
 
     private void change(String token, String oldPassword, String newPassword, String confirm, int code) throws Exception {

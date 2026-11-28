@@ -120,11 +120,11 @@ class HttpBoundaryIntegrationTest extends JwtIntegrationTestSupport {
 
     @Test
     void actualAndNonPreflightRequestsStillRequireAuthentication() throws Exception {
-        mvc.perform(get("/users/1").header(HttpHeaders.ORIGIN, ORIGIN))
+        mvc.perform(get("/auth/session").header(HttpHeaders.ORIGIN, ORIGIN))
                 .andExpect(status().isUnauthorized()).andExpect(jsonPath("$.code").value(401))
                 .andExpect(header().string(HttpHeaders.ACCESS_CONTROL_ALLOW_ORIGIN, ORIGIN));
-        mvc.perform(options("/users/1")).andExpect(status().isUnauthorized());
-        mvc.perform(get("/users/1").header(HttpHeaders.ORIGIN, ORIGIN).header(HttpHeaders.AUTHORIZATION, "Bearer malformed"))
+        mvc.perform(options("/auth/session")).andExpect(status().isUnauthorized());
+        mvc.perform(get("/auth/session").header(HttpHeaders.ORIGIN, ORIGIN).header(HttpHeaders.AUTHORIZATION, "Bearer malformed"))
                 .andExpect(status().isUnauthorized()).andExpect(jsonPath("$.code").value(401))
                 .andExpect(header().string(HttpHeaders.ACCESS_CONTROL_ALLOW_ORIGIN, ORIGIN));
     }

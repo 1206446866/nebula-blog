@@ -127,7 +127,10 @@ class ResourceProtectionIntegrationTest extends JwtIntegrationTestSupport {
                 .andExpect(status().isTooManyRequests()).andExpect(jsonPath("$.code").value(429))
                 .andExpect(header().exists("Retry-After")).andExpect(header().string("Cache-Control","no-store"))
                 .andExpect(header().string("Access-Control-Expose-Headers",org.hamcrest.Matchers.containsString("Retry-After")));
-        mvc.perform(get("/search").header("Authorization","Bearer invalid")).andExpect(status().isUnauthorized());
+        mvc.perform(get("/search").header("Authorization", "Bearer invalid"))
+                .andExpect(status().isOk()).andExpect(jsonPath("$.data.page.records").isEmpty());
+        mvc.perform(get("/auth/session").header("Authorization", "Bearer invalid"))
+                .andExpect(status().isUnauthorized());
     }
     @Test void anonymousImagesShareTrustedIpBudgetDespiteSpoofedForwardingHeaders() throws Exception {
         rates.getRead().setIp(3);

@@ -176,8 +176,11 @@ class AdministrativeBoundaryIntegrationTest extends JwtIntegrationTestSupport {
                         .contentType(MediaType.APPLICATION_JSON).content(json.writeValueAsString(reset(PASSWORD, NEW_PASSWORD))))
                 .andExpect(status().isOk()).andExpect(jsonPath("$.data").value(true));
         assertTrue(passwords.matches(NEW_PASSWORD, users.selectOneById(target.getId()).getPassword()));
-        for (String old : List.of(first, second)) mvc.perform(get("/users/" + target.getId()).header("Authorization", old)).andExpect(status().isUnauthorized());
-        mvc.perform(get("/users/" + root.getId()).header("Authorization", operator)).andExpect(status().isOk());
+        for (String old : List.of(first, second)) {
+            mvc.perform(get("/auth/session").header("Authorization", old)).andExpect(status().isUnauthorized());
+        }
+        mvc.perform(get("/auth/session").header("Authorization", operator))
+                .andExpect(status().isOk()).andExpect(jsonPath("$.data.user.id").value(root.getId()));
         var response = mvc.perform(post("/auth/login").contentType(MediaType.APPLICATION_JSON)
                         .content(json.writeValueAsString(Map.of("account", target.getNid(), "password", NEW_PASSWORD))))
                 .andExpect(status().isOk()).andExpect(jsonPath("$.code").value(200)).andReturn();
@@ -260,14 +263,15 @@ class AdministrativeBoundaryIntegrationTest extends JwtIntegrationTestSupport {
         doReturn(0).when(users).updateByQuery(any(User.class), any(QueryWrapper.class));
         reset(root, target, reset(PASSWORD, NEW_PASSWORD), 409, 40920);
         assertEquals(target.getPassword(), users.selectOneById(target.getId()).getPassword());
-        mvc.perform(get("/users/" + target.getId()).header("Authorization", old)).andExpect(status().isOk());
+        mvc.perform(get("/auth/session").header("Authorization", old))
+                .andExpect(status().isOk()).andExpect(jsonPath("$.data.user.id").value(target.getId()));
     }
 
     @Test void resettingToTheSamePlaintextStillRevokesOldSessions() throws Exception {
         var root = user(1L); var target = user(3L); String old = bearer(target);
         reset(root, target, reset(PASSWORD, PASSWORD), 200, 200);
         assertNotEquals(target.getPassword(), users.selectOneById(target.getId()).getPassword());
-        mvc.perform(get("/users/" + target.getId()).header("Authorization", old)).andExpect(status().isUnauthorized());
+        mvc.perform(get("/auth/session").header("Authorization", old)).andExpect(status().isUnauthorized());
     }
 
     @Test void loginLogsUseThePeerAddressRatherThanForgedForwardingHeaders() throws Exception {

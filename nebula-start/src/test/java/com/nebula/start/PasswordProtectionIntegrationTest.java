@@ -72,7 +72,7 @@ class PasswordProtectionIntegrationTest extends JwtIntegrationTestSupport {
                 .andExpect(status().isOk()).andDo(result->tokens.add(json.readTree(result.getResponse().getContentAsString()).path("data").path("token").asText()));
         assertEquals(200,change(old,"123","123456","192.0.2.1").getResponse().getStatus());
         assertTrue(encoder.matches("123456",users.selectOneById(user.getId()).getPassword()));
-        mvc.perform(get("/users/"+user.getId()).header("Authorization","Bearer "+old)).andExpect(status().isUnauthorized());
+        mvc.perform(get("/auth/session").header("Authorization","Bearer "+old)).andExpect(status().isUnauthorized());
     }
     @Test void oldShortPasswordCanConfirmCancellation()throws Exception{
         User user=fixture(3L);assertEquals(200,cancel(token(user),"123").getResponse().getStatus());assertNull(users.selectOneById(user.getId()));
