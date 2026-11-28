@@ -130,7 +130,7 @@ class AccountCancellationIntegrationTest extends JwtIntegrationTestSupport {
         SecurityContextHolder.clearContext();
         mvc.perform(get("/api/profile/" + owner.getId())
                         .header("Authorization", "Bearer " + existingToken))
-                .andExpect(status().isUnauthorized());
+                .andExpect(status().isNotFound()).andExpect(jsonPath("$.code").value(40101));
         String bystanderToken = jwt.createToken(bystander);
         sessionTokens.add(bystanderToken);
         mvc.perform(get("/users/" + owner.getId()).header("Authorization", "Bearer " + bystanderToken))

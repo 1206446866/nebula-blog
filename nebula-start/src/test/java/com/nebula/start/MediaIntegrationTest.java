@@ -154,9 +154,17 @@ class MediaIntegrationTest extends JwtIntegrationTestSupport {
         assertTrue(path.startsWith("upload/avatar/" + owner.getNid() + "/"));
         assertEquals(path, users.selectOneById(owner.getId()).getAvatar());
         mvc.perform(get("/" + path)).andExpect(status().isOk());
+        String publicPath = "upload/public-avatar/" + owner.getId();
+        mvc.perform(get("/users/{id}", owner.getId())).andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.avatar").value(publicPath))
+                .andExpect(jsonPath("$.data.nid").doesNotHaveJsonPath());
+        mvc.perform(get("/" + publicPath)).andExpect(status().isOk())
+                .andExpect(content().contentType(MediaType.IMAGE_PNG));
         var list = mvc.perform(get("/media").param("business", "avatar").header("Authorization", auth)).andReturn();
         long id = json.readTree(list.getResponse().getContentAsString()).at("/data/records/0/asset/id").asLong();
         mvc.perform(delete("/media/" + id).header("Authorization", auth)).andExpect(status().isConflict());
+        users.update(User.create().setId(owner.getId()).setStatus(1));
+        mvc.perform(get("/" + publicPath)).andExpect(status().isNotFound());
     }
     @Test void privateImagesCannotBeAttachedToAnotherAuthorsDraft() throws Exception {
         User owner = user(3L), stranger = user(3L); MediaAsset asset = upload(owner);

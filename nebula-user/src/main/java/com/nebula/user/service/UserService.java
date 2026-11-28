@@ -81,6 +81,13 @@ public interface UserService extends IService<User> {
     User getUserById(Long userId);
 
     /**
+     * 按编号只读取正常账号的公开资料。
+     * @param userId 用户编号
+     * @return 公开资料，目标不存在或不可见时为空
+     */
+    com.nebula.user.vo.PublicUserVO getPublicUserById(Long userId);
+
+    /**
      * 修改当前登录用户的显示昵称，不修改登录NID。
      *
      * @param dto 新昵称

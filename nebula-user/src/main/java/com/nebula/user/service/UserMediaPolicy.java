@@ -20,6 +20,11 @@ public class UserMediaPolicy implements MediaOwnerResolver, MediaReferences {
         if (user == null) throw new BusinessException(UserErrorCode.USER_NOT_FOUND);
         return user.getNid();
     }
+    @Override public String findPublicAvatar(Long id) {
+        var user = users.selectOneByQuery(QueryWrapper.create().select(USER.AVATAR)
+                .where(USER.ID.eq(id)).and(USER.STATUS.eq(com.nebula.common.constant.UserStatus.NORMAL.getCode())));
+        return user == null ? null : user.getAvatar();
+    }
     @Override public List<Reference> find(String path) {
         return users.selectListByQuery(QueryWrapper.create().where(USER.AVATAR.eq(path)))
                 .stream().map(user -> new Reference("avatar", user.getId(), "当前头像", true, true)).toList();

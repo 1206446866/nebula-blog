@@ -2,6 +2,9 @@ package com.nebula.start;
 
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.mybatisflex.core.row.Db;
+import com.mybatisflex.core.row.Row;
+import com.mybatisflex.core.row.RowKey;
 import com.nebula.article.dto.ArticlePageDTO;
 import com.nebula.article.entity.Article;
 import com.nebula.article.mapper.ArticleMapper;
@@ -389,6 +392,77 @@ class ContentVisibilityIntegrationTest extends JwtIntegrationTestSupport {
         as(noPermissions, get("/categories/list")).andExpect(status().isForbidden());
         as(noPermissions, get("/tags/list")).andExpect(status().isForbidden());
         as(noPermissions, get("/articles/{id}", published.getId())).andExpect(status().isForbidden());
+    }
+
+    @Test
+    void guestSeriesExposeOnlyPublishedChaptersAndPublicAssociations() throws Exception {
+        long visible = series(true);
+        long hidden = series(false);
+        Db.updateBySql("INSERT INTO article_series_item(series_id,article_id,position) VALUES(?,?,0),(?,?,1),(?,?,2),(?,?,3)",
+                visible, published.getId(), visible, draft.getId(), visible, offline.getId(), visible, deleted.getId());
+        Db.updateBySql("INSERT INTO article_series_item(series_id,article_id,position) VALUES(?,?,0)", hidden, published.getId());
+
+        var listing = data(mvc.perform(get("/series")).andExpect(status().isOk()));
+        assertTrue(ids(listing).contains(visible));
+        assertFalse(ids(listing).contains(hidden));
+        mvc.perform(get("/series/{id}", visible)).andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.series.articleCount").value(1))
+                .andExpect(jsonPath("$.data.articles.length()").value(1))
+                .andExpect(jsonPath("$.data.articles[0].id").value(published.getId()));
+        mvc.perform(get("/series/{id}", hidden)).andExpect(status().isNotFound());
+        mvc.perform(get("/series/{id}/edit", visible)).andExpect(status().isUnauthorized());
+        mvc.perform(get("/series").param("mine", "true")).andExpect(status().isUnauthorized());
+        mvc.perform(get("/series/for-article/{id}", published.getId())).andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.length()").value(1)).andExpect(jsonPath("$.data[0].id").value(visible));
+        mvc.perform(get("/series/for-article/{id}", draft.getId())).andExpect(status().isOk())
+                .andExpect(jsonPath("$.data").isEmpty());
+        as(author, get("/series/{id}", hidden)).andExpect(status().isOk());
+        as(user(1L), get("/series/{id}/edit", visible)).andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.articles.length()").value(3));
+        as(user(null), get("/series")).andExpect(status().isForbidden());
+    }
+
+    private long series(boolean publiclyVisible) {
+        var row = Row.ofKey(RowKey.AUTO);
+        row.set("user_id", author.getId());
+        row.set("title", marker);
+        row.set("public_visible", publiclyVisible);
+        Db.insert("article_series", row);
+        return row.getLong("id");
+    }
+
+    @Test
+    void guestAuthorProfileAndCatalogAggregatesExposeOnlyPublicFieldsAndCounts() throws Exception {
+        users.update(User.create().setId(author.getId()).setEmail(marker + "@example.invalid").setPhone("15500000001"));
+        var profile = mvc.perform(get("/api/profile/{id}", author.getId()).param("draftArticlePage", "9"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.userProfileInfoVO.username").value(author.getUsername()))
+                .andExpect(jsonPath("$.data.userProfileInfoVO.nid").doesNotHaveJsonPath())
+                .andExpect(jsonPath("$.data.userProfileInfoVO.email").doesNotHaveJsonPath())
+                .andExpect(jsonPath("$.data.userProfileInfoVO.phone").doesNotHaveJsonPath())
+                .andExpect(jsonPath("$.data.userProfileInfoVO.roles").doesNotHaveJsonPath())
+                .andExpect(jsonPath("$.data.loginLogs").doesNotHaveJsonPath())
+                .andExpect(jsonPath("$.data.draftArticles").doesNotHaveJsonPath())
+                .andExpect(jsonPath("$.data.statisticsVO.articleCount").value(1));
+        assertEquals(List.of(published.getId()), ids(data(profile).path("publicArticles")));
+        mvc.perform(get("/api/profile/{id}", reader.getId())).andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.comments.totalRow").value(1))
+                .andExpect(jsonPath("$.data.comments.records[0].id").value(publicComment.getId()));
+        mvc.perform(get("/users/{id}", author.getId()).header("Authorization", "Bearer invalid-token"))
+                .andExpect(status().isOk()).andExpect(jsonPath("$.data.username").value(author.getUsername()))
+                .andExpect(jsonPath("$.data.nid").doesNotHaveJsonPath());
+        mvc.perform(get("/users/batch").param("ids", author.getId().toString())).andExpect(status().isUnauthorized());
+        var tag = Tag.create().setName(marker);
+        tags.insert(tag);
+        Db.updateBySql("INSERT INTO article_tag(article_id,tag_id) VALUES(?,?),(?,?),(?,?),(?,?)",
+                published.getId(), tag.getId(), draft.getId(), tag.getId(), offline.getId(), tag.getId(), deleted.getId(), tag.getId());
+        var aggregate = data(mvc.perform(get("/api/tag")).andExpect(status().isOk()));
+        var matched = StreamSupport.stream(aggregate.spliterator(), false)
+                .filter(item -> item.path("id").asLong() == tag.getId()).findFirst().orElseThrow();
+        assertEquals(1L, matched.path("articleCount").asLong());
+        as(user(null), get("/api/tag")).andExpect(status().isForbidden());
+        users.update(User.create().setId(author.getId()).setStatus(2));
+        mvc.perform(get("/api/profile/{id}", author.getId())).andExpect(status().isNotFound());
     }
 
     @Test

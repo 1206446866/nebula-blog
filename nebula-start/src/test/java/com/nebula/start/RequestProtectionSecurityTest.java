@@ -10,6 +10,8 @@ import com.nebula.auth.util.JwtUtil;
 import com.nebula.article.controller.ArticleController;
 import com.nebula.article.service.ArticleService;
 import com.nebula.api.controller.ApiController;
+import com.nebula.api.controller.GlobalSearchController;
+import com.nebula.api.service.GlobalSearchService;
 import com.nebula.api.facade.*;
 import com.nebula.common.config.CorsConfig;
 import com.nebula.common.exception.*;
@@ -109,7 +111,7 @@ class RequestProtectionSecurityTest {
         mvc.perform(get("/articles/published").header("Authorization", "Bearer invalid-token"))
                 .andExpect(status().isOk());
         for (var request : List.of(get("/articles"), get("/articles/1/edit"), get("/articles/1/export"),
-                get("/comments"), get("/reading/1"), get("/search"), post("/articles/drafts"),
+                get("/comments"), get("/reading/1"), get("/search/index/status"), get("/series/1/edit"), post("/articles/drafts"),
                 put("/articles/edit"), delete("/articles/1"), put("/articles/like"), put("/comments/release"))) {
             mvc.perform(request.header("Authorization", "Bearer invalid-token")).andExpect(status().isUnauthorized());
         }
@@ -117,6 +119,18 @@ class RequestProtectionSecurityTest {
         var service = context.getBean(ArticleService.class);
         verify(service).pagePublishedArticles(any());
         verifyNoMoreInteractions(service);
+    }
+
+    @Test void guestSearchHeadAndGetUseTheSearchBudget() throws Exception {
+        var search = context.getBean(GlobalSearchService.class);
+        mvc.perform(get("/search").param("q", "公开")).andExpect(status().isOk());
+        when(resources.enter(eq(ResourceGuard.Work.SEARCH), anyString(), isNull()))
+                .thenThrow(new ResourceLimitException(429, 4, "搜索繁忙"));
+        mvc.perform(head("/search").param("q", "公开")).andExpect(status().isTooManyRequests())
+                .andExpect(header().string("Retry-After", "4"));
+        verify(resources, times(2)).enter(eq(ResourceGuard.Work.SEARCH), anyString(), isNull());
+        verify(search).search("公开", "all", 1, 12);
+        verifyNoMoreInteractions(search);
     }
 
     @Test void giantJsonIsRejectedBeforeJwtOrLoginService() throws Exception {
@@ -194,7 +208,7 @@ class RequestProtectionSecurityTest {
 
     @Configuration(proxyBeanMethods=false)
     @EnableWebMvc @EnableWebSecurity
-    @Import({SecurityConfig.class, CorsConfig.class, AuthController.class, ArticleController.class, ApiController.class,
+    @Import({SecurityConfig.class, CorsConfig.class, AuthController.class, ArticleController.class, ApiController.class, GlobalSearchController.class,
             GlobalExceptionHandler.class})
     static class Config {
         @Bean ObjectMapper json() { return new ObjectMapper(); }
@@ -217,6 +231,7 @@ class RequestProtectionSecurityTest {
         @Bean AuthService auth() { return mock(AuthService.class); }
         @Bean AuthAbuseProtection abuse() { return mock(AuthAbuseProtection.class); }
         @Bean ArticleService articles() { return mock(ArticleService.class); }
+        @Bean GlobalSearchService search() { return mock(GlobalSearchService.class); }
         @Bean UserProfileFacade profiles() { return mock(UserProfileFacade.class); }
         @Bean TagHomeFacade tags() { return mock(TagHomeFacade.class); }
     }

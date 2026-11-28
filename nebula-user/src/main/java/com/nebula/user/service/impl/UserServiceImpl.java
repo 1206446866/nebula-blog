@@ -188,6 +188,16 @@ public class UserServiceImpl extends ServiceImpl<UserMapper, User> implements Us
     public User getUserById(Long userId) { return getById(userId); }
 
     @Override
+    public com.nebula.user.vo.PublicUserVO getPublicUserById(Long userId) {
+        var user = mapper.selectOneByQuery(QueryWrapper.create()
+                .select(USER.ID, USER.USERNAME, USER.AVATAR, USER.CREATE_TIME)
+                .where(USER.ID.eq(userId)).and(USER.STATUS.eq(com.nebula.common.constant.UserStatus.NORMAL.getCode())));
+        if (user == null) return null;
+        return new com.nebula.user.vo.PublicUserVO(user.getId(), user.getUsername(),
+                com.nebula.user.vo.PublicUserVO.avatarUrl(user.getId(), user.getAvatar()), user.getCreateTime());
+    }
+
+    @Override
     public Boolean rename(UpdateNameDTO dto) {
         return updateById(User.create().setId(SecurityUtils.getUserId()).setUsername(dto.getUsername()));
     }

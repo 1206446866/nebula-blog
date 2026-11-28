@@ -6,9 +6,9 @@ import io.swagger.v3.oas.annotations.tags.Tag;
 import com.nebula.api.dto.ProfileQueryDto;
 import com.nebula.api.facade.TagHomeFacade;
 import com.nebula.api.facade.UserProfileFacade;
-import com.nebula.api.vo.profile.UserProfileVO;
 import com.nebula.api.vo.tag.home.TagHomeVO;
 import com.nebula.common.result.Result;
+import com.nebula.common.util.SecurityUtils;
 import jakarta.validation.Valid;
 import org.springframework.security.access.prepost.PreAuthorize;
 import jakarta.validation.constraints.Min;
@@ -32,17 +32,17 @@ public class ApiController {
     private final TagHomeFacade tagHomeFacade;
 
     @Operation(summary = "获取用户主页信息",
-            description = "返回公开资料和分页内容，私人草稿及登录记录仅对本人展示。")
+            description = "游客只读取正常账号的公开资料、已发布文章及公开评论。私人草稿及登录记录仅对本人展示。")
     @GetMapping("/profile/{id}")
-    public Result<UserProfileVO> getProfile(@Parameter(description = "用户编号") @PathVariable("id") @Min(value = 1, message = "非法的用户ID") Long id, @Valid ProfileQueryDto dto) {
-        UserProfileVO profile = userProfileFacade.getProfile(id, dto);
-        return Result.success(profile);
+    public Result<?> getProfile(@Parameter(description = "用户编号") @PathVariable("id") @Min(value = 1, message = "非法的用户ID") Long id, @Valid ProfileQueryDto dto) {
+        return Result.success(SecurityUtils.getLoginUser() == null
+                ? userProfileFacade.getPublicProfile(id, dto) : userProfileFacade.getProfile(id, dto));
     }
 
     @Operation(summary = "获取标签主页信息",
-            description = "需tag:list权限，返回标签主页所需的聚合资料。")
+            description = "游客可读。登录后需tag:list权限，统计只计入已发布且未删除的文章。")
     @GetMapping("/tag")
-    @PreAuthorize("@securityUtils.hasPermission('tag:list')")
+    @PreAuthorize("isAnonymous() || @securityUtils.hasPermission('tag:list')")
     public Result<List<TagHomeVO>> getTagHome() {
         return Result.success(tagHomeFacade.getTagHome());
     }

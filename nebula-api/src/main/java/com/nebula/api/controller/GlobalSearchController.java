@@ -8,7 +8,6 @@ import com.nebula.api.vo.search.SearchResultVO;
 import com.nebula.common.result.Result;
 import jakarta.validation.constraints.*;
 import lombok.RequiredArgsConstructor;
-import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.*;
 
@@ -16,13 +15,12 @@ import org.springframework.web.bind.annotation.*;
 @RestController
 @RequiredArgsConstructor
 @RequestMapping("/search")
-@PreAuthorize("isAuthenticated()")
 @Tag(name = "全站搜索", description = "按当前权限搜索文章、评论、用户、分类和标签。")
 public class GlobalSearchController {
     private final GlobalSearchService search;
 
     @Operation(summary = "全站搜索",
-            description = "需已登录，关键词最多50字符；按当前权限和公开状态核验结果，数量可能为估计值；最多访问前10000条结果，搜索不可用时返回可重试错误。")
+            description = "游客可搜索公开资料。登录后按权限限制搜索类型。关键词最多50字符，数量可能为估计值，最多访问前10000条结果。")
     @GetMapping
     public Result<SearchResultVO> search(@Parameter(description = "搜索关键词，最多50字符") @RequestParam(defaultValue = "") @Size(max = 50) String q,
             @Parameter(description = "搜索类型：all、article、comment、user、category或tag") @RequestParam(defaultValue = "all") String type,

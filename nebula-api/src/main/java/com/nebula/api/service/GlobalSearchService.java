@@ -5,7 +5,7 @@ import com.nebula.api.vo.search.SearchResultVO;
 /** 使用独立检索索引搜索站内公开内容，由本地MySQL核验当前可见性和展示资料。 */
 public interface GlobalSearchService {
     /**
-     * 按当前登录用户的读取权限搜索已发布文章、公开评论、用户、分类及标签。
+     * 游客搜索公开资料，已登录用户按读取权限搜索已发布文章、公开评论、用户、分类及标签。
      * 查询使用限时只读事务；HTTP入口另受账号、来源IP和并发预算限制。
      * @param keyword 搜索词，最多50字符、为有效Unicode且不含NUL；空白返回空结果，纯不可检索字符被拒绝
      * @param type all、article、comment、user、category或tag

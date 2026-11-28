@@ -19,6 +19,7 @@ import com.nebula.user.entity.User;
 import com.nebula.user.service.UserService;
 import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.util.List;
 import java.util.Map;
@@ -56,24 +57,45 @@ public class UserProfileFacade {
         if (user == null) {
             throw new BusinessException(USER_NOT_FOUND);
         }
-        // Capture ownership on the request thread; worker threads do not inherit authentication.
+        // 在请求线程确定是否本人，工作线程不继承认证身份。
         LoginUser viewer = SecurityUtils.getLoginUser();
         boolean isSelf = viewer != null && Objects.equals(userId, viewer.getUserId());
+        UserProfileInfoVO info = BeanUtil.copyProperties(user, UserProfileInfoVO.class);
+        if (!isSelf) info.setEmail(null).setPhone(null);
+        return aggregate(userId, dto, info, isSelf, profileExecutor);
+    }
 
-        var rolesFuture = CompletableFuture.supplyAsync(() -> roleService.getDescriptions(userId), profileExecutor);
-        var viewsFuture = CompletableFuture.supplyAsync(() -> articleService.getViewAllCount(userId), profileExecutor);
-        var articleLikesFuture = CompletableFuture.supplyAsync(() -> articleService.getLikeAllCount(userId), profileExecutor);
-        var commentLikesFuture = CompletableFuture.supplyAsync(() -> commentService.getLikeAllCount(userId), profileExecutor);
+    /**
+     * 按同一只读快照组装游客主页，避免内容撤回时聚合数据使用不同的公开状态。
+     * @param userId 用户编号
+     * @param dto 公开文章与评论分页参数
+     * @return 只包含公开字段的用户主页
+     */
+    @Transactional(readOnly = true)
+    public PublicUserProfileVO getPublicProfile(Long userId, ProfileQueryDto dto) {
+        var user = userService.getPublicUserById(userId);
+        if (user == null) throw new BusinessException(USER_NOT_FOUND);
+        var result = aggregate(userId, dto, null, false, Runnable::run);
+        return new PublicUserProfileVO(user, result.getStatisticsVO(), result.getPublicArticles(), result.getComments());
+    }
+
+    /** 按请求线程确定的范围加载主页，游客快照在同一线程执行所有查询。 */
+    private UserProfileVO aggregate(Long userId, ProfileQueryDto dto, UserProfileInfoVO info, boolean isSelf, Executor executor) {
+        var rolesFuture = info == null ? CompletableFuture.completedFuture(List.<String>of())
+                : CompletableFuture.supplyAsync(() -> roleService.getDescriptions(userId), executor);
+        var viewsFuture = CompletableFuture.supplyAsync(() -> articleService.getViewAllCount(userId), executor);
+        var articleLikesFuture = CompletableFuture.supplyAsync(() -> articleService.getLikeAllCount(userId), executor);
+        var commentLikesFuture = CompletableFuture.supplyAsync(() -> commentService.getLikeAllCount(userId), executor);
         var publicFuture = CompletableFuture.supplyAsync(() -> loadPage(dto.getPublicArticlePage(),
-                page -> articleService.pageArticleProfile(userId, ArticleStatus.PUBLISHED.getCode(), page, dto.getPublicArticleSize())), profileExecutor);
+                page -> articleService.pageArticleProfile(userId, ArticleStatus.PUBLISHED.getCode(), page, dto.getPublicArticleSize())), executor);
         var commentsFuture = CompletableFuture.supplyAsync(() -> loadPage(dto.getCommentPage(),
-                page -> commentService.getCommentPageByUserId(userId, page, dto.getCommentSize())), profileExecutor);
+                page -> commentService.getCommentPageByUserId(userId, page, dto.getCommentSize())), executor);
         CompletableFuture<Page<Article>> draftsFuture = isSelf
                 ? CompletableFuture.supplyAsync(() -> loadPage(dto.getDraftArticlePage(),
-                    page -> articleService.pageArticleProfile(userId, ArticleStatus.DRAFT.getCode(), page, dto.getDraftArticleSize())), profileExecutor)
+                    page -> articleService.pageArticleProfile(userId, ArticleStatus.DRAFT.getCode(), page, dto.getDraftArticleSize())), executor)
                 : CompletableFuture.completedFuture(Page.of(1, dto.getDraftArticleSize(), 0));
         CompletableFuture<List<LoginLog>> logsFuture = isSelf
-                ? CompletableFuture.supplyAsync(() -> loginLogService.getLoginLog(userId), profileExecutor)
+                ? CompletableFuture.supplyAsync(() -> loginLogService.getLoginLog(userId), executor)
                 : CompletableFuture.completedFuture(List.of());
 
         CompletableFuture.allOf(rolesFuture, viewsFuture, articleLikesFuture, commentLikesFuture,
@@ -81,16 +103,14 @@ public class UserProfileFacade {
 
         Page<Article> publicPage = publicFuture.join();
         Page<Comment> commentPage = commentsFuture.join();
-        UserProfileInfoVO info = BeanUtil.copyProperties(user, UserProfileInfoVO.class);
-        info.setRoles(rolesFuture.join());
-        if (!isSelf) {
-            info.setEmail(null).setPhone(null);
-        }
+        if (info != null) info.setRoles(rolesFuture.join());
 
         Map<Long, Long> commentCounts = commentService.getCountByArticleIds(
                 publicPage.getRecords().stream().map(Article::getId).toList());
-        Page<UserProfileArticleVO> publicArticles = publicPage.map(article -> toArticleVO(article)
-                .setComments(commentCounts.getOrDefault(article.getId(), 0L)));
+        Page<UserProfileArticleVO> publicArticles = publicPage.map(article -> {
+            var value = toArticleVO(article).setComments(commentCounts.getOrDefault(article.getId(), 0L));
+            return info == null ? value.setScheduledPublishAt(null).setScheduleError(null) : value;
+        });
         Page<UserProfileArticleVO> draftArticles = isSelf ? draftsFuture.join().map(this::toArticleVO) : null;
 
         List<Long> commentedArticleIds = commentPage.getRecords().stream().map(Comment::getArticleId).distinct().toList();

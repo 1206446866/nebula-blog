@@ -13,7 +13,9 @@ final class GuestReadRequests {
     private static final List<String> PATHS = List.of(
             "/articles/published", "/articles/{id:[0-9]+}",
             "/categories", "/categories/list", "/tags", "/tags/list",
-            "/comments/threads", "/comments/{rootId:[0-9]+}/replies");
+            "/comments/threads", "/comments/{rootId:[0-9]+}/replies",
+            "/search", "/series", "/series/{id:[0-9]+}", "/series/for-article/{id:[0-9]+}",
+            "/api/profile/{id:[0-9]+}", "/users/{userId:[0-9]+}", "/api/tag");
 
     static final RequestMatcher MATCHER = new OrRequestMatcher(
             Stream.of(HttpMethod.GET, HttpMethod.HEAD)

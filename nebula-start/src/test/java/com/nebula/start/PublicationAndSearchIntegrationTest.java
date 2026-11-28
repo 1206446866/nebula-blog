@@ -2,6 +2,8 @@ package com.nebula.start;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.mybatisflex.core.row.Db;
+import com.nebula.api.search.SearchHit;
+import com.nebula.api.service.impl.SearchSourceService;
 import com.nebula.article.entity.*;
 import com.nebula.article.mapper.*;
 import com.nebula.article.service.ArticlePublicationService;
@@ -43,6 +45,7 @@ class PublicationAndSearchIntegrationTest extends JwtIntegrationTestSupport {
     @Autowired CommentMapper comments;
     @Autowired JwtUtil jwt;
     @Autowired ArticlePublicationService publications;
+    @Autowired SearchSourceService searchSource;
     final List<Long> userIds = new ArrayList<>(), articleIds = new ArrayList<>(), commentIds = new ArrayList<>();
     final List<String> tokens = new ArrayList<>();
     String marker;
@@ -207,10 +210,56 @@ class PublicationAndSearchIntegrationTest extends JwtIntegrationTestSupport {
     }
     @Test void emptyAndInvalidSearchInputsAreHandledWithoutLeakingAllContent() throws Exception {
         String token = auth(owner);
-        mvc.perform(get("/search")).andExpect(status().isUnauthorized());
+        mvc.perform(get("/search")).andExpect(status().isOk()).andExpect(jsonPath("$.data.page.totalRow").value(0));
         mvc.perform(get("/search").header("Authorization", token)).andExpect(jsonPath("$.data.page.totalRow").value(0));
         mvc.perform(get("/search").header("Authorization", token).param("q", "a".repeat(51))).andExpect(status().isBadRequest());
         mvc.perform(get("/search").header("Authorization", token).param("q", marker).param("type", "media")).andExpect(status().isBadRequest());
         mvc.perform(get("/search").header("Authorization", token).param("current", "0")).andExpect(status().isBadRequest());
+    }
+
+    @Test void guestMysqlSearchCountsOnlyPublicRowsAndMatchesAccountNicknamesOnly() throws Exception {
+        var published = article(1);
+        var draft = article(0);
+        due(draft);
+        var withdrawn = article(2);
+        var deleted = article(1);
+        articles.deleteById(deleted.getId());
+        comment(published, 0);
+        comment(published, 1);
+        comment(draft, 0);
+        comment(withdrawn, 0);
+        comment(deleted, 0);
+
+        mvc.perform(get("/search").param("q", marker).param("type", "article").param("size", "1"))
+                .andExpect(status().isOk()).andExpect(jsonPath("$.data.counts.article").value(1))
+                .andExpect(jsonPath("$.data.counts.comment").value(1)).andExpect(jsonPath("$.data.counts.category").value(1))
+                .andExpect(jsonPath("$.data.counts.tag").value(1)).andExpect(jsonPath("$.data.counts.user").value(2))
+                .andExpect(jsonPath("$.data.page.totalRow").value(1))
+                .andExpect(jsonPath("$.data.page.records[0].id").value(published.getId()));
+        mvc.perform(get("/search").param("q", marker).param("type", "comment"))
+                .andExpect(status().isOk()).andExpect(jsonPath("$.data.page.records[0].targetId").value(published.getId()));
+        mvc.perform(get("/search").param("q", owner.getUsername()).param("type", "user"))
+                .andExpect(status().isOk()).andExpect(jsonPath("$.data.page.records[0].title").value(owner.getUsername()))
+                .andExpect(jsonPath("$.data.page.records[0].excerpt").isEmpty());
+        mvc.perform(get("/search").param("q", owner.getNid()).param("type", "user"))
+                .andExpect(status().isOk()).andExpect(jsonPath("$.data.page.totalRow").value(0));
+        mvc.perform(get("/search").header("Authorization", auth(owner)).param("q", owner.getNid()).param("type", "user"))
+                .andExpect(status().isOk()).andExpect(jsonPath("$.data.page.records[0].excerpt").value(owner.getNid()));
+    }
+
+    @Test void guestEsCandidatesAreRecheckedAgainstCurrentMysqlVisibilityAndVersion() {
+        var keep = article(1);
+        var withdrawn = article(1);
+        long keepVersion = generation(keep);
+        long oldVersion = generation(withdrawn);
+        articles.update(Article.create().setId(withdrawn.getId()).setStatus(2));
+        assertEquals(Set.of("article:" + keep.getId()), searchSource.visibleMatches(List.of(
+                new SearchHit("article", keep.getId(), keepVersion, List.of()),
+                new SearchHit("article", withdrawn.getId(), oldVersion, List.of())), marker).keySet());
+        assertTrue(searchSource.visibleMatches(List.of(new SearchHit("article", keep.getId(), keepVersion - 1, List.of())), marker).isEmpty());
+    }
+
+    private long generation(Article article) {
+        return Db.selectOneBySql("SELECT generation FROM search_sync_task WHERE kind='article' AND target_id=?", article.getId()).getLong("generation");
     }
 }

@@ -7,7 +7,6 @@ import com.nebula.api.vo.search.*;
 import com.nebula.common.exception.BusinessException;
 import com.nebula.common.exception.code.SearchErrorCode;
 import com.nebula.common.util.SecurityUtils;
-import org.springframework.security.access.AccessDeniedException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.mybatis.spring.SqlSessionTemplate;
@@ -16,7 +15,7 @@ import java.util.*;
 /** 公开检索资料与mysql后备查询共用权限、包含匹配及字段投影，防止两条路径的读取边界分叉。 */
 @Service
 public class SearchSourceService {
-    private static final List<String> TYPES = List.of("article", "comment", "user", "category", "tag");
+    static final List<String> TYPES = List.of("article", "comment", "user", "category", "tag");
     private final RowMapper queries;
 
     public SearchSourceService(SqlSessionTemplate sessions) {
@@ -39,8 +38,7 @@ public class SearchSourceService {
                     + " AND " + tableAlias + ".id IN (" + String.join(",", Collections.nCopies(expected.size(), "?")) + ")";
             for (var row : queries.selectListBySql(sql, parameters.toArray())) {
                 if (!Objects.equals(expected.get(row.getLong("id")), row.getLong("search_generation"))) continue;
-                var item = new SearchItemVO(row.getString("kind"), row.getLong("id"), row.getLong("target_id"), row.getString("title"),
-                        row.getString("excerpt"), row.getString("avatar"), row.getString("occurred_at"));
+                var item = item(row);
                 result.put(item.type() + ":" + item.id(), item);
             }
         }
@@ -50,7 +48,6 @@ public class SearchSourceService {
     /** 显式切换mysql后端时使用原有受限查询；正常ES请求只调用有界候选核验。 */
     @Transactional(readOnly = true, timeoutString = "${nebula.resources.search-timeout-seconds:3}")
     public SearchResultVO search(String keyword, String type, int current, int size) {
-        if (SecurityUtils.getLoginUser() == null) throw new AccessDeniedException("请先登录");
         if (keyword == null) keyword = "";
         keyword = keyword.strip();
         if (keyword.length() > 50 || current < 1 || size < 1 || size > 50 || (!"all".equals(type) && !TYPES.contains(type)))
@@ -84,28 +81,56 @@ public class SearchSourceService {
             var parameters = new ArrayList<Object>(entry.getValue().args); parameters.addAll(ids);
             String placeholders = String.join(",", Collections.nCopies(ids.size(), "?"));
             for (var row : queries.selectListBySql(entry.getValue().sql + " AND " + alias(entry.getKey()) + ".id IN (" + placeholders + ")", parameters.toArray())) {
-                var item = new SearchItemVO(row.getString("kind"), row.getLong("id"), row.getLong("target_id"), row.getString("title"),
-                        row.getString("excerpt"), row.getString("avatar"), row.getString("occurred_at"));
+                var item = item(row);
                 details.put(item.type() + ":" + item.id(), item);
             }
         }
-        page.setRecords(items.stream().map(r -> details.get(r.getString("kind") + ":" + r.getLong("id"))).toList());
+        page.setRecords(items.stream().map(r -> details.get(r.getString("kind") + ":" + r.getLong("id")))
+                .filter(Objects::nonNull).toList());
         return new SearchResultVO(page, counts);
+    }
+
+    /** MySQL搜索和ES核验共用可读类型，已登录用户仍按原权限判断。 */
+    static List<String> allowedTypes() {
+        if (SecurityUtils.getLoginUser() == null) return TYPES;
+        var allowed = new ArrayList<String>();
+        allowed.add("user");
+        if (SecurityUtils.hasPermission("article:list")) allowed.addAll(List.of("article", "comment"));
+        if (SecurityUtils.hasPermission("category:list")) allowed.add("category");
+        if (SecurityUtils.hasPermission("tag:list")) allowed.add("tag");
+        return allowed;
     }
 
     /** 仅拼接固定SQL片段；关键词全部绑定，并将通配符当作普通文字处理。 */
     private Map<String, Source> sources(String pattern) {
         var sources = new LinkedHashMap<String, Source>();
-        if (SecurityUtils.hasPermission("article:list")) {
+        var allowed = allowedTypes();
+        if (allowed.contains("article")) {
             sources.put("article", new Source("SELECT 'article' kind,a.id,a.id target_id,a.title,LEFT(a.content,180) excerpt,NULL avatar,a.create_time occurred_at FROM article a WHERE a.deleted=0 AND a.status=1 AND (a.title LIKE ? ESCAPE '!' OR a.content LIKE ? ESCAPE '!' OR a.author LIKE ? ESCAPE '!')", List.of(pattern, pattern, pattern)));
             sources.put("comment", new Source("SELECT 'comment' kind,c.id,c.article_id target_id,a.title,LEFT(c.content,180) excerpt,NULL avatar,c.create_time occurred_at FROM comment c JOIN article a ON a.id=c.article_id WHERE c.status=0 AND a.deleted=0 AND a.status=1 AND c.content LIKE ? ESCAPE '!'", List.of(pattern)));
         }
-        sources.put("user", new Source("SELECT 'user' kind,u.id,u.id target_id,u.username title,u.nid excerpt,u.avatar,u.create_time occurred_at FROM user u WHERE u.deleted=0 AND u.status=0 AND (u.username LIKE ? ESCAPE '!' OR u.nid LIKE ? ESCAPE '!')", List.of(pattern, pattern)));
-        if (SecurityUtils.hasPermission("category:list"))
+        if (SecurityUtils.getLoginUser() == null) {
+            sources.put("user", new Source("SELECT 'user' kind,u.id,u.id target_id,u.username title,NULL excerpt,u.avatar,NULL occurred_at FROM user u WHERE u.deleted=0 AND u.status=0 AND u.username LIKE ? ESCAPE '!'", List.of(pattern)));
+        } else {
+            sources.put("user", new Source("SELECT 'user' kind,u.id,u.id target_id,u.username title,u.nid excerpt,u.avatar,u.create_time occurred_at FROM user u WHERE u.deleted=0 AND u.status=0 AND (u.username LIKE ? ESCAPE '!' OR u.nid LIKE ? ESCAPE '!')", List.of(pattern, pattern)));
+        }
+        if (allowed.contains("category"))
             sources.put("category", new Source("SELECT 'category' kind,c.id,c.id target_id,c.name title,LEFT(c.description,180) excerpt,NULL avatar,c.create_time occurred_at FROM category c WHERE c.deleted=0 AND (c.name LIKE ? ESCAPE '!' OR c.description LIKE ? ESCAPE '!')", List.of(pattern, pattern)));
-        if (SecurityUtils.hasPermission("tag:list"))
+        if (allowed.contains("tag"))
             sources.put("tag", new Source("SELECT 'tag' kind,t.id,t.id target_id,t.name title,LEFT(t.description,180) excerpt,NULL avatar,t.create_time occurred_at FROM tag t WHERE t.deleted=0 AND (t.name LIKE ? ESCAPE '!' OR t.description LIKE ? ESCAPE '!')", List.of(pattern, pattern)));
         return sources;
+    }
+
+    /** 使用数据库核验后的展示字段，游客头像通过公开地址读取。 */
+    private SearchItemVO item(com.mybatisflex.core.row.Row row) {
+        String kind = row.getString("kind");
+        Long id = row.getLong("id");
+        String avatar = row.getString("avatar");
+        if ("user".equals(kind) && SecurityUtils.getLoginUser() == null) {
+            avatar = com.nebula.user.vo.PublicUserVO.avatarUrl(id, avatar);
+        }
+        return new SearchItemVO(kind, id, row.getLong("target_id"), row.getString("title"),
+                row.getString("excerpt"), avatar, row.getString("occurred_at"));
     }
 
     /** 各表仅返回排序所需列，避免不同正文排序规则参与联合查询。 */

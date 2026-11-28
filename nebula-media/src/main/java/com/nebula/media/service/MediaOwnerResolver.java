@@ -9,4 +9,11 @@ public interface MediaOwnerResolver {
      * @return 用户账号NID
      */
     String requireNid(Long userId);
+
+    /**
+     * 获取正常账号当前使用的公开头像路径。
+     * @param userId 用户编号
+     * @return 头像存储路径，用户不可见时为空
+     */
+    String findPublicAvatar(Long userId);
 }

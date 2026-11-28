@@ -100,9 +100,10 @@ public class UserController {
     }
 
     @Operation(summary = "查询用户公开资料",
-            description = "仅返回允许公开展示的用户资料；目标不可见或不存在时返回空数据。")
+            description = "游客仅返回正常账号的公开昵称、头像和创建时间，目标不可见时返回空数据。")
     @GetMapping("/{userId}")
-    public Result<UserVO> getUserById(@Parameter(description = "用户编号") @PathVariable Long userId) {
+    public Result<?> getUserById(@Parameter(description = "用户编号") @PathVariable @Min(1) Long userId) {
+        if (SecurityUtils.getLoginUser() == null) return Result.success(userService.getPublicUserById(userId));
         User user = userService.getUserById(userId);
         return Result.success(user == null ? null : BeanUtil.copyProperties(user, UserVO.class));
     }

@@ -29,6 +29,7 @@ public class MediaController {
     private final MediaService media;
     private final ImageStorage storage;
     private final ThumbnailService thumbnails;
+    private final MediaOwnerResolver owners;
 
     @Operation(summary = "上传文章图片",
             description = "需已登录，检查真实图片、容量、像素、账号配额和磁盘余量，返回媒体记录。",
@@ -78,6 +79,21 @@ public class MediaController {
     @GetMapping("/upload/**")
     public ResponseEntity<FileSystemResource> publicImage(@Parameter(hidden = true) HttpServletRequest request) {
         String path = request.getRequestURI().substring(request.getContextPath().length() + 1);
+        return servePublicPath(path);
+    }
+
+    @Operation(summary = "按用户编号读取当前公开头像", description = "只读取正常账号当前使用的本地头像。")
+    @GetMapping("/upload/public-avatar/{userId:[0-9]+}")
+    public ResponseEntity<FileSystemResource> publicAvatar(@PathVariable Long userId) {
+        String path = owners.findPublicAvatar(userId);
+        if (path == null) throw new BusinessException(MediaError.NOT_FOUND);
+        if (path.startsWith("/")) path = path.substring(1);
+        if (!path.startsWith("upload/avatar/")) throw new BusinessException(MediaError.NOT_FOUND);
+        return servePublicPath(path);
+    }
+
+    /** 兼容旧头像并核验其他图片仍具备公开引用。 */
+    private ResponseEntity<FileSystemResource> servePublicPath(String path) {
         if (path.startsWith("upload/avatar/") && !path.substring(14).contains("/")) {
             Path file = storage.legacyAvatar(path.substring(14));
             String extension = path.substring(path.lastIndexOf('.') + 1).toLowerCase();

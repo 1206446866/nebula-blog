@@ -170,7 +170,8 @@ class ElasticsearchIntegrationTest extends JwtIntegrationTestSupport {
         mvc.perform(get("/search").header("Authorization",token).param("q","\u0000")).andExpect(status().isBadRequest());
         mvc.perform(get("/search").header("Authorization",token).param("q","x".repeat(51))).andExpect(status().isBadRequest());
         mvc.perform(get("/search").header("Authorization",token).param("q"," ")).andExpect(jsonPath("$.data.page.totalRow").value(0));
-        mvc.perform(get("/search").param("q",marker)).andExpect(status().isUnauthorized());
+        mvc.perform(get("/search").param("q",marker)).andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.page.totalRow").value(1));
     }
 
     @Test void unpublishAndDeletionAreFilteredBeforeTheIndexHasCaughtUpAndPagesAreFilled() throws Exception {

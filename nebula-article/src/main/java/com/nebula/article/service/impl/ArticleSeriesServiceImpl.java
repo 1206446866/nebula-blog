@@ -8,6 +8,7 @@ import com.nebula.article.service.ArticleSeriesService;
 import com.nebula.common.exception.BusinessException;
 import com.nebula.common.util.SecurityUtils;
 import org.springframework.security.access.AccessDeniedException;
+import org.springframework.security.authentication.AuthenticationCredentialsNotFoundException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import java.util.*;
@@ -19,8 +20,9 @@ public class ArticleSeriesServiceImpl implements ArticleSeriesService {
     private final com.nebula.article.service.ArticlePrivateDataService privateData;
     private static final String COUNT = "(SELECT COUNT(*) FROM article_series_item i JOIN article a ON a.id=i.article_id AND a.deleted=0 AND a.status=1 WHERE i.series_id=s.id) article_count";
     @Override
+    @Transactional(readOnly = true)
     public ArticleSeriesVO.Listing list(boolean mine, int current) {
-        requireReader();
+        requireReader(mine);
         if (current < 1 || current > 10000) throw new BusinessException(ARTICLE_SERIES_INVALID);
         String filter = mine ? "s.user_id=?" : "s.public_visible=1";
         Object[] args = mine ? new Object[]{SecurityUtils.getUserId()} : new Object[]{};
@@ -31,10 +33,15 @@ public class ArticleSeriesServiceImpl implements ArticleSeriesService {
     }
 
     @Override
+    @Transactional(readOnly = true)
     public ArticleSeriesVO.Detail get(long id, boolean editing) {
-        requireReader(); Row series = requireSeries(id, false);
+        var viewer = requireReader(editing);
+        Row series = requireSeries(id, false);
         if (editing) requireEditor(series);
-        else if (series.getInt("public_visible") != 1 && !SecurityUtils.isSelf(series.getLong("user_id")) && !SecurityUtils.isAdmin()) throw new BusinessException(ARTICLE_NOT_FOUND);
+        else if (series.getInt("public_visible") != 1
+                && (viewer == null || !Objects.equals(viewer.getUserId(), series.getLong("user_id")) && !SecurityUtils.isAdmin())) {
+            throw new BusinessException(ARTICLE_NOT_FOUND);
+        }
         var articles = Db.selectListBySql("SELECT a.id,a.title,a.status FROM article_series_item i JOIN article a ON a.id=i.article_id AND a.deleted=0 WHERE i.series_id=?"
                 + (editing ? "" : " AND a.status=1") + " ORDER BY i.position", id)
                 .stream().map(row -> new ArticleSeriesVO.Item(row.getLong("id"), row.getString("title"), row.getInt("status"))).toList();
@@ -45,7 +52,7 @@ public class ArticleSeriesServiceImpl implements ArticleSeriesService {
     @Override
     @Transactional(rollbackFor = Exception.class)
     public long save(Long id, ArticleSeriesDto dto) {
-        requireReader();
+        requireReader(true);
         if (!SecurityUtils.hasPermission("article:update")) throw new AccessDeniedException("需要文章编辑权限");
         privateData.lockActiveAccount(SecurityUtils.getUserId());
         long owner = SecurityUtils.getUserId();
@@ -75,21 +82,24 @@ public class ArticleSeriesServiceImpl implements ArticleSeriesService {
     @Override
     @Transactional(rollbackFor = Exception.class)
     public boolean delete(long id) {
-        requireReader(); requireEditor(requireSeries(id, true));
+        requireReader(true); requireEditor(requireSeries(id, true));
         Db.deleteBySql("DELETE FROM article_series_item WHERE series_id=?", id);
         return Db.deleteBySql("DELETE FROM article_series WHERE id=?", id) == 1;
     }
 
     @Override
     public List<ArticleSeriesVO.Summary> forArticle(long articleId) {
-        requireReader();
+        requireReader(false);
         return Db.selectListBySql("SELECT s.*," + COUNT + " FROM article_series s JOIN article_series_item i ON i.series_id=s.id JOIN article a ON a.id=i.article_id AND a.deleted=0 AND a.status=1 WHERE i.article_id=? AND s.public_visible=1 ORDER BY s.updated_at DESC,s.id DESC LIMIT 20", articleId)
                 .stream().map(this::summary).toList();
     }
 
-    /** 系列沿用文章阅读权限，避免绕过账号权限读取文章标题。 */
-    private void requireReader() {
-        if (SecurityUtils.getLoginUser() == null || !SecurityUtils.hasPermission("article:list")) throw new AccessDeniedException("需要文章阅读权限");
+    /** 游客仅能进入公开读取分支，已登录账号仍需文章阅读权限。 */
+    private com.nebula.common.security.LoginUser requireReader(boolean loginRequired) {
+        var viewer = SecurityUtils.getLoginUser();
+        if (viewer == null && loginRequired) throw new AuthenticationCredentialsNotFoundException("请先登录");
+        if (viewer != null && !SecurityUtils.hasPermission("article:list")) throw new AccessDeniedException("需要文章阅读权限");
+        return viewer;
     }
     /** 管理员仍需文章编辑权限，作者不能操作他人的系列。 */
     private void requireEditor(Row row) {
