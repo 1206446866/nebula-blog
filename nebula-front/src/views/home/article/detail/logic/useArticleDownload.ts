@@ -1,4 +1,5 @@
 import { exportArticleApi } from '@/api/article-export'
+import { useLoginPrompt } from '@/composables/useLoginPrompt'
 import { useAuthStore } from '@/stores/auth'
 import { downloadMarkdownBlob, markdownFilename } from '@/utils/markdown-file'
 import { onBeforeUnmount, ref, type Ref } from 'vue'
@@ -9,8 +10,9 @@ export function useArticleDownload(id: Ref<number>, title: Ref<string>) {
     token = auth.getToken(),
     downloading = ref(false)
   let disposed = false
+  const { requireLogin } = useLoginPrompt()
   async function download(images: boolean) {
-    if (disposed || downloading.value || auth.getToken() !== token) return
+    if (disposed || downloading.value || auth.getToken() !== token || !requireLogin()) return
     const articleId = id.value,
       name = title.value
     downloading.value = true

@@ -74,7 +74,7 @@ const settle = async () => {
   await vue.nextTick()
 }
 
-async function harness(path = '/user/1') {
+async function harness(path = '/user/1', guest = false) {
   const storage = new Map()
   const state = {
     server: identity(1),
@@ -131,7 +131,9 @@ async function harness(path = '/user/1') {
     setup() {
       state.mounts++
       vue.onBeforeUnmount(() => state.unmounts++)
-      const text = `private-user-${auth.user.id}-${auth.hasPermission('tag:list') ? 'tag-snapshot' : 'basic'}`
+      const text = auth.user
+        ? `private-user-${auth.user.id}-${auth.hasPermission('tag:list') ? 'tag-snapshot' : 'basic'}`
+        : 'guest-public'
       return () => vue.h('p', text)
     },
   })
@@ -144,7 +146,7 @@ async function harness(path = '/user/1') {
   const router = routerModule.createRouter({
     history: routerModule.createMemoryHistory(),
     routes: [
-      { path: '/user/:id', component: snapshot, meta: { idParam: 'id' } },
+      { path: '/user/:id', component: snapshot, meta: { idParam: 'id', guest } },
       { path: '/login', component: publicPage, meta: { public: true } },
       { path: '/403', component: publicPage, meta: { public: true } },
     ],
@@ -159,7 +161,8 @@ async function harness(path = '/user/1') {
     'vue-router': routerModule,
     '@/stores/auth': { useAuthStore },
     '@/router/policy': policy,
-  }).default
+    '@/utils/session-cache': cache,
+  }, { setTimeout, clearTimeout }).default
   await router.push(path)
   const container = document.createElement('div')
   document.body.append(container)
@@ -178,6 +181,21 @@ async function harness(path = '/user/1') {
     },
   }
 }
+
+test('公开页面退出后卸载旧账号内容并在同一路径加载游客视图', async () => {
+  const h = await harness('/user/1?tab=comments#latest', true)
+  try {
+    assert.match(h.container.textContent, /private-user-1/)
+    h.auth.clearAuth()
+    await settle()
+    assert.equal(h.router.currentRoute.value.fullPath, '/user/1?tab=comments#latest')
+    assert.doesNotMatch(h.container.textContent, /private-user-1/)
+    assert.match(h.container.textContent, /guest-public/)
+    assert.equal(h.state.unmounts, 1)
+  } finally {
+    h.cleanup()
+  }
+})
 
 test('switching accounts removes the old mounted private view before the new session is verified', async () => {
   const h = await harness()
@@ -292,7 +310,9 @@ for (const action of ['password', 'cancellation']) {
           },
           '@/api/auth.ts': { changePasswordApi: request },
           '@/api/user.ts': { cancelSelfAccountApi: request },
+          '@/api/profile.ts': { signedProfile: (profile) => profile },
           '@/router': { replace: async (path) => state.routes.push(path) },
+          '@/router/policy': policy,
           '@/utils/date.ts': { formatDateTime: () => '' },
           '@/utils/password-policy': passwordPolicy,
         },

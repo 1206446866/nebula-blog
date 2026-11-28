@@ -37,7 +37,7 @@ const {
     <div class="series-toolbar">
       <div>
         <button :aria-pressed="!mine" @click="mine = false">发现系列</button
-        ><button :aria-pressed="mine" @click="mine = true">我的系列</button>
+        ><button v-if="auth.getToken()" :aria-pressed="mine" @click="mine = true">我的系列</button>
       </div>
       <button v-if="auth.hasPermission('article:update')" @click="open()">＋ 创建系列</button>
     </div>

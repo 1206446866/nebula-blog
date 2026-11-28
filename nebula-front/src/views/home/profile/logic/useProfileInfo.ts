@@ -1,7 +1,8 @@
 import { changePasswordApi } from '@/api/auth.ts'
-import type { UserProfileVO } from '@/api/profile.ts'
+import { signedProfile, type ProfileResponse } from '@/api/profile.ts'
 import { cancelSelfAccountApi } from '@/api/user.ts'
 import router from '@/router'
+import { isGuestRoute } from '@/router/policy'
 import { useAuthStore } from '@/stores/auth.ts'
 import { formatDateTime } from '@/utils/date.ts'
 import { isValidNewPassword, newPasswordMessage } from '@/utils/password-policy'
@@ -11,7 +12,7 @@ import { computed, ref, watch } from 'vue'
 /** 管理个人资料与账号操作的状态与交互。 */
 export function useProfileInfo(
   props: Readonly<{
-    profile: UserProfileVO | null
+    profile: ProfileResponse | null
     isSelf: boolean
   }>,
 ) {
@@ -21,8 +22,10 @@ export function useProfileInfo(
   const cancellationDialogVisible = ref(false)
   const cancelling = ref(false)
   const cancellationForm = ref({ password: '', confirmed: false })
+  const ownProfile = computed(() => props.isSelf ? signedProfile(props.profile) : null)
+  const account = computed(() => ownProfile.value?.userProfileInfoVO)
   const lastLogin = computed(() =>
-    formatDateTime(props.profile?.loginLogs?.find((record) => record.status === 1)?.createTime),
+    formatDateTime(ownProfile.value?.loginLogs?.find((record) => record.status === 1)?.createTime),
   )
 
   watch(
@@ -93,7 +96,7 @@ export function useProfileInfo(
     }
   }
   const logout = async () => {
-    if (await authStore.logout()) await router.replace('/login')
+    if (await authStore.logout() && !isGuestRoute(router.currentRoute.value)) await router.replace('/')
   }
   const resetCancellationForm = () => {
     cancellationForm.value = { password: '', confirmed: false }
@@ -134,6 +137,7 @@ export function useProfileInfo(
   }
 
   return {
+    account,
     authStore,
     passwordDialogVisible,
     passwordSubmitting,

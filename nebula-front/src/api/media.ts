@@ -73,3 +73,15 @@ export const mediaImageApi = (path: string, signal: AbortSignal) =>
       }),
     signal,
   )
+
+/** 游客图片仍由公开资源接口核验文章引用，编辑预览使用认证接口。 */
+export const publicMediaImageApi = (path: string, signal: AbortSignal) =>
+  queue(() => {
+    if (useAuthStore().getToken()) throw new CanceledError('登录状态已变化')
+    return request.get<Blob>(`/${path}`, {
+      responseType: 'blob',
+      signal,
+      silentError: true,
+      publicRead: true,
+    })
+  }, signal)

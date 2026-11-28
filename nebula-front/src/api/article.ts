@@ -71,7 +71,7 @@ export const getArticlePageApi = (params: ArticlePageDTO, signal?: AbortSignal) 
  * 根据ID查询文章详情
  */
 export const getArticleByIdApi = (id: number, signal?: AbortSignal) => {
-  return request.get<Result<ArticleVO>>(`/articles/${id}`, { signal })
+  return request.get<Result<ArticleVO>>(`/articles/${id}`, { signal, publicRead: true })
 }
 
 export const createDraftApi = (data: CreateArticleDto) => {
@@ -112,6 +112,7 @@ export const cancelArticleScheduleApi = (id: number) =>
 
 export const getPublishedArticlePageApi = (params: ArticlePageDTO, signal?: AbortSignal) => {
   return request.get<Result<Page<ArticleVO>>>('/articles/published', {
+    publicRead: true,
     params,
     signal,
   })

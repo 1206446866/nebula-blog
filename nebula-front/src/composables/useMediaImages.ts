@@ -1,10 +1,10 @@
 import { nextTick, onBeforeUnmount, watch, type Ref } from 'vue'
-import { mediaImageApi } from '@/api/media'
+import { mediaImageApi, publicMediaImageApi } from '@/api/media'
 import { useAuthStore } from '@/stores/auth'
 import { mediaPath } from '@/utils/resource'
 
 /** 按当前页面实例和会话缓存图片，避免每次编辑正文都重新下载。 */
-export function useMediaImages(root: Ref<HTMLElement | null>, html: Ref<string>) {
+export function useMediaImages(root: Ref<HTMLElement | null>, html: Ref<string>, allowGuest = false) {
   const auth = useAuthStore()
   type Entry = { controller: AbortController; promise: Promise<string>; url?: string }
   const cache = new Map<string, Entry>()
@@ -43,14 +43,15 @@ export function useMediaImages(root: Ref<HTMLElement | null>, html: Ref<string>)
           cache.delete(path)
         }
       }
-      if (!token) return
+      if (!token && !allowGuest) return
+      const loadImage = token ? mediaImageApi : publicMediaImageApi
       await Promise.allSettled(
         Array.from(groups, async ([path, images]) => {
           let entry = cache.get(path)
           if (!entry) {
             const controller = new AbortController()
             const created: Entry = { controller, promise: Promise.resolve('') }
-            created.promise = mediaImageApi(path, controller.signal)
+            created.promise = loadImage(path, controller.signal)
               .then((blob) => {
                 if (
                   controller.signal.aborted ||

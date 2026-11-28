@@ -1,5 +1,6 @@
 import { type CommentVO, likeCommentApi } from '@/api/comment'
 import { useAuthStore } from '@/stores/auth'
+import { useLoginPrompt } from '@/composables/useLoginPrompt'
 import { avatarUrl as resourceAvatarUrl } from '@/utils/resource'
 import type { EmitFn } from 'vue'
 import { computed, ref, watch } from 'vue'
@@ -15,6 +16,8 @@ export function useCommentEntry(
   emit: EmitFn<{ reply: [comment: CommentVO]; delete: [comment: CommentVO] }>,
 ) {
   const auth = useAuthStore()
+  const { requireLogin } = useLoginPrompt()
+  const guest = computed(() => !auth.getToken())
   const displayName = computed(() => props.comment.username || '已注销用户')
   const avatarUrl = computed(() => resourceAvatarUrl(props.comment.avatar))
   const canDelete = computed(
@@ -35,7 +38,7 @@ export function useCommentEntry(
     { immediate: true },
   )
   const toggleLike = async () => {
-    if (liking.value || props.disabled || !auth.hasPermission('comment:update')) return
+    if (liking.value || props.disabled || !requireLogin() || !auth.hasPermission('comment:update')) return
     liking.value = true
     try {
       const res = await likeCommentApi({ commentId: props.comment.id })
@@ -49,5 +52,8 @@ export function useCommentEntry(
     }
   }
 
-  return { auth, displayName, avatarUrl, canDelete, liked, count, liking, toggleLike }
+  const replyToComment = () => {
+    if (!props.disabled && requireLogin() && auth.hasPermission('comment:create')) emit('reply', props.comment)
+  }
+  return { auth, guest, displayName, avatarUrl, canDelete, liked, count, liking, toggleLike, replyToComment }
 }

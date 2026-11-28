@@ -9,18 +9,18 @@
         <div class="info-list">
           <div v-if="isSelf" class="info-item">
             <span class="label">邮箱</span>
-            <span class="value">{{ props.profile?.userProfileInfoVO.email || '未绑定' }}</span>
+            <span class="value">{{ account?.email || '未绑定' }}</span>
           </div>
 
           <div v-if="isSelf" class="info-item">
             <span class="label">手机号</span>
-            <span class="value">{{ props.profile?.userProfileInfoVO.phone || '未绑定' }}</span>
+            <span class="value">{{ account?.phone || '未绑定' }}</span>
           </div>
 
           <div class="info-item">
             <span class="label">注册时间</span>
             <span class="value">{{
-              formatDateTime(props.profile?.userProfileInfoVO.createTime) || '—'
+              formatDateTime(props.profile?.userProfileInfoVO.createTime ?? undefined) || '—'
             }}</span>
           </div>
 
@@ -186,7 +186,7 @@
 </template>
 
 <script setup lang="ts">
-import type { UserProfileVO } from '@/api/profile.ts'
+import type { ProfileResponse } from '@/api/profile.ts'
 import { formatDateTime } from '@/utils/date.ts'
 
 import { useProfileInfo } from './logic/useProfileInfo'
@@ -199,11 +199,12 @@ defineOptions({
   name: 'ProfileInfo',
 })
 const props = defineProps<{
-  profile: UserProfileVO | null
+  profile: ProfileResponse | null
   isSelf: boolean
 }>()
 
 const {
+  account,
   authStore,
   passwordDialogVisible,
   passwordSubmitting,

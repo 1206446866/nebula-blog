@@ -4,8 +4,8 @@ import { ElMessage } from 'element-plus'
 import router from '@/router'
 import { useAuthStore } from '../stores/auth.ts'
 import { belongsToCurrentSession } from './auth-session'
-import { getHttpErrorMessage } from './http-error'
-import { loginLocation } from '@/router/policy'
+import { getHttpErrorMessage, getRetryAfterSeconds } from './http-error'
+import { isGuestRoute, loginLocation } from '@/router/policy'
 
 const service: AxiosInstance = axios.create({
   baseURL: '/api',
@@ -16,6 +16,7 @@ const service: AxiosInstance = axios.create({
 declare module 'axios' {
   export interface AxiosRequestConfig {
     skipAuthRedirect?: boolean
+    publicRead?: boolean
     silentError?: boolean
     sessionToken?: string
   }
@@ -51,7 +52,7 @@ service.interceptors.request.use((config) => {
       ? authorization.substring(7)
       : token
   return config
-})
+}, undefined, { synchronous: true })
 
 function sessionChanged(config?: AxiosRequestConfig) {
   return (
@@ -63,16 +64,19 @@ function expireCurrentSession(config: AxiosRequestConfig) {
   const auth = useAuthStore()
   if (
     config.skipAuthRedirect ||
+    config.publicRead ||
     !belongsToCurrentSession(config.headers?.Authorization, auth.getToken())
   )
-    return
+    return false
   auth.clearAuth()
-  ElMessage.error('登录状态已失效，请重新登录')
-  void router.replace(
-    router.currentRoute.value.meta.public
-      ? '/login'
-      : loginLocation(router.currentRoute.value.fullPath),
-  )
+  const route = router.currentRoute.value
+  if (isGuestRoute(route)) {
+    ElMessage.warning('登录状态已失效，当前可继续公开阅读')
+  } else {
+    ElMessage.error('登录状态已失效，请重新登录')
+    void router.replace(route.meta.public ? '/login' : loginLocation(route.fullPath))
+  }
+  return true
 }
 
 /**
@@ -85,8 +89,8 @@ service.interceptors.response.use(
     if (response.config.responseType === 'blob') return response.data
     const { code, message } = response.data
     if (code !== 200) {
-      if (code === 401 && !response.config.skipAuthRedirect) expireCurrentSession(response.config)
-      else if (!response.config.silentError) ElMessage.error(message || '请求失败')
+      const expired = code === 401 && expireCurrentSession(response.config)
+      if (!expired && !response.config.silentError) ElMessage.error(message || '请求失败')
       return Promise.reject(response.data)
     }
     return response.data
@@ -97,14 +101,16 @@ service.interceptors.response.use(
       return Promise.reject(new axios.CanceledError('登录状态已变化'))
     const status = error.response?.status
     if (status === 401) {
-      if (error.config?.skipAuthRedirect) {
-        if (!error.config?.silentError)
-          ElMessage.error(getHttpErrorMessage(status, error.response?.data))
-      } else {
-        expireCurrentSession(error.config || {})
-      }
+      const expired = expireCurrentSession(error.config || {})
+      const authorization = error.config?.headers?.Authorization
+      const wasCurrent = !authorization || belongsToCurrentSession(authorization, useAuthStore().getToken())
+      if (!expired && !error.config?.silentError && wasCurrent)
+        ElMessage.error(getHttpErrorMessage(status, error.response?.data))
     } else if (!error.config?.silentError && error.code !== 'ERR_CANCELED') {
-      ElMessage.error(getHttpErrorMessage(status, error.response?.data))
+      const retry = getRetryAfterSeconds(error.response?.headers?.['retry-after'])
+      const message = getHttpErrorMessage(status, error.response?.data)
+      ElMessage.error(error.config?.publicRead && retry && (status === 429 || status === 503)
+        ? `${message}（${retry} 秒后可重试）` : message)
     }
     return Promise.reject(error)
   },

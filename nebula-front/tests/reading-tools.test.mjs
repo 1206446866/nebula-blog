@@ -10,8 +10,8 @@ const code = ts.transpileModule(readFileSync(entry, 'utf8'), {
   compilerOptions: { module: ts.ModuleKind.CommonJS },
 }).outputText
 const settle = () => new Promise((resolve) => setImmediate(resolve))
-function harness(initial = {}, deferred = false, withBanner = false) {
-  const context = { token: 'one', calls: [], requests: [], scroll: 0, timers: [] },
+function harness(initial = {}, deferred = false, withBanner = false, token = 'one') {
+  const context = { token, calls: [], requests: [], scroll: 0, timers: [], prompts: 0 },
     cleanups = []
   const state = { favorite: false, later: false, progress: 0, anchor: '', readAt: null, ...initial }
   const content = {
@@ -43,6 +43,11 @@ function harness(initial = {}, deferred = false, withBanner = false) {
   const dependencies = {
     vue: { ...vue, onBeforeUnmount: (callback) => cleanups.push(callback) },
     '@/stores/auth': { useAuthStore: () => ({ getToken: () => context.token }) },
+    '@/composables/useLoginPrompt': { useLoginPrompt: () => ({ requireLogin: () => {
+      if (context.token) return true
+      context.prompts++
+      return false
+    } }) },
     '@/api/reading': {
       getReadingApi: (id, signal) =>
         deferred
@@ -94,6 +99,19 @@ function harness(initial = {}, deferred = false, withBanner = false) {
     },
   }
 }
+test('游客不读取书架或保存进度，点击收藏进入登录引导', async () => {
+  const h = harness({}, true, false, '')
+  try {
+    await settle()
+    await h.view.toggle('favorite')
+    h.context.timers[0]()
+    assert.equal(h.context.prompts, 1)
+    assert.deepEqual(h.context.requests, [])
+    assert.deepEqual(h.context.calls, [])
+  } finally {
+    h.dispose()
+  }
+})
 test('续读提示显示前不会用页首位置覆盖历史，明确从头阅读后才写入', async () => {
   const h = harness({ progress: 6500, anchor: 'chapter' })
   try {

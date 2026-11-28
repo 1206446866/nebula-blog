@@ -1,7 +1,7 @@
 import type { ArticleVO } from '@/api/article'
 import type { CategoryVO } from '@/api/category'
 import type { TagVO } from '@/api/tag'
-import type { UserVO } from '@/api/user'
+import type { PublicUserVO } from '@/api/user'
 import router from '@/router'
 import { avatarUrl as resourceAvatarUrl } from '@/utils/resource'
 import { computed } from 'vue'
@@ -12,7 +12,7 @@ export function useArticleHero(
     article: ArticleVO
     category?: CategoryVO
     tags: TagVO[]
-    author?: UserVO
+    author?: PublicUserVO
   }>,
 ) {
   const avatarUrl = computed(() => resourceAvatarUrl(props.author?.avatar))

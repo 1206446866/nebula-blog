@@ -109,6 +109,31 @@ test('public and error pages do not require a server session check', async () =>
   assert.equal(await guard(target({ meta: { public: true } })), true)
   assert.equal(state.checks, 0)
 })
+test('游客可直接进入公开阅读，私人系列查询保留登录返回地址', async () => {
+  const { state, guard } = fixture({ token: '' })
+  assert.equal(await guard(target({ meta: { guest: true } })), true)
+  const result = await guard(target({
+    path: '/SERIES/',
+    fullPath: '/SERIES/?mine=true#list',
+    meta: { guest: true },
+    query: { mine: 'true' },
+  }))
+  assert.equal(result.path, '/login')
+  assert.equal(result.query.redirect, '/SERIES/?mine=true#list')
+  assert.equal(state.checks, 0)
+})
+test('公开页面校验登录权限，撤销后切回游客，服务故障保留令牌', async () => {
+  const route = target({ meta: { guest: true }, matched: [{ meta: { permission: 'article:list' } }] })
+  const signed = fixture({ serverPermissions: [] })
+  assert.equal((await signed.guard(route)).path, '/403')
+  assert.equal(signed.state.checks, 1)
+  const revoked = fixture({ refresh: async () => { throw { response: { status: 401 } } } })
+  assert.equal(await revoked.guard(route), true)
+  assert.equal(revoked.state.token, '')
+  const unavailable = fixture({ refresh: async () => { throw { response: { status: 503 } } } })
+  assert.equal((await unavailable.guard(route)).path, '/session-error')
+  assert.ok(unavailable.state.token)
+})
 test('local role forgery is replaced with current server authorization before checking routes', async () => {
   const { state, guard } = fixture({ roles: ['SUPER_ADMIN'], serverRoles: ['USER'] })
   assert.equal((await guard(target({ matched: [{ meta: { roles: ['ADMIN'] } }] }))).path, '/403')

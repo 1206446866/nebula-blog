@@ -23,7 +23,7 @@ export function safeRedirect(value: unknown): string | null {
 
 type Target = {
   fullPath: string
-  meta: { public?: boolean; idParam?: string; articleQuery?: boolean }
+  meta: { public?: boolean; guest?: boolean; idParam?: string; articleQuery?: boolean }
   params: Record<string, unknown>
   query?: Record<string, unknown>
   matched: { meta: { roles?: readonly string[]; permission?: string } }[]
@@ -41,6 +41,15 @@ export function loginLocation(fullPath: string) {
   return { path: '/login', query: redirect ? { redirect } : {}, replace: true }
 }
 
+export function isGuestRoute(to: Pick<Target, 'meta' | 'query'> & { path?: string }) {
+  const path = to.path?.replace(/\/+$/, '').toLowerCase()
+  return !!to.meta.guest && !(path === '/series' && isPersonalSeriesQuery(to.query?.mine))
+}
+
+export function isPersonalSeriesQuery(mine: unknown) {
+  return mine === '1' || mine === 'true'
+}
+
 export function hasRouteAccess(
   to: Pick<Target, 'matched'>,
   auth: Pick<Auth, 'hasAnyRole' | 'hasPermission'>,
@@ -53,7 +62,7 @@ export function hasRouteAccess(
 }
 
 export function createNavigationGuard(auth: Auth) {
-  return async (to: Target) => {
+  return async (to: Target & { path?: string }) => {
     if (to.meta.idParam && !positiveId(to.params[to.meta.idParam]))
       return { path: '/404', replace: true }
     if (to.meta.articleQuery) {
@@ -64,12 +73,13 @@ export function createNavigationGuard(auth: Auth) {
       }
     }
     if (to.meta.public) return true
+    const guest = isGuestRoute(to)
     // 等待会话校验结果期间，用户可能已经退出或切换账号。
     for (let attempt = 0; attempt < 3; attempt++) {
       const token = auth.getToken()
       if (!tokenPayload(token)) {
         auth.clearAuth()
-        return loginLocation(to.fullPath)
+        return guest ? true : loginLocation(to.fullPath)
       }
       try {
         const current = await auth.refreshSession()
@@ -79,7 +89,7 @@ export function createNavigationGuard(auth: Auth) {
         const failure = error as { code?: number; response?: { status?: number } }
         if (failure.code === 401 || failure.response?.status === 401) {
           auth.clearAuth()
-          return loginLocation(to.fullPath)
+          return guest ? true : loginLocation(to.fullPath)
         }
         return {
           path: '/session-error',

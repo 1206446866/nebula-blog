@@ -4,13 +4,13 @@ import { useAuthStore } from '@/stores/auth'
 /** 首页收尾仅展示现有且有访问权限的入口，不提供未开放板块占位。 */
 export function useHomeClosing() {
   const auth = useAuthStore()
-  const canRead = computed(() => auth.hasPermission('article:list'))
+  const canRead = computed(() => auth.canReadPublic('article:list'))
   const links = computed(() =>
     [
       { label: '文章', to: '/article', permission: 'article:list' },
       { label: '标签', to: '/tag', permission: 'tag:list' },
       { label: '分类', to: '/category', permission: 'category:list' },
-    ].filter((link) => auth.hasPermission(link.permission)),
+    ].filter((link) => auth.canReadPublic(link.permission)),
   )
 
   /** 回到首页起点并移动键盘焦点；减少动态效果时直接定位。 */

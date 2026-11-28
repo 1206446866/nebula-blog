@@ -35,6 +35,7 @@ export function pageCategoryApi(
   signal?: AbortSignal,
 ) {
   return request.get<Result<Page<CategoryVO>>>('/categories', {
+    publicRead: true,
     params,
     signal,
   })
@@ -43,8 +44,8 @@ export function pageCategoryApi(
 /**
  * 分类列表
  */
-export function listCategoryApi() {
-  return request.get<Result<CategoryVO[]>>('/categories/list')
+export function listCategoryApi(signal?: AbortSignal) {
+  return request.get<Result<CategoryVO[]>>('/categories/list', { signal, publicRead: true })
 }
 
 export function createCategoryApi(data: CreateCategoryDTO) {

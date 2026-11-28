@@ -53,14 +53,18 @@ export const releaseCommentApi = (data: ReleaseCommentDto) => {
   return request.put<Result<boolean>>('/comments/release', data)
 }
 
-export const getCommentThreadsApi = (articleId: number, currentPage = 1, size = 10) =>
+export const getCommentThreadsApi = (articleId: number, currentPage = 1, size = 10, signal?: AbortSignal) =>
   request.get<Result<Page<CommentVO>>>('/comments/threads', {
     params: { articleId, currentPage, size },
+    signal,
+    publicRead: true,
   })
 
-export const getCommentRepliesApi = (rootId: number, currentPage = 1, size = 5) =>
+export const getCommentRepliesApi = (rootId: number, currentPage = 1, size = 5, signal?: AbortSignal) =>
   request.get<Result<Page<CommentVO>>>(`/comments/${rootId}/replies`, {
     params: { currentPage, size },
+    signal,
+    publicRead: true,
   })
 
 /**

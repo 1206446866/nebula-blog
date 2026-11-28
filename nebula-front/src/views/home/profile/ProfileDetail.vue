@@ -1,13 +1,13 @@
 <script setup lang="ts">
 import { RouterLink } from 'vue-router'
-import type { UserProfileVO } from '@/api/profile.ts'
+import type { ProfileResponse } from '@/api/profile.ts'
 import { formatDateTime, formatRelativeDay } from '@/utils/date.ts'
 import ProfilePagination from './ProfilePagination.vue'
 
 import { useProfileDetail, type TabType } from './logic/useProfileDetail'
 
 defineOptions({ name: 'ProfileDetail' })
-const props = defineProps<{ profile: UserProfileVO | null; isSelf: boolean; loading: boolean }>()
+const props = defineProps<{ profile: ProfileResponse | null; isSelf: boolean; loading: boolean }>()
 const emit = defineEmits<{ 'page-change': [type: TabType, page: number] }>()
 
 const {

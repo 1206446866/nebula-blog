@@ -6,7 +6,7 @@ import ts from 'typescript'
 import { CanceledError } from 'axios'
 import { belongsToCurrentSession } from '../src/utils/auth-session.ts'
 import { getHttpErrorMessage, getRetryAfterSeconds } from '../src/utils/http-error.ts'
-import { loginLocation } from '../src/router/policy.ts'
+import { isGuestRoute, loginLocation } from '../src/router/policy.ts'
 
 function loadTs(relative, dependencies) {
   const source = readFileSync(new URL(relative, import.meta.url), 'utf8')
@@ -53,12 +53,12 @@ function client() {
   }
   loadTs('../src/utils/request.ts', {
     axios: { create: () => service, CanceledError },
-    'element-plus': { ElMessage: { error: (message) => state.messages.push(message) } },
+    'element-plus': { ElMessage: { error: (message) => state.messages.push(message), warning: (message) => state.messages.push(message) } },
     '@/router': {
       replace: async (path) => state.routes.push(path),
       currentRoute: { value: state.location },
     },
-    '@/router/policy': { loginLocation },
+    '@/router/policy': { isGuestRoute, loginLocation },
     '../stores/auth.ts': {
       useAuthStore: () => ({
         getToken: () => state.token,
@@ -69,7 +69,7 @@ function client() {
       }),
     },
     './auth-session': { belongsToCurrentSession },
-    './http-error': { getHttpErrorMessage },
+    './http-error': { getHttpErrorMessage, getRetryAfterSeconds },
   })
   return { state, success, failure, prepare }
 }
@@ -154,6 +154,23 @@ test('an expired protected request clears only the matching session', async () =
   assert.equal(state.clears, 1)
   assert.equal(state.token, '')
   assert.deepEqual(state.routes, [loginLocation(state.location.fullPath)])
+})
+test('公开阅读请求的 401 不清除正常会话，私人请求失效后留在公开页', async () => {
+  const { state, failure } = client()
+  state.location.meta.guest = true
+  await assert.rejects(failure(error(401, '公开内容暂时不可读', { publicRead: true })))
+  assert.equal(state.token, 'current-session')
+  assert.deepEqual(state.messages, ['公开内容暂时不可读'])
+  await assert.rejects(failure(error(401, 'expired')))
+  assert.equal(state.token, '')
+  assert.deepEqual(state.routes, [])
+})
+test('公开读取限流展示服务端的重试间隔', async () => {
+  const { state, failure } = client()
+  const response = error(429, '读取繁忙', { publicRead: true })
+  response.response.headers = { 'retry-after': '3' }
+  await assert.rejects(failure(response))
+  assert.deepEqual(state.messages, ['读取繁忙（3 秒后可重试）'])
 })
 
 test('a late unauthorized response cannot clear a newer session or show a misleading expiry', async () => {

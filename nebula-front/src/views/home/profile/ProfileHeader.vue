@@ -37,16 +37,16 @@
             />
           </div>
 
-          <div class="nid">{{ profile?.userProfileInfoVO.nid }}</div>
+          <div v-if="account" class="nid">{{ account.nid }}</div>
 
-          <div class="status">
+          <div v-if="account" class="status">
             <span class="dot" :style="{ background: statusColor }"></span>
             {{ statusText }}
           </div>
         </div>
 
         <!-- 第二行：角色 -->
-        <div class="roles">
+        <div v-if="roles.length" class="roles">
           <span class="tag" v-for="role in roles" :key="role"> {{ role }}</span>
         </div>
 
@@ -76,7 +76,7 @@
 </template>
 
 <script setup lang="ts">
-import type { UserProfileVO } from '@/api/profile.ts'
+import type { ProfileResponse } from '@/api/profile.ts'
 
 import { useProfileHeader } from './logic/useProfileHeader'
 
@@ -84,7 +84,7 @@ defineOptions({
   name: 'ProfileHeader',
 })
 const props = defineProps<{
-  profile: UserProfileVO | null
+  profile: ProfileResponse | null
   isSelf: boolean
 }>()
 const emit = defineEmits<{
@@ -92,6 +92,7 @@ const emit = defineEmits<{
 }>()
 
 const {
+  account,
   username,
   avatarText,
   roles,

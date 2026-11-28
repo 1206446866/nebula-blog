@@ -2,6 +2,7 @@ import { type CommentVO, deleteCommentByIdApi, getCommentRepliesApi } from '@/ap
 import { ElMessage, ElMessageBox } from 'element-plus'
 import type { EmitFn } from 'vue'
 import { onBeforeUnmount, ref, watch } from 'vue'
+import { useAuthStore } from '@/stores/auth'
 
 /** 管理评论回复与删除的状态与交互。 */
 export function useCommentThread(
@@ -9,6 +10,8 @@ export function useCommentThread(
   emit: EmitFn<{ removed: [] }>,
 ) {
   const expanded = ref(false)
+  const auth = useAuthStore()
+  let disposed = false
   const loading = ref(false)
   const error = ref(false)
   const deleting = ref(false)
@@ -19,6 +22,7 @@ export function useCommentThread(
   const replyPage = ref(1)
   const replySize = 5
   let requestId = 0
+  let controller: AbortController | undefined
 
   watch(
     () => props.comment.replyCount,
@@ -28,14 +32,18 @@ export function useCommentThread(
   )
 
   onBeforeUnmount(() => {
+    disposed = true
     requestId++
+    controller?.abort()
   })
   const loadReplies = async (page: number) => {
     const id = ++requestId
+    controller?.abort()
+    controller = new AbortController()
     loading.value = true
     error.value = false
     try {
-      const res = await getCommentRepliesApi(props.comment.id, page, replySize)
+      const res = await getCommentRepliesApi(props.comment.id, page, replySize, controller.signal)
       if (id !== requestId) return
       const last = Math.max(1, Math.ceil(res.data.totalRow / replySize))
       if (page > last) {
@@ -70,7 +78,8 @@ export function useCommentThread(
     await loadReplies(Math.ceil(replyCount.value / replySize))
   }
   const remove = async (comment: CommentVO) => {
-    if (deleting.value || submitting.value) return
+    const token = auth.getToken()
+    if (!token || deleting.value || submitting.value) return
     const confirmed = await ElMessageBox.confirm(
       '这条评论及其下的所有回复将一起删除，确定继续吗？',
       '删除评论',
@@ -79,7 +88,7 @@ export function useCommentThread(
       () => true,
       () => false,
     )
-    if (!confirmed) return
+    if (!confirmed || disposed || auth.getToken() !== token) return
     deleting.value = true
     try {
       const res = await deleteCommentByIdApi(comment.id)

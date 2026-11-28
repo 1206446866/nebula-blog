@@ -3,7 +3,7 @@ import { listTagApi } from '@/api/tag.ts'
 import { useArticleFilterStore } from '@/stores/articleFilter.ts'
 import { useAuthStore } from '@/stores/auth'
 import { articleFilterQuery } from '@/utils/article-query'
-import { computed, onMounted, ref } from 'vue'
+import { computed, onBeforeUnmount, onMounted, ref } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 
 /** 管理文章筛选栏的状态与交互。 */
@@ -36,11 +36,13 @@ export function useArticleHomeFilter() {
   }
   const categoryMap = ref(new Map<number, string>())
   const tagMap = ref(new Map<number, string>())
+  const controller = new AbortController()
+  onBeforeUnmount(() => controller.abort())
 
   onMounted(async () => {
     const [categories, tags] = await Promise.allSettled([
-      auth.hasPermission('category:list') ? listCategoryApi() : Promise.resolve(null),
-      auth.hasPermission('tag:list') ? listTagApi() : Promise.resolve(null),
+      auth.canReadPublic('category:list') ? listCategoryApi(controller.signal) : Promise.resolve(null),
+      auth.canReadPublic('tag:list') ? listTagApi(controller.signal) : Promise.resolve(null),
     ])
     const categoryList = categories.status === 'fulfilled' ? categories.value : null
     const tagList = tags.status === 'fulfilled' ? tags.value : null
