@@ -1,4 +1,4 @@
-import { getProfileApi, type UserProfileVO } from '@/api/profile'
+import { getProfileApi, signedProfile, type ProfileResponse } from '@/api/profile'
 import { useAuthStore } from '@/stores/auth.ts'
 import { computed, onBeforeUnmount, ref, watch } from 'vue'
 import { useRoute } from 'vue-router'
@@ -10,10 +10,12 @@ export function useUserProfile() {
   const route = useRoute()
   const userStore = useAuthStore()
   const userId = computed(() => Number(route.params.userId))
-  const profile = ref<UserProfileVO | null>(null)
-  const isSelf = computed(() =>
-    Boolean(profile.value && userStore.user?.id === profile.value.userProfileInfoVO.id),
-  )
+  const profile = ref<ProfileResponse | null>(null)
+  const isSignedIn = computed(() => !!userStore.getToken())
+  const isSelf = computed(() => {
+    const profileId = signedProfile(profile.value)?.userProfileInfoVO.id
+    return profileId === userId.value && userStore.user?.id === profileId
+  })
   const loading = ref(false)
   const errorMessage = ref('')
   const errorCode = ref<number | null>(null)
@@ -22,7 +24,7 @@ export function useUserProfile() {
   let controller: AbortController | undefined
 
   function handlePageChange(type: TabType, page: number) {
-    if (loading.value || !Number.isSafeInteger(page) || page < 1) return
+    if (loading.value || !Number.isSafeInteger(page) || page < 1 || (type === 'draft' && !isSelf.value)) return
     pages.value[type] = page
     void loadProfile()
   }
@@ -46,8 +48,9 @@ export function useUserProfile() {
         {
           publicArticlePage: pages.value.article,
           publicArticleSize: 5,
-          draftArticlePage: pages.value.draft,
-          draftArticleSize: 5,
+          ...(userStore.user?.id === userId.value
+            ? { draftArticlePage: pages.value.draft, draftArticleSize: 5 }
+            : {}),
           commentPage: pages.value.comment,
           commentSize: 5,
         },
@@ -57,12 +60,13 @@ export function useUserProfile() {
       profile.value = res.data
       pages.value = {
         article: res.data.publicArticles.pageNumber,
-        draft: res.data.draftArticles?.pageNumber ?? 1,
+        draft: signedProfile(res.data)?.draftArticles?.pageNumber ?? 1,
         comment: res.data.comments.pageNumber,
       }
     } catch (error) {
       if (currentController.signal.aborted || version !== requestVersion) return
-      const code = (error as { code?: unknown })?.code
+      const failure = error as { code?: unknown; response?: { data?: { code?: unknown } } }
+      const code = failure.response?.data?.code ?? failure.code
       errorCode.value = typeof code === 'number' ? code : null
       errorMessage.value =
         code === 40101 ? '这个用户不存在，或已被删除。' : '加载失败，请检查服务连接后重试。'
@@ -86,5 +90,5 @@ export function useUserProfile() {
     controller?.abort()
   })
 
-  return { profile, isSelf, loading, errorMessage, errorCode, handlePageChange, loadProfile }
+  return { profile, isSelf, isSignedIn, loading, errorMessage, errorCode, handlePageChange, loadProfile }
 }

@@ -1,6 +1,7 @@
 import { searchSite, type SearchResult } from '@/api/search'
 import { useAuthStore } from '@/stores/auth'
 import { readSiteSearchQuery, type SearchType } from '@/utils/site-search'
+import { getHttpErrorMessage, getRetryAfterSeconds } from '@/utils/http-error'
 import { computed, onBeforeUnmount, ref, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 
@@ -14,6 +15,7 @@ export function useSiteSearch() {
   const result = ref<SearchResult | null>(null)
   const loading = ref(false),
     error = ref('')
+  const guest = computed(() => !auth.getToken())
   const labels: Record<SearchType, string> = {
     all: '全部',
     article: '文章',
@@ -25,10 +27,10 @@ export function useSiteSearch() {
   const tabs = computed(() =>
     Object.entries(labels)
       .filter(
-        ([type]) => !['article', 'comment'].includes(type) || auth.hasPermission('article:list'),
+        ([type]) => !['article', 'comment'].includes(type) || auth.canReadPublic('article:list'),
       )
-      .filter(([type]) => type !== 'category' || auth.hasPermission('category:list'))
-      .filter(([type]) => type !== 'tag' || auth.hasPermission('tag:list')),
+      .filter(([type]) => type !== 'category' || auth.canReadPublic('category:list'))
+      .filter(([type]) => type !== 'tag' || auth.canReadPublic('tag:list')),
   )
   const total = computed(() =>
     result.value ? Object.values(result.value.counts).reduce((sum, count) => sum + count, 0) : 0,
@@ -56,8 +58,14 @@ export function useSiteSearch() {
     try {
       const response = await searchSite(query.value.q, query.value.type, query.value.page, signal)
       if (run === version) result.value = response.data
-    } catch {
-      if (run === version && !signal.aborted) error.value = '搜索暂时不可用，请重试。'
+    } catch (failure) {
+      if (run === version && !signal.aborted) {
+        const info = failure as { code?: number; response?: { status?: number; data?: unknown; headers?: Record<string, unknown> } }
+        const status = info.response?.status ?? (typeof info.code === 'number' ? info.code : undefined)
+        const message = getHttpErrorMessage(status, info.response?.data ?? failure)
+        const retry = getRetryAfterSeconds(info.response?.headers?.['retry-after'])
+        error.value = retry && (status === 429 || status === 503) ? `${message}（${retry} 秒后可重试）` : message
+      }
     } finally {
       if (run === version) loading.value = false
     }
@@ -83,5 +91,5 @@ export function useSiteSearch() {
     controller?.abort()
   })
 
-  return { keyword, query, result, loading, error, labels, tabs, total, load, navigate, submit }
+  return { keyword, query, result, loading, error, guest, labels, tabs, total, load, navigate, submit }
 }

@@ -17,7 +17,7 @@
         <button
           type="button"
           :aria-pressed="liked"
-          :disabled="liking || disabled || !auth.hasPermission('comment:update')"
+          :disabled="liking || disabled || (!guest && !auth.hasPermission('comment:update'))"
           :class="{ liked }"
           @click="toggleLike"
         >
@@ -33,10 +33,10 @@
           ><span>{{ count || '喜欢' }}</span>
         </button>
         <button
-          v-if="auth.hasPermission('comment:create')"
+          v-if="guest || auth.hasPermission('comment:create')"
           type="button"
           :disabled="disabled"
-          @click="emit('reply', comment)"
+          @click="replyToComment"
         >
           <el-icon><ChatLineRound /></el-icon>回复
         </button>
@@ -70,7 +70,7 @@ const props = defineProps<{
 }>()
 const emit = defineEmits<{ reply: [comment: CommentVO]; delete: [comment: CommentVO] }>()
 
-const { auth, displayName, avatarUrl, canDelete, liked, count, liking, toggleLike } =
+const { auth, guest, displayName, avatarUrl, canDelete, liked, count, liking, toggleLike, replyToComment } =
   useCommentEntry(props, emit)
 </script>
 

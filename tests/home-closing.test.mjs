@@ -50,6 +50,9 @@ function mount(relative, props = {}, api = {}) {
     hasPermission(permission) {
       return this.permissions.includes(permission)
     },
+    canReadPublic(permission) {
+      return !this.getToken() || this.hasPermission(permission)
+    },
   })
   const entry = new URL(`../src/components/${relative}.vue`, import.meta.url)
   const descriptor = parse(readFileSync(entry, 'utf8'), {
@@ -79,6 +82,8 @@ function mount(relative, props = {}, api = {}) {
           return { useAuthStore: () => auth }
         if (name === '@/utils/auth') return { getCurrentUserId: () => 1 }
         if (name === '@/utils/resource') return { avatarUrl: () => '' }
+        if (name === '@/router/policy') return { isGuestRoute: () => true, loginLocation: () => ({ path: '/login' }) }
+        if (name === '@/composables/useLoginPrompt') return { useLoginPrompt: () => ({ goLogin() {} }) }
         if (name === '@/api/community') return api
         if (
           [

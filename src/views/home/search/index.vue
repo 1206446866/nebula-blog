@@ -8,7 +8,7 @@ import ProfilePagination from '@/views/home/profile/ProfilePagination.vue'
 
 import { useSiteSearch } from './logic/useSiteSearch'
 
-const { keyword, query, result, loading, error, labels, tabs, total, load, navigate, submit } =
+const { keyword, query, result, loading, error, guest, labels, tabs, total, load, navigate, submit } =
   useSiteSearch()
 </script>
 
@@ -17,7 +17,7 @@ const { keyword, query, result, loading, error, labels, tabs, total, load, navig
     <header>
       <span class="eyebrow">NEBULA / SEARCH</span>
       <h1>在星云中，寻找你的答案</h1>
-      <p>搜索已发布文章、公开评论、用户、分类与标签。</p>
+    <p>{{ guest ? '搜索已发布文章、公开评论、昵称、分类与标签。' : '搜索已发布文章、公开评论、用户、分类与标签。' }}</p>
     </header>
     <form class="search-form" role="search" @submit.prevent="submit">
       <input
@@ -38,7 +38,7 @@ const { keyword, query, result, loading, error, labels, tabs, total, load, navig
         @click="navigate(type)"
       >
         {{ label }}
-        <span>{{ result?.countsExact === false ? '约' : '' }}{{
+        <span v-if="result">{{ result.countsExact === false ? (guest ? '已核验 ' : '约') : '' }}{{
           type === 'all' ? total : (result?.counts[type as keyof SearchResult['counts']] ?? 0)
         }}</span>
       </button>
@@ -50,9 +50,9 @@ const { keyword, query, result, loading, error, labels, tabs, total, load, navig
     <p v-else-if="!query.q" class="search-status">输入关键词，开始探索站内内容。</p>
     <template v-else-if="result">
       <p class="result-summary">
-        “{{ query.q }}” · 当前分类{{ result.countsExact === false ? '约' : '共' }} {{ result.page.totalRow }} 条结果
+        “{{ query.q }}” · 当前分类{{ result.countsExact === false ? (guest ? '已核验' : '约') : '共' }} {{ result.page.totalRow }} 条结果
         <span v-if="result.windowLimited"> · 仅展示前 {{ result.page.totalRow }} 条，请缩小关键词继续查找</span>
-        <span v-else-if="result.countsExact === false"> · 新内容可能需要短暂同步</span>
+        <span v-else-if="result.countsExact === false"> · {{ guest ? '更多结果可能仍在核验或同步' : '新内容可能需要短暂同步' }}</span>
       </p>
       <div v-if="result.page.records.length" class="result-list">
         <RouterLink
@@ -71,7 +71,7 @@ const { keyword, query, result, loading, error, labels, tabs, total, load, navig
         </RouterLink>
       </div>
       <div v-else class="search-status">
-        <strong>没有找到相关内容</strong>
+        <strong>{{ guest && result.countsExact === false ? '暂未找到已核验的相关内容' : '没有找到相关内容' }}</strong>
         <p>试试更短的关键词，或切换其他分类。</p>
       </div>
       <ProfilePagination

@@ -15,7 +15,7 @@ export function useCommentEditor(
   emit: EmitFn<{ success: []; cancel: []; busy: [value: boolean] }>,
 ) {
   const auth = useAuthStore()
-  const canWrite = computed(() => auth.hasPermission('comment:create'))
+  const canWrite = computed(() => !!auth.getToken() && auth.hasPermission('comment:create'))
   const content = ref('')
   const submitting = ref(false)
   const input = ref<InputInstance>()

@@ -5,6 +5,7 @@ import {
   type ReadingState,
 } from '@/api/reading'
 import { useAuthStore } from '@/stores/auth'
+import { useLoginPrompt } from '@/composables/useLoginPrompt'
 import { computed, nextTick, onBeforeUnmount, ref, watch, type Ref } from 'vue'
 import { captureReadingPosition, restoreReadingPosition } from './reading-position'
 
@@ -12,6 +13,7 @@ import { captureReadingPosition, restoreReadingPosition } from './reading-positi
 export function useReadingTools(articleId: Ref<number>, enabled: Ref<boolean>) {
   const auth = useAuthStore(),
     token = auth.getToken()
+  const { requireLogin } = useLoginPrompt()
   const state = ref<ReadingState>({
     favorite: false,
     later: false,
@@ -56,6 +58,7 @@ export function useReadingTools(articleId: Ref<number>, enabled: Ref<boolean>) {
   }
 
   async function toggle(kind: 'favorite' | 'later') {
+    if (!enabled.value || !current() || !requireLogin()) return
     if (!ready.value || busy.value || !current()) return
     const run = generation
     busy.value = true

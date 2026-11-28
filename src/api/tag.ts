@@ -38,6 +38,7 @@ export interface UpdateTagDTO {
  */
 export function pageTagApi(name?: string, current = 1, size = 10, signal?: AbortSignal) {
   return request.get<Result<Page<TagVO>>>('/tags', {
+    publicRead: true,
     signal,
     params: {
       name,
@@ -50,12 +51,12 @@ export function pageTagApi(name?: string, current = 1, size = 10, signal?: Abort
 /**
  * 标签列表
  */
-export function listTagApi() {
-  return request.get<Result<TagVO[]>>('/tags/list')
+export function listTagApi(signal?: AbortSignal) {
+  return request.get<Result<TagVO[]>>('/tags/list', { signal, publicRead: true })
 }
 
-export function getTagHome() {
-  return request.get<Result<TagVO[]>>('/api/tag')
+export function getTagHome(signal?: AbortSignal) {
+  return request.get<Result<TagVO[]>>('/api/tag', { signal, publicRead: true })
 }
 
 /**

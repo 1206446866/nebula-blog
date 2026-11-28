@@ -13,6 +13,13 @@ export interface UserVO {
   createTime: string
 }
 
+export interface PublicUserVO {
+  id: number
+  username: string
+  avatar: string | null
+  createTime: string | null
+}
+
 /**
  * 编辑用户DTO
  */
@@ -80,5 +87,5 @@ export const cancelSelfAccountApi = (data: CancelAccountDTO) => {
 }
 
 export function getUserById(userId: number, signal?: AbortSignal) {
-  return request.get<Result<UserVO | null>>(`/users/${userId}`, { signal })
+  return request.get<Result<PublicUserVO | UserVO | null>>(`/users/${userId}`, { signal, publicRead: true })
 }

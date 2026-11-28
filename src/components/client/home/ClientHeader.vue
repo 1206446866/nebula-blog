@@ -7,15 +7,16 @@
       <nav class="nav">
         <router-link to="/" class="item">首页</router-link>
         <router-link v-if="clientFeatures.community" to="/community" class="item">社区</router-link>
-        <router-link v-if="authStore.hasPermission('article:list')" to="/article" class="item"
+        <router-link v-if="authStore.canReadPublic('article:list')" to="/article" class="item"
           >文章</router-link
         >
-        <router-link v-if="authStore.hasPermission('category:list')" to="/category" class="item"
+        <router-link v-if="authStore.canReadPublic('category:list')" to="/category" class="item"
           >分类</router-link
         >
-        <router-link v-if="authStore.hasPermission('tag:list')" to="/tag" class="item"
+        <router-link v-if="authStore.canReadPublic('tag:list')" to="/tag" class="item"
           >标签</router-link
         >
+        <router-link v-if="authStore.canReadPublic('article:list')" to="/series" class="item">系列</router-link>
       </nav>
     </div>
 
@@ -25,6 +26,7 @@
     <div class="right" ref="rightRef">
       <template v-if="!isLogin">
         <button class="btn" @click="goLogin">登录</button>
+        <button class="btn" @click="goRegister">注册</button>
       </template>
 
       <template v-else>
@@ -94,6 +96,8 @@ import { getCurrentUserId } from '@/utils/auth'
 import { useAuthStore } from '@/stores/auth.ts'
 import HeaderSearch from './HeaderSearch.vue'
 import { clientFeatures } from '@/constants/client-features'
+import { isGuestRoute, loginLocation } from '@/router/policy'
+import { useLoginPrompt } from '@/composables/useLoginPrompt'
 
 const router = useRouter()
 const isReading = computed(() => router.currentRoute.value.name === 'ArticleDetail')
@@ -118,7 +122,11 @@ const toggleMenu = () => {
 /** 跳转 */
 const goHome = () => router.push('/')
 
-const goLogin = () => router.push('/login')
+const { goLogin } = useLoginPrompt()
+const goRegister = () => {
+  const login = loginLocation(router.currentRoute.value.fullPath)
+  return router.push({ ...login, query: { ...login.query, mode: 'register' } })
+}
 
 const goProfile = () => {
   router.push(`/user/${getCurrentUserId()}`)
@@ -126,7 +134,10 @@ const goProfile = () => {
 }
 
 const logout = async () => {
-  if (await authStore.logout()) await router.replace('/login')
+  if (await authStore.logout()) {
+    menuVisible.value = false
+    if (!isGuestRoute(router.currentRoute.value)) await router.replace('/')
+  }
 }
 
 /** 点击外部关闭 */

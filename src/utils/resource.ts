@@ -8,6 +8,8 @@ export function mediaPath(value: string): string | undefined {
 
 export function avatarUrl(value?: string | null): string {
   if (!value) return ''
+  const publicPath = value.replace(/^\/(?:api\/)?/, '')
+  if (/^upload\/public-avatar\/[1-9]\d*$/.test(publicPath)) return `/api/${publicPath}`
   const path = mediaPath(value)
   if (path?.startsWith('upload/avatar/')) return `/api/${path}`
   return /^[A-Za-z0-9_-]+\.(jpg|jpeg|png|gif|webp)$/i.test(value)

@@ -8,6 +8,7 @@ import {
   type SeriesArticle,
 } from '@/api/article-series'
 import { useAuthStore } from '@/stores/auth'
+import { isPersonalSeriesQuery } from '@/router/policy'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { computed, onBeforeUnmount, reactive, ref, watch } from 'vue'
 import { useRoute } from 'vue-router'
@@ -17,7 +18,7 @@ export function useSeriesManager() {
   const auth = useAuthStore(),
     token = auth.getToken(),
     route = useRoute()
-  const mine = ref(route.query.mine === '1'),
+  const mine = ref(!!token && isPersonalSeriesQuery(route.query.mine)),
     page = ref(1),
     total = ref(0),
     items = ref<ArticleSeries[]>([])
@@ -54,6 +55,7 @@ export function useSeriesManager() {
     editController: AbortController | undefined
   let searchTimer: ReturnType<typeof setTimeout> | undefined
   const current = () => !disposed && auth.getToken() === token
+  const canEdit = () => !!token && current() && auth.hasPermission('article:update')
   async function load() {
     if (!current()) return
     const run = ++generation
@@ -63,7 +65,7 @@ export function useSeriesManager() {
     failed.value = false
     items.value = []
     try {
-      const result = await getArticleSeriesApi(mine.value, page.value, controller.signal)
+      const result = await getArticleSeriesApi(!!token && mine.value, page.value, controller.signal)
       if (!current() || run !== generation) return
       items.value = result.data.records
       total.value = result.data.total
@@ -75,7 +77,7 @@ export function useSeriesManager() {
     }
   }
   async function search(append = false) {
-    if (!visible.value || !current()) return
+    if (!visible.value || !canEdit()) return
     if (!append) searchPage.value = 1
     const run = ++searchGeneration
     searchController?.abort()
@@ -111,7 +113,7 @@ export function useSeriesManager() {
     void search(true)
   }
   async function open(item?: ArticleSeries) {
-    if (saving.value || !current()) return
+    if (saving.value || !canEdit()) return
     const run = ++editGeneration
     editController?.abort()
     editController = new AbortController()
@@ -150,7 +152,7 @@ export function useSeriesManager() {
     form.articleIds = next
   }
   async function save() {
-    if (saving.value || !current()) return
+    if (saving.value || !canEdit()) return
     if (!form.title.trim()) return void ElMessage.warning('请给系列起个名字')
     saving.value = true
     try {
@@ -171,7 +173,7 @@ export function useSeriesManager() {
     }
   }
   async function remove(item: ArticleSeries) {
-    if (!current() || saving.value) return
+    if (!canEdit() || saving.value) return
     const yes = await ElMessageBox.confirm(
       `删除系列“${item.title}”？其中的文章会保留。`,
       '删除系列',
@@ -180,7 +182,7 @@ export function useSeriesManager() {
       () => true,
       () => false,
     )
-    if (!yes || !current()) return
+    if (!yes || !canEdit()) return
     saving.value = true
     try {
       await deleteArticleSeriesApi(item.id)
@@ -198,6 +200,7 @@ export function useSeriesManager() {
   watch(mine, () => {
     page.value = 1
   })
+  watch(() => route.query.mine, (value) => { mine.value = !!token && isPersonalSeriesQuery(value) })
   watch([mine, page], () => void load(), { immediate: true })
   watch(visible, (value) => {
     if (!value) {

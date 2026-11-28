@@ -8,7 +8,7 @@ export function useArticleContent(props: Readonly<{ content: string }>) {
   const htmlContent = computed(() => renderMarkdown(props.content))
   const body = ref<HTMLElement | null>(null)
 
-  useMediaImages(body, htmlContent)
+  useMediaImages(body, htmlContent, true)
 
   return { htmlContent, body }
 }

@@ -22,6 +22,12 @@ test('avatars support migrated paths and legacy names without external hosts', (
   for (const value of [null, '', '../secret.png', 'https://evil.test/avatar.png', path])
     assert.equal(avatarUrl(value), '')
 })
+test('游客头像接受按用户编号的公开地址', () => {
+  for (const value of ['upload/public-avatar/17', '/upload/public-avatar/17', '/api/upload/public-avatar/17'])
+    assert.equal(avatarUrl(value), '/api/upload/public-avatar/17')
+  for (const value of ['upload/public-avatar/0', 'upload/public-avatar/17?x=1', '//upload/public-avatar/17'])
+    assert.equal(avatarUrl(value), '')
+})
 test('inserted image Markdown has a stable relative URL and safe alternate text', () => {
   assert.equal(imageMarkdown(path, '星海.png'), `![星海](/${path})`)
   assert.doesNotMatch(imageMarkdown(path, 'a](`bad`)_<img>.png'), /!\[.*[<>`]/)

@@ -1,5 +1,8 @@
 <template>
-  <div class="comment-editor" :class="{ compact: parentId }">
+  <div v-if="guest" class="comment-editor">
+    <el-button type="primary" @click="goLogin">登录后发表评论</el-button>
+  </div>
+  <div v-else class="comment-editor" :class="{ compact: parentId }">
     <div class="editor-heading">
       <span>{{ parentId ? `回复 @${replyTo || '已注销用户'}` : '留下你的想法' }}</span>
       <button v-if="parentId" type="button" :disabled="submitting" @click="emit('cancel')">
@@ -41,6 +44,9 @@
 
 <script setup lang="ts">
 import { useCommentEditor } from '../logic/useCommentEditor'
+import { useAuthStore } from '@/stores/auth'
+import { useLoginPrompt } from '@/composables/useLoginPrompt'
+import { computed } from 'vue'
 
 const props = defineProps<{
   articleId: number
@@ -49,6 +55,9 @@ const props = defineProps<{
   disabled?: boolean
 }>()
 const emit = defineEmits<{ success: []; cancel: []; busy: [value: boolean] }>()
+const auth = useAuthStore()
+const guest = computed(() => !auth.getToken())
+const { goLogin } = useLoginPrompt()
 
 const { canWrite, content, submitting, input, submit } = useCommentEditor(props, emit)
 </script>

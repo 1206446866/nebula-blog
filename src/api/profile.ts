@@ -2,6 +2,7 @@
 import request from '@/utils/request'
 import type { Page } from '@/types/page.ts'
 import type { Result } from '@/types/result.ts'
+import type { PublicUserVO } from './user'
 
 export interface ProfileQuery {
   publicArticlePage?: number
@@ -12,25 +13,31 @@ export interface ProfileQuery {
   commentSize?: number
 }
 
-export interface UserProfileVO {
-  userProfileInfoVO: UserProfileInfoVO
+export interface PublicUserProfileVO {
+  userProfileInfoVO: PublicUserVO
   statisticsVO: UserProfileStatisticsVO
-  loginLogs: UserProfileLoginLogVO[]
   publicArticles: Page<UserProfileArticleVO>
   comments: Page<UserProfileCommentVO>
+}
+
+export interface UserProfileVO extends PublicUserProfileVO {
+  userProfileInfoVO: UserProfileInfoVO
+  loginLogs: UserProfileLoginLogVO[]
   draftArticles: Page<UserProfileArticleVO> | null
 }
 
-export interface UserProfileInfoVO {
-  id: number
+export type ProfileResponse = PublicUserProfileVO | UserProfileVO
+
+export function signedProfile(profile: ProfileResponse | null): UserProfileVO | null {
+  return profile && 'loginLogs' in profile ? profile : null
+}
+
+export interface UserProfileInfoVO extends PublicUserVO {
   nid: string
-  username: string
-  avatar: string
   status: number
   roles: string[]
   email: string | null
   phone: string | null
-  createTime: string
 }
 
 export interface UserProfileStatisticsVO {
@@ -109,5 +116,5 @@ export interface UserProfileCommentVO {
   likeCount: number
 }
 export const getProfileApi = (id: number, params: ProfileQuery, signal?: AbortSignal) => {
-  return request.get<Result<UserProfileVO>>(`/api/profile/${id}`, { params, signal })
+  return request.get<Result<ProfileResponse>>(`/api/profile/${id}`, { params, signal, publicRead: true })
 }

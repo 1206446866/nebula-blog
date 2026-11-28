@@ -6,6 +6,7 @@ import ts from 'typescript'
 import { compileScript, parse } from '@vue/compiler-sfc'
 import * as vue from 'vue'
 import * as searchUtils from '../src/utils/site-search.ts'
+import * as httpError from '../src/utils/http-error.ts'
 import { publicationTime } from '../src/utils/publication-time.ts'
 
 test('publication times are interpreted in Shanghai even when the browser uses another timezone', () => {
@@ -75,6 +76,9 @@ function harness(path, query, api) {
     hasPermission() {
       return true
     },
+    canReadPublic() {
+      return !this.token || this.hasPermission()
+    },
   })
   const routes = [],
     cleanups = []
@@ -101,6 +105,7 @@ function harness(path, query, api) {
     },
     '@/api/search': { searchSite: api },
     '@/utils/site-search': searchUtils,
+    '@/utils/http-error': httpError,
     '@/utils/date': { formatDateTime: (value) => value },
     '@/stores/auth': { useAuthStore: () => auth },
     '@/views/home/profile/ProfilePagination.vue': {},

@@ -71,7 +71,7 @@ import { formatDateTime } from '@/utils/date'
 import type { ArticleVO } from '@/api/article'
 import type { CategoryVO } from '@/api/category'
 import type { TagVO } from '@/api/tag'
-import type { UserVO } from '@/api/user'
+import type { PublicUserVO } from '@/api/user'
 
 import { useArticleHero } from '../logic/useArticleHero'
 
@@ -79,7 +79,7 @@ const props = defineProps<{
   article: ArticleVO
   category?: CategoryVO
   tags: TagVO[]
-  author?: UserVO
+  author?: PublicUserVO
 }>()
 
 const { avatarUrl, readingMinutes, compactCount, goAuthor, goCategory, goTag } =

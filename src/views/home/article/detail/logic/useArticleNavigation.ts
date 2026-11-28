@@ -1,5 +1,5 @@
 import { type ArticleVO, likeArticleApi } from '@/api/article.ts'
-import { useAuthStore } from '@/stores/auth'
+import { useLoginPrompt } from '@/composables/useLoginPrompt'
 import { ElMessage } from 'element-plus'
 import { ref, watch } from 'vue'
 import { useRouter } from 'vue-router'
@@ -21,7 +21,7 @@ export function useArticleNavigation(
     ...props.article,
   })
   const liking = ref(false)
-  const auth = useAuthStore()
+  const { requireLogin } = useLoginPrompt()
 
   watch(
     () => props.article,
@@ -38,10 +38,7 @@ export function useArticleNavigation(
   }
   const like = async () => {
     if (liking.value || props.article.status !== 1) return
-    if (!auth.getToken()) {
-      ElMessage.warning('请先登录')
-      return
-    }
+    if (!requireLogin()) return
 
     const articleId = props.article.id
     liking.value = true

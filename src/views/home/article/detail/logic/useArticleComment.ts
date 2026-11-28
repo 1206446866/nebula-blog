@@ -10,12 +10,15 @@ export function useArticleComment(props: Readonly<{ articleId: number; authorId?
   const loading = ref(false)
   const error = ref(false)
   let requestId = 0
+  let controller: AbortController | undefined
   const loadComments = async () => {
     const id = ++requestId
+    controller?.abort()
+    controller = new AbortController()
     loading.value = true
     error.value = false
     try {
-      const res = await getCommentThreadsApi(props.articleId, page.value, pageSize)
+      const res = await getCommentThreadsApi(props.articleId, page.value, pageSize, controller.signal)
       if (id !== requestId) return
       const last = Math.max(1, Math.ceil(res.data.totalRow / pageSize))
       if (page.value > last) {
@@ -54,6 +57,7 @@ export function useArticleComment(props: Readonly<{ articleId: number; authorId?
 
   onBeforeUnmount(() => {
     requestId++
+    controller?.abort()
   })
 
   return {

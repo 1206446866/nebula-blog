@@ -104,6 +104,10 @@ export const useAuthStore = defineStore('auth', {
       return this.roles.includes(Role.SUPER_ADMIN) || this.permissions.includes(permission)
     },
 
+    canReadPublic(permission: string) {
+      return !this.token || this.hasPermission(permission)
+    },
+
     hasAnyPermission(permissions: string[]) {
       return permissions.some((permission) => this.hasPermission(permission))
     },
@@ -146,13 +150,19 @@ export const useAuthStore = defineStore('auth', {
     },
 
     clearAuth(clearPrivate = false) {
+      const previousToken = this.token
       const previousId = this.user?.id ?? tokenAccountId(this.token)
       this.verifiedToken = ''
       this.token = ''
       this.user = null
       this.roles = []
       this.permissions = []
-      persistAuth(localStorage, this)
+      // 迟到的过期处理不能移除另一个标签页刚保存的新会话。
+      try {
+        if ((localStorage.getItem('token') ?? '') === previousToken) persistAuth(localStorage, this)
+      } catch {
+        /* 存储不可用时，内存会话仍会清理。 */
+      }
       if (clearPrivate) clearWritingCache(localStorage, previousId)
     },
 

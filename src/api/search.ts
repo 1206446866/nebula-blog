@@ -19,4 +19,4 @@ export interface SearchResult {
   windowLimited?: boolean
 }
 export const searchSite = (q: string, type: SearchType, current: number, signal?: AbortSignal) =>
-  request.get<Result<SearchResult>>('/search', { params: { q, type, current, size: 12 }, signal })
+  request.get<Result<SearchResult>>('/search', { params: { q, type, current, size: 12 }, signal, publicRead: true, silentError: true })

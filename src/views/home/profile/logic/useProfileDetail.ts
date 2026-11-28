@@ -1,4 +1,4 @@
-import type { UserProfileVO } from '@/api/profile.ts'
+import { signedProfile, type ProfileResponse } from '@/api/profile.ts'
 import { useAuthStore } from '@/stores/auth'
 import type { EmitFn } from 'vue'
 import { computed, ref, useId, watch } from 'vue'
@@ -7,12 +7,13 @@ export type TabType = 'article' | 'comment' | 'draft'
 
 /** 管理个人动态与分页切换的状态与交互。 */
 export function useProfileDetail(
-  props: Readonly<{ profile: UserProfileVO | null; isSelf: boolean; loading: boolean }>,
+  props: Readonly<{ profile: ProfileResponse | null; isSelf: boolean; loading: boolean }>,
   emit: EmitFn<{ 'page-change': [type: TabType, page: number] }>,
 ) {
   const activeTab = ref<TabType>('article')
   const auth = useAuthStore()
   const tabId = useId()
+  const privateProfile = computed(() => props.isSelf ? signedProfile(props.profile) : null)
   const tabs = computed(() => [
     {
       id: 'article' as const,
@@ -29,7 +30,7 @@ export function useProfileDetail(
           {
             id: 'draft' as const,
             label: '我的草稿',
-            count: props.profile?.draftArticles?.totalRow ?? 0,
+            count: privateProfile.value?.draftArticles?.totalRow ?? 0,
           },
         ]
       : []),
@@ -39,12 +40,12 @@ export function useProfileDetail(
       ? props.profile?.publicArticles
       : activeTab.value === 'comment'
         ? props.profile?.comments
-        : props.profile?.draftArticles,
+        : privateProfile.value?.draftArticles,
   )
   const articles = computed(() => props.profile?.publicArticles?.records ?? [])
   const comments = computed(() => props.profile?.comments?.records ?? [])
-  const drafts = computed(() => props.profile?.draftArticles?.records ?? [])
-  const loginRecords = computed(() => (props.isSelf ? (props.profile?.loginLogs ?? []) : []))
+  const drafts = computed(() => privateProfile.value?.draftArticles?.records ?? [])
+  const loginRecords = computed(() => privateProfile.value?.loginLogs ?? [])
   const emptyText = computed(
     () =>
       ({ article: '还没有发布文章', comment: '还没有公开评论', draft: '还没有保存草稿' })[

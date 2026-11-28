@@ -1,4 +1,4 @@
-import type { UserProfileVO } from '@/api/profile.ts'
+import { signedProfile, type ProfileResponse } from '@/api/profile.ts'
 import { updateSelfNameApi } from '@/api/user.ts'
 import { useUploadAvatar } from '@/composables/useUploadAvatar'
 import { UserStatus } from '@/enum/userStatus.js'
@@ -10,7 +10,7 @@ import { computed, ref, watch } from 'vue'
 /** 管理个人头像与昵称的状态与交互。 */
 export function useProfileHeader(
   props: Readonly<{
-    profile: UserProfileVO | null
+    profile: ProfileResponse | null
     isSelf: boolean
   }>,
   emit: {
@@ -19,12 +19,13 @@ export function useProfileHeader(
 ) {
   const username = computed(() => props.profile?.userProfileInfoVO.username ?? '')
   const avatarText = computed(() => username.value?.charAt(0) ?? 'U')
-  const roles = computed(() => props.profile?.userProfileInfoVO.roles ?? [])
+  const account = computed(() => signedProfile(props.profile)?.userProfileInfoVO)
+  const roles = computed(() => account.value?.roles ?? [])
   const statusText = computed(() => {
-    return props.profile?.userProfileInfoVO.status === UserStatus.NORMAL ? 'Active' : 'Disabled'
+    return account.value?.status === UserStatus.NORMAL ? 'Active' : 'Disabled'
   })
   const statusColor = computed(() => {
-    return props.profile?.userProfileInfoVO.status === UserStatus.NORMAL
+    return account.value?.status === UserStatus.NORMAL
       ? '#34d399' // 绿
       : '#ef4444' // 红
   })
@@ -103,6 +104,7 @@ export function useProfileHeader(
   }
 
   return {
+    account,
     username,
     avatarText,
     roles,

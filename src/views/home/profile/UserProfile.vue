@@ -2,7 +2,7 @@
   <section class="user-profile-page" :aria-busy="loading">
     <template v-if="profile">
       <ProfileHeader :profile="profile" :is-self="isSelf" @refresh="loadProfile" />
-      <ProfileConnections :user-id="profile.userProfileInfoVO.id" />
+      <ProfileConnections v-if="isSignedIn && clientFeatures.community" :user-id="profile.userProfileInfoVO.id" />
       <ProfileInfo :profile="profile" :is-self="isSelf" />
       <div v-if="errorMessage" class="profile-alert" role="alert">
         {{ errorMessage }}<button type="button" @click="loadProfile">重新加载</button>
@@ -36,10 +36,11 @@ import ProfileConnections from '@/components/community/ProfileConnections.vue'
 import ProfileInfo from './ProfileInfo.vue'
 import ProfileDetail from './ProfileDetail.vue'
 import { RouterLink } from 'vue-router'
+import { clientFeatures } from '@/constants/client-features'
 
 import { useUserProfile } from './logic/useUserProfile'
 
-const { profile, isSelf, loading, errorMessage, errorCode, handlePageChange, loadProfile } =
+const { profile, isSelf, isSignedIn, loading, errorMessage, errorCode, handlePageChange, loadProfile } =
   useUserProfile()
 </script>
 

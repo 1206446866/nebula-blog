@@ -17,11 +17,11 @@ const settle = async () => {
   await vue.nextTick()
 }
 
-async function harness(loader = async () => new Blob(['image'], { type: 'image/png' })) {
+async function harness(loader = async () => new Blob(['image'], { type: 'image/png' }), guest = false) {
   const calls = [],
     revoked = [],
     made = []
-  const token = vue.ref('owner')
+  const token = vue.ref(guest ? '' : 'owner')
   const html = vue.ref(markup)
   const module = { exports: {} }
   const code = ts.transpileModule(
@@ -32,7 +32,11 @@ async function harness(loader = async () => new Blob(['image'], { type: 'image/p
     vue,
     '@/api/media': {
       mediaImageApi: (path, signal) => {
-        calls.push({ path, signal })
+        calls.push({ path, signal, private: true })
+        return loader()
+      },
+      publicMediaImageApi: (path, signal) => {
+        calls.push({ path, signal, private: false })
         return loader()
       },
     },
@@ -63,7 +67,7 @@ async function harness(loader = async () => new Blob(['image'], { type: 'image/p
   const app = vue.createApp({
     setup() {
       const root = vue.ref(null)
-      module.exports.useMediaImages(root, html)
+      module.exports.useMediaImages(root, html, guest)
       return () => vue.h('div', { ref: root, innerHTML: html.value })
     },
   })
@@ -82,6 +86,20 @@ async function harness(loader = async () => new Blob(['image'], { type: 'image/p
     },
   }
 }
+test('游客文章通过公开接口读取图片，登录后释放旧的对象地址', async () => {
+  const h = await harness(undefined, true)
+  try {
+    assert.equal(h.calls[0].private, false)
+    assert.equal(h.host.querySelector('img').getAttribute('src'), 'blob:media-0')
+    h.token.value = 'signed-in'
+    await settle()
+    assert.equal(h.calls[0].signal.aborted, true)
+    assert.deepEqual(h.revoked, ['blob:media-0'])
+    assert.equal(h.calls[1].private, true)
+  } finally {
+    h.dispose()
+  }
+})
 test('typing reuses the loaded image and removing it releases the object URL', async () => {
   const h = await harness()
   try {

@@ -1,8 +1,11 @@
 <script setup lang="ts">
-import { toRef } from 'vue'
+import { computed, toRef } from 'vue'
+import { useAuthStore } from '@/stores/auth'
 import { useReadingTools } from '../logic/useReadingTools'
 import { useArticleDownload } from '../logic/useArticleDownload'
 const props = defineProps<{ articleId: number; enabled: boolean; title: string }>()
+const auth = useAuthStore()
+const guest = computed(() => !auth.getToken())
 const { downloading, download } = useArticleDownload(
   toRef(props, 'articleId'),
   toRef(props, 'title'),
@@ -15,13 +18,13 @@ const { state, ready, busy, resumePending, resumePercent, error, load, toggle, r
   <section v-if="enabled" class="reading-tools" aria-label="私人阅读工具">
     <div class="reading-actions">
       <span class="reading-caption">留住这一束星光</span>
-      <button :disabled="!ready || busy" :aria-pressed="state.favorite" @click="toggle('favorite')">
+      <button :disabled="!guest && (!ready || busy)" :aria-pressed="state.favorite" @click="toggle('favorite')">
         {{ state.favorite ? '◆ 已收藏' : '◇ 收藏' }}
       </button>
-      <button :disabled="!ready || busy" :aria-pressed="state.later" @click="toggle('later')">
+      <button :disabled="!guest && (!ready || busy)" :aria-pressed="state.later" @click="toggle('later')">
         {{ state.later ? '◷ 已加入稍后读' : '◷ 稍后读' }}
       </button>
-      <RouterLink to="/library">我的书架 ↗</RouterLink>
+      <RouterLink v-if="!guest" to="/library">我的书架 ↗</RouterLink>
       <details>
         <summary>导出文章 ↓</summary>
         <div class="download-menu">

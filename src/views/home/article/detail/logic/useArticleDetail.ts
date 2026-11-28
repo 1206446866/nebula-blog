@@ -1,7 +1,7 @@
 import { type ArticleVO, getArticleByIdApi } from '@/api/article'
 import { type CategoryVO, listCategoryApi } from '@/api/category'
 import { listTagApi, type TagVO } from '@/api/tag'
-import { getUserById, type UserVO } from '@/api/user.ts'
+import { getUserById, type PublicUserVO } from '@/api/user.ts'
 import { useAuthStore } from '@/stores/auth'
 import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import { useRoute } from 'vue-router'
@@ -16,7 +16,8 @@ export function useArticleDetail() {
   const loadError = ref(false)
   const articleLoading = ref(false)
   const article = ref<ArticleVO>()
-  const currentAuthor = ref<UserVO>()
+  const currentAuthor = ref<PublicUserVO>()
+  const metadata = new AbortController()
   const categories = ref<CategoryVO[]>([])
   const tags = ref<TagVO[]>([])
   const currentCategory = computed(() =>
@@ -56,8 +57,8 @@ export function useArticleDetail() {
   }
   const fetchMeta = async () => {
     const [categoriesResult, tagsResult] = await Promise.allSettled([
-      auth.hasPermission('category:list') ? listCategoryApi() : null,
-      auth.hasPermission('tag:list') ? listTagApi() : null,
+      auth.canReadPublic('category:list') ? listCategoryApi(metadata.signal) : null,
+      auth.canReadPublic('tag:list') ? listTagApi(metadata.signal) : null,
     ])
 
     const categoryRes = categoriesResult.status === 'fulfilled' ? categoriesResult.value : null
@@ -79,6 +80,7 @@ export function useArticleDetail() {
   onBeforeUnmount(() => {
     articleRequest++
     controller?.abort()
+    metadata.abort()
   })
 
   return {

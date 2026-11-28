@@ -1,5 +1,6 @@
 <script setup lang="ts">
-import { computed, reactive, ref } from 'vue'
+import { computed, reactive, ref, watch } from 'vue'
+import { useRoute } from 'vue-router'
 import LoginForm from './components/LoginForm.vue'
 import RegisterSelect from './components/RegisterSelect.vue'
 import EmailRegisterForm from './components/EmailRegisterForm.vue'
@@ -12,7 +13,8 @@ defineOptions({
 
 type Mode = 'login' | 'register-select' | 'email-register' | 'phone-register'
 const emailCaptchaExpireTime = ref(0)
-const mode = ref<Mode>('login')
+const route = useRoute()
+const mode = ref<Mode>(route.query.mode === 'register' ? 'register-select' : 'login')
 const direction = ref<'next' | 'prev'>('next')
 const componentMap = {
   login: LoginForm,
@@ -56,6 +58,7 @@ const changeMode = (value: Mode) => {
 
   mode.value = value
 }
+watch(() => route.query.mode, (value) => changeMode(value === 'register' ? 'register-select' : 'login'))
 </script>
 
 <template>

@@ -27,9 +27,10 @@ export const getArticleSeriesApi = (mine: boolean, current: number, signal?: Abo
   request.get<Result<{ records: ArticleSeries[]; total: number }>>('/series', {
     params: { mine, current },
     signal,
+    publicRead: !mine,
   })
 export const getSeriesDetailApi = (id: number, editing = false, signal?: AbortSignal) =>
-  request.get<Result<SeriesDetail>>(`/series/${id}${editing ? '/edit' : ''}`, { signal })
+  request.get<Result<SeriesDetail>>(`/series/${id}${editing ? '/edit' : ''}`, { signal, publicRead: !editing })
 export const saveArticleSeriesApi = (id: number | undefined, data: SeriesInput) =>
   id
     ? request.put<Result<number>>(`/series/${id}`, data)
@@ -37,4 +38,4 @@ export const saveArticleSeriesApi = (id: number | undefined, data: SeriesInput) 
 export const deleteArticleSeriesApi = (id: number) =>
   request.delete<Result<boolean>>(`/series/${id}`)
 export const getArticleSeriesLinksApi = (id: number, signal?: AbortSignal) =>
-  request.get<Result<ArticleSeries[]>>(`/series/for-article/${id}`, { signal, silentError: true })
+  request.get<Result<ArticleSeries[]>>(`/series/for-article/${id}`, { signal, silentError: true, publicRead: true })
